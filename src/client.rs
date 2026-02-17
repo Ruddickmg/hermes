@@ -2,6 +2,41 @@
 //!
 //! This module provides a client for the Agent Client Protocol (APC) that integrates
 //! with Neovim through nvim-oxi bindings.
+//!
+//! The client implements the `Client` trait from the `agent-client-protocol` crate,
+//! providing handlers for session notifications, file system operations, and terminal
+//! management.
+//!
+//! # Architecture
+//!
+//! The APC client follows clean code principles:
+//! - **Single Responsibility**: Each component has a clear, focused purpose
+//! - **Dependency Injection**: Configuration is injected via `ClientConfig`
+//! - **Open/Closed Principle**: Extensible through trait implementation
+//! - **Interface Segregation**: Clean trait boundaries with optional capabilities
+//!
+//! # Example
+//!
+//! ```
+//! use hermes::client::{ApcClient, ClientConfig};
+//! use agent_client_protocol::Client;
+//!
+//! // Create a client with default configuration
+//! let config = ClientConfig::default();
+//! let client = ApcClient::new(config);
+//!
+//! // Client is ready to handle APC protocol messages
+//! assert_eq!(client.config().name, "hermes");
+//! ```
+//!
+//! # Capabilities
+//!
+//! The client supports configurable capabilities:
+//! - **File System**: Read and write text files (controlled by `enable_fs`)
+//! - **Terminal**: Execute commands in terminals (controlled by `enable_terminal`)
+//!
+//! When a capability is disabled, the client returns `Error::method_not_found()`
+//! for related operations.
 
 use agent_client_protocol::{
     Client, CreateTerminalRequest, CreateTerminalResponse, ReadTextFileRequest,
@@ -12,15 +47,40 @@ use agent_client_protocol::{
 };
 
 /// Configuration for the APC client
+///
+/// This structure controls the behavior and capabilities of the APC client.
+/// All fields are immutable after construction to ensure thread-safety.
+///
+/// # Examples
+///
+/// ```
+/// use hermes::client::ClientConfig;
+///
+/// // Use default configuration
+/// let config = ClientConfig::default();
+/// assert_eq!(config.name, "hermes");
+///
+/// // Create custom configuration
+/// let custom = ClientConfig {
+///     name: "my-editor".to_string(),
+///     version: "1.0.0".to_string(),
+///     enable_fs: true,
+///     enable_terminal: false,
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
-    /// Client name
+    /// Client name (typically the editor name)
     pub name: String,
-    /// Client version
+    /// Client version (semantic versioning recommended)
     pub version: String,
-    /// Enable file system capabilities
+    /// Enable file system read/write capabilities
+    ///
+    /// When `false`, file system operations will return `Error::method_not_found()`
     pub enable_fs: bool,
-    /// Enable terminal capabilities
+    /// Enable terminal execution capabilities
+    ///
+    /// When `false`, terminal operations will return `Error::method_not_found()`
     pub enable_terminal: bool,
 }
 
@@ -37,8 +97,44 @@ impl Default for ClientConfig {
 
 /// APC Client for Neovim
 ///
-/// This client handles communication between Neovim and an APC server,
-/// following clean code principles with clear separation of concerns.
+/// This client implements the Agent Client Protocol (APC) for use with Neovim.
+/// It handles communication between Neovim and APC-compliant agents, managing
+/// session notifications, file operations, and terminal execution.
+///
+/// # Thread Safety
+///
+/// The client is `Clone` and can be shared across different parts of your application.
+/// However, note that the underlying `Client` trait uses `?Send`, so async operations
+/// must complete on the same thread where they started.
+///
+/// # Examples
+///
+/// ```
+/// use hermes::client::{ApcClient, ClientConfig};
+/// use agent_client_protocol::{Client, SessionNotification, SessionId, SessionUpdate};
+/// use agent_client_protocol::{ContentChunk, ContentBlock, TextContent};
+///
+/// # async fn example() -> agent_client_protocol::Result<()> {
+/// // Create and configure the client
+/// let config = ClientConfig {
+///     name: "neovim".to_string(),
+///     version: "0.10.0".to_string(),
+///     enable_fs: true,
+///     enable_terminal: true,
+/// };
+/// let client = ApcClient::new(config);
+///
+/// // Handle a session notification
+/// let notification = SessionNotification::new(
+///     SessionId::new("session-1"),
+///     SessionUpdate::AgentMessageChunk(ContentChunk::new(
+///         ContentBlock::Text(TextContent::new("Hello from agent"))
+///     )),
+/// );
+/// client.session_notification(notification).await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct ApcClient {
     config: ClientConfig,
@@ -49,7 +145,7 @@ impl ApcClient {
     ///
     /// # Arguments
     ///
-    /// * `config` - Client configuration
+    /// * `config` - Client configuration specifying name, version, and enabled capabilities
     ///
     /// # Examples
     ///
@@ -58,12 +154,22 @@ impl ApcClient {
     ///
     /// let config = ClientConfig::default();
     /// let client = ApcClient::new(config);
+    /// assert_eq!(client.config().name, "hermes");
     /// ```
     pub fn new(config: ClientConfig) -> Self {
         Self { config }
     }
 
-    /// Gets the client configuration
+    /// Gets a reference to the client configuration
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hermes::client::{ApcClient, ClientConfig};
+    ///
+    /// let client = ApcClient::new(ClientConfig::default());
+    /// assert!(client.config().enable_fs);
+    /// ```
     pub fn config(&self) -> &ClientConfig {
         &self.config
     }
