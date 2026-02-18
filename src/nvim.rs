@@ -19,7 +19,7 @@
 //!
 //! ```
 //! use hermes::nvim::{PluginState, setup};
-//! use hermes::client::ClientConfig;
+//! use hermes::apc::client::ClientConfig;
 //!
 //! // Create plugin state with default configuration
 //! let state = PluginState::new();
@@ -38,7 +38,7 @@
 //! assert!(result.is_ok());
 //! ```
 
-use crate::client::{ApcClient, ClientConfig};
+use crate::apc::client::{ApcClient, ClientConfig};
 use nvim_oxi::Dictionary;
 use std::sync::Arc;
 
@@ -51,11 +51,11 @@ pub enum NvimError {
     /// Failed to initialize the APC client
     #[error("Failed to initialize client: {0}")]
     InitializationError(String),
-    
+
     /// Client is not connected to an agent
     #[error("Client not connected")]
     NotConnected,
-    
+
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
@@ -193,10 +193,11 @@ mod tests {
         let config = ClientConfig {
             name: "test".to_string(),
             version: "1.0.0".to_string(),
-            enable_fs: true,
-            enable_terminal: false,
+            fs_read_access: true,
+            fs_write_access: true,
+            terminal_access: false,
         };
-        
+
         let state = PluginState::with_config(config);
         assert!(std::ptr::addr_of!(state.client).is_aligned());
     }

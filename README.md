@@ -1,6 +1,6 @@
 # hermes
 
-APC (Agent Client Protocol) client for Neovim, built with Rust using `agent-client-protocol`, `nvim-oxi`, and `nvim-utils`.
+APC (Agent Client Protocol) client
 
 ## Overview
 
@@ -14,6 +14,9 @@ Hermes is a clean, well-tested implementation of an Agent Client Protocol client
 - ✅ Clean architecture following SOLID principles
 - ✅ Extensive API documentation
 - ✅ Security-focused with no known vulnerabilities
+- [ ] send files
+- [ ] send text
+- [ ] send images 
 
 ## Quick Start
 

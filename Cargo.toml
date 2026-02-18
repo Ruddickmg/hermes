@@ -8,14 +8,17 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 agent-client-protocol = "0.9.4"
+anyhow = "1.0"
+async-trait = "0.1"
 nvim-oxi = { version = "0.6.0", features = ["neovim-0-10"] }
 nvim-utils = "0.1.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.49", features = ["full"] }
-anyhow = "1.0"
 thiserror = "2.0"
-async-trait = "0.1"
+tokio = { version = "1.49", features = ["full"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+uuid = "1.21.0"
 
 [dev-dependencies]
+env_logger = "0.11"
 tokio-test = "0.4"

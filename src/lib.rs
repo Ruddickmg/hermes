@@ -20,11 +20,11 @@
 //! assert_eq!(client.config().name, "hermes");
 //! ```
 
-pub mod client;
+pub mod apc;
 pub mod nvim;
 
 // Re-export commonly used types
-pub use client::{ApcClient, ClientConfig};
+pub use apc::client::{ApcClient, ClientConfig};
 pub use nvim::{PluginState, setup};
 
 #[cfg(test)]
@@ -39,4 +39,3 @@ mod tests {
         let _state = PluginState::default();
     }
 }
-
