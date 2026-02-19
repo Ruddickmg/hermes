@@ -1,10 +1,12 @@
+use crate::apc::error::Error as ApcError;
 use agent_client_protocol::{
-    Client, CreateTerminalRequest, CreateTerminalResponse, Error, ReadTextFileRequest,
-    ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
+    Client, ContentBlock, CreateTerminalRequest, CreateTerminalResponse, Error,
+    ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
     RequestPermissionRequest, RequestPermissionResponse, Result, SessionNotification,
     SessionUpdate, TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
     WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
 };
+use nvim_oxi::Error;
 
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
@@ -32,6 +34,10 @@ pub struct ApcClient {
     config: ClientConfig,
 }
 
+pub enum ApcEvent {
+    Error(ApcError),
+}
+
 impl ApcClient {
     pub fn new(config: ClientConfig) -> Self {
         Self { config }
@@ -39,6 +45,20 @@ impl ApcClient {
 
     pub fn config(&self) -> &ClientConfig {
         &self.config
+    }
+}
+
+pub fn handle_content_chunk(content: ContentBlock) -> Result<()> {
+    match content {
+        ContentBlock::Resource(block) => {
+            println!("resource: {:?}", block.resource);
+            Ok(())
+        }
+        ContentBlock::ResourceLink(_) => Ok(()),
+        ContentBlock::Audio(_) => Err(Error::method_not_found()),
+        ContentBlock::Image(_) => Ok(()),
+        ContentBlock::Text(_) => Ok(()),
+        _ => Err(Error::method_not_found()),
     }
 }
 
@@ -53,39 +73,34 @@ impl Client for ApcClient {
 
     async fn session_notification(&self, args: SessionNotification) -> Result<()> {
         match args.update {
-            SessionUpdate::UserMessageChunk(chunk) => {}
-            SessionUpdate::AgentMessageChunk(_) => {}
-            SessionUpdate::AgentThoughtChunk(_) => {}
-            SessionUpdate::ToolCall(_) => {}
-            SessionUpdate::ToolCallUpdate(_) => {}
-            SessionUpdate::Plan(_) => {}
-            SessionUpdate::AvailableCommandsUpdate(_) => {}
-            SessionUpdate::CurrentModeUpdate(_) => {}
-            SessionUpdate::ConfigOptionUpdate(_) => {}
-            _ => {}
+            SessionUpdate::UserMessageChunk(chunk) => handle_content_chunk(chunk.content),
+            SessionUpdate::AgentMessageChunk(chunk) => handle_content_chunk(chunk.content),
+            SessionUpdate::AgentThoughtChunk(chunk) => handle_content_chunk(chunk.content),
+            SessionUpdate::ToolCall(_) => Ok(()),
+            SessionUpdate::ToolCallUpdate(_) => Ok(()),
+            SessionUpdate::Plan(_) => Ok(()),
+            SessionUpdate::AvailableCommandsUpdate(_) => Ok(()),
+            SessionUpdate::CurrentModeUpdate(_) => Ok(()),
+            SessionUpdate::ConfigOptionUpdate(_) => Ok(()),
+            _ => Err(Error::method_not_found()),
         }
-        Ok(())
     }
 
-    /// Writes content to a text file in the client's file system.
     async fn write_text_file(&self, _args: WriteTextFileRequest) -> Result<WriteTextFileResponse> {
-        if !self.config.fs_write_access {
-            return Err(Error::method_not_found());
+        if self.config.fs_write_access {
+            Ok(WriteTextFileResponse::new())
+        } else {
+            Err(Error::method_not_found())
         }
-        // Implementation would use Neovim's file operations
-        Err(Error::method_not_found())
     }
 
-    /// Reads content from a text file in the client's file system.
     async fn read_text_file(&self, _args: ReadTextFileRequest) -> Result<ReadTextFileResponse> {
         if !self.config.fs_write_access {
             return Err(Error::method_not_found());
         }
-        // Implementation would use Neovim's file operations
         Err(Error::method_not_found())
     }
 
-    /// Executes a command in a new terminal
     async fn create_terminal(
         &self,
         _args: CreateTerminalRequest,
