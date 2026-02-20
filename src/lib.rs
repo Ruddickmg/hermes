@@ -29,13 +29,14 @@ pub use nvim::{PluginState, setup};
 
 #[cfg(test)]
 mod tests {
+    use crate::nvim::producer::EventHandler;
+
     use super::*;
 
     #[test]
     fn test_library_exports() {
-        // Verify that the main types can be constructed
         let config = ClientConfig::default();
-        let _client = ApcClient::new(config);
+        let _client = ApcClient::new(config, EventHandler::default());
         let _state = PluginState::default();
     }
 }

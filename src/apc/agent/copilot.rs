@@ -1,9 +1,11 @@
 use crate::{ApcClient, apc::error::Error};
-use agent_client_protocol::ClientSideConnection;
+use agent_client_protocol::{Client, ClientSideConnection};
 use std::{process::Stdio, sync::Arc};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-pub fn copilot(client: Arc<ApcClient>) -> Result<ClientSideConnection, Error> {
+pub fn copilot<H: Client + 'static>(
+    client: Arc<ApcClient<H>>,
+) -> Result<ClientSideConnection, Error> {
     let mut child = tokio::process::Command::new("npx")
         .args(["-y", "@github/copilot-language-server@latest", "--acp"])
         .stdin(Stdio::piped())

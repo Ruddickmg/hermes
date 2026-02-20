@@ -1,62 +1,21 @@
-//! Neovim integration module
-//!
-//! This module provides the bridge between the APC client and Neovim,
-//! using nvim-oxi and nvim-utils for plugin functionality.
-//!
-//! # Architecture
-//!
-//! The Neovim integration follows clean code principles:
-//! - **Separation of Concerns**: Plugin state is separate from client logic
-//! - **Dependency Management**: Uses Arc for shared ownership
-//! - **Error Handling**: Custom error types for clear error messages
-//!
-//! # Usage
-//!
-//! This module is designed to be used from Neovim plugin code. The `PluginState`
-//! manages the APC client instance and provides access to it from Neovim commands.
-//!
-//! # Example
-//!
-//! ```
-//! use hermes::nvim::{PluginState, setup};
-//! use hermes::apc::client::ClientConfig;
-//!
-//! // Create plugin state with default configuration
-//! let state = PluginState::new();
-//!
-//! // Or with custom configuration
-//! let config = ClientConfig {
-//!     name: "my-nvim".to_string(),
-//!     version: "1.0.0".to_string(),
-//!     enable_fs: true,
-//!     enable_terminal: true,
-//! };
-//! let custom_state = PluginState::with_config(config);
-//!
-//! // Setup plugin (called from Neovim)
-//! let result = setup();
-//! assert!(result.is_ok());
-//! ```
+pub mod event;
+pub mod producer;
 
-use crate::apc::client::{ApcClient, ClientConfig};
-use nvim_oxi::Dictionary;
+use crate::{
+    apc::client::{ApcClient, ClientConfig},
+    nvim::producer::EventHandler,
+};
+use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
 use std::sync::Arc;
 
-/// Error types for Neovim integration
-///
-/// These errors represent issues specific to the Neovim integration layer,
-/// separate from the underlying APC protocol errors.
 #[derive(Debug, thiserror::Error)]
 pub enum NvimError {
-    /// Failed to initialize the APC client
     #[error("Failed to initialize client: {0}")]
     InitializationError(String),
 
-    /// Client is not connected to an agent
     #[error("Client not connected")]
     NotConnected,
 
-    /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
 }
@@ -79,7 +38,7 @@ pub enum NvimError {
 /// let client = state.client();
 /// ```
 pub struct PluginState {
-    client: Arc<ApcClient>,
+    client: Arc<ApcClient<EventHandler>>,
 }
 
 impl PluginState {
@@ -96,7 +55,7 @@ impl PluginState {
     pub fn new() -> Self {
         let config = ClientConfig::default();
         Self {
-            client: Arc::new(ApcClient::new(config)),
+            client: Arc::new(ApcClient::new(config, EventHandler::default())),
         }
     }
 
@@ -123,7 +82,7 @@ impl PluginState {
     /// ```
     pub fn with_config(config: ClientConfig) -> Self {
         Self {
-            client: Arc::new(ApcClient::new(config)),
+            client: Arc::new(ApcClient::new(config, EventHandler::default())),
         }
     }
 
@@ -141,7 +100,7 @@ impl PluginState {
     /// let client = state.client();
     /// assert!(client.config().enable_fs);
     /// ```
-    pub fn client(&self) -> &Arc<ApcClient> {
+    pub fn client(&self) -> &Arc<ApcClient<EventHandler>> {
         &self.client
     }
 }
@@ -174,6 +133,9 @@ impl Default for PluginState {
 /// assert!(result.is_ok());
 /// ```
 pub fn setup() -> nvim_oxi::Result<Dictionary> {
+    // Create the Hermes augroup for plugin autocommands
+    let _hermes_group = nvim_oxi::api::create_augroup("Hermes", &CreateAugroupOpts::default())?;
+
     Ok(Dictionary::new())
 }
 
