@@ -9,7 +9,7 @@ Hermes is a messaging layer for Neovim, not a complete AI assistant. It has no b
 Hermes focuses on:
 - APIs for making requests to AI Assistants (prompt, connect, authenticate, etc)
 - Hooks into requests from AI assistants that require responses (permission requests, access requests, etc)
-- Trigger autocommands for updates on communication between the user (client) and assistant (agent) 
+- Autocommands for updates on communication between the user (client) and assistant (agent) 
 
 ## Features
 
