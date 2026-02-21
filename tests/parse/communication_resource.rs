@@ -151,7 +151,7 @@ fn test_resource_event_with_annotations_last_modified() {
     let annotations_dict = dict.get("annotations").unwrap();
     let expected_dict = {
         let mut d = nvim_oxi::Dictionary::new();
-        d.insert("last_modified", "2024-01-01");
+        d.insert("lastModified", "2024-01-01");
         d
     };
     assert_eq!(*annotations_dict, nvim_oxi::Object::from(expected_dict));

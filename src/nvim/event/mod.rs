@@ -1,3 +1,4 @@
+pub mod annotations;
 pub mod available_commands;
 pub mod communication;
 pub mod config_option;

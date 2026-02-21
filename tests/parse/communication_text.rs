@@ -50,12 +50,8 @@ fn test_text_event_with_annotations() {
     let (dict, _) = text_event(text).unwrap();
 
     let annotations_value = dict.get("annotations").unwrap();
-    assert_eq!(
-        *annotations_value,
-        nvim_oxi::Object::from(
-            "Annotations { audience: None, last_modified: None, priority: None, meta: None }"
-        )
-    );
+    let expected_dict = nvim_oxi::Dictionary::new();
+    assert_eq!(*annotations_value, nvim_oxi::Object::from(expected_dict));
 }
 
 #[test]
@@ -86,11 +82,10 @@ fn test_text_event_with_annotations_and_meta() {
     assert_eq!(*text_value, nvim_oxi::Object::from("Full"));
 
     let annotations_value = dict.get("annotations").unwrap();
+    let expected_annotations = nvim_oxi::Dictionary::new();
     assert_eq!(
         *annotations_value,
-        nvim_oxi::Object::from(
-            "Annotations { audience: None, last_modified: None, priority: None, meta: None }"
-        )
+        nvim_oxi::Object::from(expected_annotations)
     );
 
     assert_eq!(dict.get("meta").is_some(), true);

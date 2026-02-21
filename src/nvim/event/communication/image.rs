@@ -1,3 +1,4 @@
+use crate::nvim::event::annotations::parse_annotations;
 use agent_client_protocol::{ImageContent, Result};
 use nvim_oxi::Dictionary;
 
@@ -9,7 +10,7 @@ pub fn image_event(image: ImageContent) -> Result<(Dictionary, String)> {
         dict.insert("uri", uri);
     }
     if let Some(annotations) = image.annotations {
-        dict.insert("annotations", format!("{:?}", annotations));
+        dict.insert("annotations", parse_annotations(annotations));
     }
     if let Some(meta) = image.meta {
         dict.insert("meta", format!("{:?}", meta));

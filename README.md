@@ -62,7 +62,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     <tr>
       <th>Autocommand</th>
       <th>Description</th>
-      <th>Data</th>
+      <th>Message Schema (args.data)</th>
     </tr>
   </thead>
   <tbody>
@@ -75,7 +75,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
   "type": "text",
   "annotations": {
     "audience": ["Role1", "Role2"],
-    "last_modified": "ISO8601 string",
+    "lastModified": "ISO8601 string",
     "priority": "number"
   },
   "meta": "JSON value"
@@ -106,7 +106,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     "mimeType": "string (optional)"
   },
   "type": "resource",
-  "annotations": { "audience": [], "last_modified": "string" },
+  "annotations": { "audience": [], "lastModified": "string" },
   "meta": "JSON value"
 }</code></pre></td>
     </tr>
@@ -162,7 +162,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     "mimeType": "string (optional)"
   },
   "type": "resource",
-  "annotations": { "audience": [], "last_modified": "string" },
+  "annotations": { "audience": [], "lastModified": "string" },
   "meta": "JSON value"
 }</code></pre></td>
     </tr>
@@ -218,7 +218,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     "mimeType": "string (optional)"
   },
   "type": "resource",
-  "annotations": { "audience": [], "last_modified": "string" },
+  "annotations": { "audience": [], "lastModified": "string" },
   "meta": "JSON value"
 }</code></pre></td>
     </tr>
@@ -284,7 +284,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
       <td>Fired when available commands are updated</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
-  "availableCommands": [
+  "commands": [
     {
       "name": "string",
       "description": "string",
@@ -321,10 +321,10 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
     <tr>
       <td><code>AgentConfigOption</code></td>
-      <td>Fired when configuration options are updated</td>
+      <td>Configuration option updates</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
-  "configOptions": [
+  "options": [
     {
       "id": "string",
       "name": "string",
@@ -334,17 +334,6 @@ Below is a list of all autocommands, their purpose, and the data passed into the
         "currentValue": "string",
         "options": [
           { "type": "ungrouped", "value": "string", "name": "string", "description": "string (optional)" },
-          { "type": "ungrouped", "value": "string", "name": "string" }
-        ]
-      }
-    },
-    {
-      "id": "string",
-      "name": "string",
-      "category": "string (optional)",
-      "kind": {
-        "currentValue": "string",
-        "options": [
           {
             "type": "grouped",
             "group": "string",
@@ -355,7 +344,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
           }
         ]
       }
-    }
+    },
   ],
   "meta": "JSON value (optional)"
 }</code></pre></td>

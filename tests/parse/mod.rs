@@ -1,3 +1,4 @@
+pub mod annotations;
 pub mod available_commands;
 pub mod communication_image;
 pub mod communication_resource;

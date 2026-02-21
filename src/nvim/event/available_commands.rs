@@ -19,7 +19,7 @@ pub fn available_commands_event(update: AvailableCommandsUpdate) -> Result<Dicti
         }
         dict
     });
-    data.insert("availableCommands", nvim_oxi::Array::from_iter(commands));
+    data.insert("commands", nvim_oxi::Array::from_iter(commands));
 
     if let Some(meta) = update.meta {
         data.insert("meta", format!("{:?}", meta));

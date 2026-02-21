@@ -76,12 +76,8 @@ fn test_image_event_with_annotations() {
     let (dict, _) = image_event(image).unwrap();
 
     let annotations_value = dict.get("annotations").unwrap();
-    assert_eq!(
-        *annotations_value,
-        nvim_oxi::Object::from(
-            "Annotations { audience: None, last_modified: None, priority: None, meta: None }"
-        )
-    );
+    let expected_dict = nvim_oxi::Dictionary::new();
+    assert_eq!(*annotations_value, nvim_oxi::Object::from(expected_dict));
 }
 
 #[test]
