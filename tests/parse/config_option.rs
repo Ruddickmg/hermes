@@ -48,11 +48,11 @@ fn test_config_option_event_with_option_id_and_name() {
 
     let mut select_dict = nvim_oxi::Dictionary::new();
     select_dict.insert("currentValue", "default");
-    select_dict.insert("type", "select");
 
     let mut opt = nvim_oxi::Dictionary::new();
     opt.insert("value", "default");
     opt.insert("name", "Default");
+    opt.insert("type", "ungrouped");
     select_dict.insert(
         "options",
         nvim_oxi::Array::from_iter([nvim_oxi::Object::from(opt)]),
@@ -88,11 +88,11 @@ fn test_config_option_event_with_description() {
 
     let mut select_dict = nvim_oxi::Dictionary::new();
     select_dict.insert("currentValue", "default");
-    select_dict.insert("type", "select");
 
     let mut opt = nvim_oxi::Dictionary::new();
     opt.insert("value", "default");
     opt.insert("name", "Default");
+    opt.insert("type", "ungrouped");
     select_dict.insert(
         "options",
         nvim_oxi::Array::from_iter([nvim_oxi::Object::from(opt)]),
@@ -128,11 +128,11 @@ fn test_config_option_event_with_category() {
 
     let mut select_dict = nvim_oxi::Dictionary::new();
     select_dict.insert("currentValue", "default");
-    select_dict.insert("type", "select");
 
     let mut opt = nvim_oxi::Dictionary::new();
     opt.insert("value", "default");
     opt.insert("name", "Default");
+    opt.insert("type", "ungrouped");
     select_dict.insert(
         "options",
         nvim_oxi::Array::from_iter([nvim_oxi::Object::from(opt)]),
@@ -166,15 +166,16 @@ fn test_config_option_event_with_select_kind_ungrouped() {
 
     let mut select_dict = nvim_oxi::Dictionary::new();
     select_dict.insert("currentValue", "value_1");
-    select_dict.insert("type", "select");
 
     let mut opt1 = nvim_oxi::Dictionary::new();
     opt1.insert("value", "value_1");
     opt1.insert("name", "Value 1");
+    opt1.insert("type", "ungrouped");
 
     let mut opt2 = nvim_oxi::Dictionary::new();
     opt2.insert("value", "value_2");
     opt2.insert("name", "Value 2");
+    opt2.insert("type", "ungrouped");
 
     select_dict.insert(
         "options",
@@ -209,11 +210,11 @@ fn test_config_option_event_with_select_kind_ungrouped_option_description() {
 
     let mut select_dict = nvim_oxi::Dictionary::new();
     select_dict.insert("currentValue", "value_1");
-    select_dict.insert("type", "select");
 
     let mut opt1 = nvim_oxi::Dictionary::new();
     opt1.insert("value", "value_1");
     opt1.insert("name", "Value 1");
+    opt1.insert("type", "ungrouped");
     opt1.insert("description", "Option description");
 
     select_dict.insert(
@@ -253,9 +254,9 @@ fn test_config_option_event_with_select_kind_grouped() {
 
     let mut select_dict = nvim_oxi::Dictionary::new();
     select_dict.insert("currentValue", "value_a");
-    select_dict.insert("type", "select");
 
     let mut group_dict = nvim_oxi::Dictionary::new();
+    group_dict.insert("type", "grouped");
     group_dict.insert("group", "group_1");
     group_dict.insert("name", "Group 1");
 

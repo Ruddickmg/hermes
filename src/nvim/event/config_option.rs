@@ -16,13 +16,13 @@ pub fn config_option_event(update: ConfigOptionUpdate) -> Result<Dictionary> {
         if let SessionConfigKind::Select(selected) = opt.kind {
             let mut select_dict = nvim_oxi::Dictionary::new();
             select_dict.insert("currentValue", selected.current_value.to_string());
-            select_dict.insert("type", "select");
             let options = match selected.options {
                 agent_client_protocol::SessionConfigSelectOptions::Ungrouped(opts) => {
                     nvim_oxi::Array::from_iter(opts.into_iter().map(|o| {
                         let mut opt_dict = nvim_oxi::Dictionary::new();
                         opt_dict.insert("value", o.value.to_string());
                         opt_dict.insert("name", o.name);
+                        opt_dict.insert("type", "ungrouped");
                         if let Some(desc) = o.description {
                             opt_dict.insert("description", desc);
                         }
@@ -32,6 +32,7 @@ pub fn config_option_event(update: ConfigOptionUpdate) -> Result<Dictionary> {
                 agent_client_protocol::SessionConfigSelectOptions::Grouped(groups) => {
                     nvim_oxi::Array::from_iter(groups.into_iter().map(|g| {
                         let mut group_dict = nvim_oxi::Dictionary::new();
+                        group_dict.insert("type", "grouped");
                         group_dict.insert("group", g.group.to_string());
                         group_dict.insert("name", g.name);
                         group_dict.insert(

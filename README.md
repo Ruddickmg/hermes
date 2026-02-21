@@ -61,100 +61,304 @@ Below is a list of all autocommands, their purpose, and the data passed into the
   <thead>
     <tr>
       <th>Autocommand</th>
-      <th>Data</th>
       <th>Description</th>
+      <th>Data</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td><code>ClientTextMessage</code></td>
-      <td><pre><code>{ sessionId: string, text: string, type: "text" }</code></pre></td>
       <td>Message text sent from the client</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "text": "string",
+  "type": "text",
+  "annotations": {
+    "audience": ["Role1", "Role2"],
+    "last_modified": "ISO8601 string",
+    "priority": "number"
+  },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>ClientImageMessage</code></td>
-      <td><pre><code>{ sessionId: string, data: string, mimeType: string, type: "image" }</code></pre></td>
       <td>An image sent from the Client</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "data": "base64 string",
+  "mimeType": "string",
+  "type": "image",
+  "uri": "string (optional)",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>ClientResourceMessage</code></td>
-      <td><pre><code>{ sessionId: string, resource: string, type: "resource" }</code></pre></td>
       <td>A resource sent from the Client</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "resource": {
+    "text": "string (if text resource)",
+    "blob": "string (if blob resource)",
+    "uri": "string",
+    "mimeType": "string (optional)"
+  },
+  "type": "resource",
+  "annotations": { "audience": [], "last_modified": "string" },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>ClientResourceLinkMessage</code></td>
-      <td><pre><code>{ sessionId: string, name: string, uri: string, type: "resourcelink" }</code></pre></td>
       <td>A resource link from the Client</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "name": "string",
+  "uri": "string",
+  "type": "resourcelink",
+  "description": "string (optional)",
+  "mimeType": "string (optional)",
+  "size": "number (optional)",
+  "title": "string (optional)",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentTextMessage</code></td>
-      <td><pre><code>{ sessionId: string, text: string, type: "text" }</code></pre></td>
       <td>a text message from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "text": "string",
+  "type": "text",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentImageMessage</code></td>
-      <td><pre><code>{ sessionId: string, data: string, mimeType: string, type: "image" }</code></pre></td>
       <td>an image from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "data": "base64 string",
+  "mimeType": "string",
+  "type": "image",
+  "uri": "string (optional)",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentResourceMessage</code></td>
-      <td><pre><code>{ sessionId: string, resource: string, type: "resource" }</code></pre></td>
       <td>a resource from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "resource": {
+    "text": "string (if text resource)",
+    "blob": "string (if blob resource)",
+    "uri": "string",
+    "mimeType": "string (optional)"
+  },
+  "type": "resource",
+  "annotations": { "audience": [], "last_modified": "string" },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentResourceLinkMessage</code></td>
-      <td><pre><code>{ sessionId: string, name: string, uri: string, type: "resourcelink" }</code></pre></td>
       <td>a resource link from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "name": "string",
+  "uri": "string",
+  "type": "resourcelink",
+  "description": "string (optional)",
+  "mimeType": "string (optional)",
+  "size": "number (optional)",
+  "title": "string (optional)",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentTextThought</code></td>
-      <td><pre><code>{ sessionId: string, text: string, type: "text" }</code></pre></td>
       <td>text-based reasoning from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "text": "string",
+  "type": "text",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentImageThought</code></td>
-      <td><pre><code>{ sessionId: string, data: string, mimeType: string, type: "image" }</code></pre></td>
       <td>image-based reasoning from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "data": "base64 string",
+  "mimeType": "string",
+  "type": "image",
+  "uri": "string (optional)",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentResourceThought</code></td>
-      <td><pre><code>{ sessionId: string, resource: string, type: "resource" }</code></pre></td>
       <td>resource-based reasoning from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "resource": {
+    "text": "string (if text resource)",
+    "blob": "string (if blob resource)",
+    "uri": "string",
+    "mimeType": "string (optional)"
+  },
+  "type": "resource",
+  "annotations": { "audience": [], "last_modified": "string" },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentResourceLinkThought</code></td>
-      <td><pre><code>{ sessionId: string, name: string, uri: string, type: "resourcelink" }</code></pre></td>
       <td>resource link reasoning from the agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "name": "string",
+  "uri": "string",
+  "type": "resourcelink",
+  "description": "string (optional)",
+  "mimeType": "string (optional)",
+  "size": "number (optional)",
+  "title": "string (optional)",
+  "annotations": { "audience": [], "priority": 1 },
+  "meta": "JSON value"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentToolCall</code></td>
-      <td><pre><code>{ sessionId: string, id: string, title: string, kind: string, status: string, content: array, locations: array }</code></pre></td>
       <td>Fired when the agent makes a tool call</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "id": "string",
+  "title": "string",
+  "kind": "Read | Edit | EditFile | Browser | Terminal | Command | MultiEdit | ReadWithEdits | WebFetch | StrReplaceEdit",
+  "status": "Pending | InProgress | Completed",
+  "content": [
+    { "type": "text", "text": "string" },
+    { "type": "image", "data": "base64", "mimeType": "image/png" },
+    { "type": "resource", "resource": { "text": "string", "uri": "string" } },
+    { "type": "resourcelink", "name": "string", "uri": "string" },
+    { "type": "terminal", "id": "string" },
+    { "type": "diff", "path": "string", "new_text": "string", "old_text": "string (optional)" }
+  ],
+  "locations": [
+    { "path": "string", "line": "number (optional)" }
+  ],
+  "input": "JSON string (optional)",
+  "output": "JSON string (optional)"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentToolCallUpdate</code></td>
-      <td><pre><code>{ id: string, fields: array, meta: string }</code></pre></td>
       <td>Fired when a tool call is updated (e.g., progress, output)</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "id": "string",
+  "fields": [
+    { "type": "text", "text": "string" },
+    { "type": "image", "data": "base64", "mimeType": "image/png" },
+    { "type": "resource", "resource": { "text": "string", "uri": "string" } },
+    { "type": "resourcelink", "name": "string", "uri": "string" },
+    { "type": "terminal", "id": "string" },
+    { "type": "diff", "path": "string", "new_text": "string", "old_text": "string (optional)" }
+  ],
+  "meta": "JSON value (optional)"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentAvailableCommands</code></td>
-      <td><pre><code>{ availableCommands: array, meta: string }</code></pre></td>
       <td>Fired when available commands are updated</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "availableCommands": [
+    {
+      "name": "string",
+      "description": "string",
+      "input": { "hint": "string" }
+    },
+    {
+      "name": "string",
+      "description": "string"
+    }
+  ],
+  "meta": "JSON value (optional)"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentPlan</code></td>
-      <td><pre><code>{ entries: array, meta: string }</code></pre></td>
       <td>Fired when the agent generates a plan</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "entries": [
+    { "content": "string", "priority": "High | Medium | Low" },
+    { "content": "string", "priority": "High | Medium | Low" }
+  ],
+  "meta": "JSON value (optional)"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentCurrentMode</code></td>
-      <td><pre><code>{ id: string, meta: string }</code></pre></td>
       <td>Fired when the current mode changes</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "id": "string",
+  "meta": "JSON value (optional)"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>AgentConfigOption</code></td>
-      <td><pre><code>{ configOptions: array, meta: string }</code></pre></td>
       <td>Fired when configuration options are updated</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "configOptions": [
+    {
+      "id": "string",
+      "name": "string",
+      "description": "string (optional)",
+      "category": "string (optional)",
+      "kind": {
+        "currentValue": "string",
+        "options": [
+          { "type": "ungrouped", "value": "string", "name": "string", "description": "string (optional)" },
+          { "type": "ungrouped", "value": "string", "name": "string" }
+        ]
+      }
+    },
+    {
+      "id": "string",
+      "name": "string",
+      "category": "string (optional)",
+      "kind": {
+        "currentValue": "string",
+        "options": [
+          {
+            "type": "grouped",
+            "group": "string",
+            "name": "string",
+            "options": [
+              { "value": "string", "name": "string", "description": "string (optional)" }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "meta": "JSON value (optional)"
+}</code></pre></td>
     </tr>
   </tbody>
 </table>

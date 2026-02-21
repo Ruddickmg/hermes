@@ -1,6 +1,7 @@
-use crate::nvim::event::parse_tool_call_content;
 use agent_client_protocol::{Result, ToolCallUpdate};
 use nvim_oxi::Dictionary;
+
+use crate::nvim::event::tool_call_content::parse_tool_call_content;
 
 pub fn tool_call_update_event(update: ToolCallUpdate) -> Result<Dictionary> {
     let mut data: nvim_oxi::Dictionary = nvim_oxi::Dictionary::new();
