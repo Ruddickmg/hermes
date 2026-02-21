@@ -76,6 +76,12 @@ jobs:
       - checkout
       - rust/install
       - run:
+          name: Install Neovim
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
+            chmod u+x nvim-linux-x86_64.appimage
+            sudo mv nvim-linux-x86_64.appimage /usr/local/bin/nvim
+      - run:
           name: Install coverage tool
           command: cargo install cargo-llvm-cov@0.6.13
       - run:
@@ -92,6 +98,12 @@ jobs:
     steps:
       - checkout
       - rust/install
+      - run:
+          name: Install Neovim
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
+            chmod u+x nvim-linux-x86_64.appimage
+            sudo mv nvim-linux-x86_64.appimage /usr/local/bin/nvim
       - run:
           name: Install coverage tool
           command: cargo install cargo-llvm-cov@0.6.13
