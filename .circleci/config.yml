@@ -111,7 +111,7 @@ jobs:
   integration_tests:
     executor: ubuntu
     steps:
-      - checkout_write
+      - checkout
       - rust/install
       - run:
           name: Install coverage tool

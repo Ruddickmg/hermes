@@ -79,7 +79,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>ClientImageMessage</code></td>
-      <td>An image sent from the Client</td>
+      <td>An image sent from the client</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "data": "base64 string",
@@ -91,7 +91,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>ClientResourceMessage</code></td>
-      <td>A resource sent from the Client</td>
+      <td>A resource sent from the client</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "resource": {
@@ -106,7 +106,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>ClientResourceLinkMessage</code></td>
-      <td>A resource link from the Client</td>
+      <td>A resource link from the client</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "name": "string",
@@ -121,7 +121,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentTextMessage</code></td>
-      <td>a text message from the agent</td>
+      <td>A text message from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "text": "string",
@@ -131,7 +131,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentImageMessage</code></td>
-      <td>an image from the agent</td>
+      <td>An image from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "data": "base64 string",
@@ -143,7 +143,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentResourceMessage</code></td>
-      <td>a resource from the agent</td>
+      <td>A resource from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "resource": {
@@ -158,7 +158,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentResourceLinkMessage</code></td>
-      <td>a resource link from the agent</td>
+      <td>A resource link from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "name": "string",
@@ -173,7 +173,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentTextThought</code></td>
-      <td>text-based reasoning from the agent</td>
+      <td>Text-based reasoning from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "text": "string",
@@ -183,7 +183,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentImageThought</code></td>
-      <td>image-based reasoning from the agent</td>
+      <td>Image-based reasoning from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "data": "base64 string",
@@ -195,7 +195,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentResourceThought</code></td>
-      <td>resource-based reasoning from the agent</td>
+      <td>Resource-based reasoning from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "resource": {
@@ -210,7 +210,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     </tr>
     <tr>
       <td><code>AgentResourceLinkThought</code></td>
-      <td>resource link reasoning from the agent</td>
+      <td>Resource link reasoning from the agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "name": "string",
