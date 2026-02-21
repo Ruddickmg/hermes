@@ -1,0 +1,133 @@
+version: 2.1
+
+orbs:
+  rust: circleci/rust@1.8.0
+  codecov: codecov/codecov@5.4.3
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+executors:
+  node:
+    docker:
+      - image: node:lts
+  rust:
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+  arm_builder:
+    resource_class: arm.large
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+    machine:
+      image: ubuntu-2204:2025.09.1
+      docker_layer_caching: false
+  ubuntu:
+    resource_class: large
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+    machine:
+      image: ubuntu-2204:2025.09.1
+      docker_layer_caching: true
+  windows:
+    resource_class: large
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+  ubuntu_small:
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+    machine:
+      image: ubuntu-2204:2025.09.1
+      docker_layer_caching: true
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+workflows:
+  ci_cd:
+    jobs:
+      - check_formatting
+      - build
+      - unit_tests
+      - integration_tests
+      - check_license
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+jobs:
+  check_license:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Install cargo-deny
+          command: cargo install --locked cargo-deny
+      - run:
+          name: Check for license
+          command: cargo deny check licenses
+
+  build:
+    executor: rust
+    steps:
+      - checkout
+      - restore_cache:
+          key: project-cache
+      - run:
+          name: Stable Build
+          command: cargo build
+      - save_cache:
+          key: project-cache
+          paths:
+            - "~/.cargo"
+            - "./target"
+
+  check_formatting:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Check formatting
+          command: cargo fmt -- --check
+
+  unit_tests:
+    executor: ubuntu
+    steps:
+      - checkout
+      - rust/install
+      - run:
+          name: Install coverage tool
+          command: cargo install cargo-llvm-cov@0.6.13
+      - run:
+          name: Run unit tests
+          command: cargo llvm-cov --bins --lib --all-features --workspace --lcov --output-path unit.coverage.info
+      - codecov/upload:
+          fail_on_error: true
+          files: unit.coverage.info
+          git_service: github
+          upload_name: unit
+
+  integration_tests:
+    executor: ubuntu
+    steps:
+      - checkout_write
+      - rust/install
+      - run:
+          name: Install coverage tool
+          command: cargo install cargo-llvm-cov@0.6.13
+      - run:
+          name: Install just
+          command: cargo install just
+      - run:
+          name: Set up environment
+          command: just
+      - run:
+          name: Run integration tests
+          command: cargo llvm-cov --test '*' --all-features --workspace --lcov --output-path integration.coverage.info
+      - codecov/upload:
+          fail_on_error: true
+          files: integration.coverage.info
+          git_service: github
+          upload_name: integration
+
