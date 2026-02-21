@@ -7,35 +7,14 @@ orbs:
 #-----------------------------------------------------------------------------------------------------------------------------
 
 executors:
-  node:
-    docker:
-      - image: node:lts
   rust:
+    docker:
+      - image: cimg/rust:1.93.1
     environment:
       PIPELINE_NUM: << pipeline.number >>
       TZ: "America/Los_Angeles"
-  arm_builder:
-    resource_class: arm.large
-    environment:
-      PIPELINE_NUM: << pipeline.number >>
-      TZ: "America/Los_Angeles"
-    machine:
-      image: ubuntu-2204:2025.09.1
-      docker_layer_caching: false
   ubuntu:
     resource_class: large
-    environment:
-      PIPELINE_NUM: << pipeline.number >>
-      TZ: "America/Los_Angeles"
-    machine:
-      image: ubuntu-2204:2025.09.1
-      docker_layer_caching: true
-  windows:
-    resource_class: large
-    environment:
-      PIPELINE_NUM: << pipeline.number >>
-      TZ: "America/Los_Angeles"
-  ubuntu_small:
     environment:
       PIPELINE_NUM: << pipeline.number >>
       TZ: "America/Los_Angeles"
@@ -48,11 +27,11 @@ executors:
 workflows:
   ci_cd:
     jobs:
-      - check_formatting
       - build
-      - unit_tests
-      - integration_tests
+      - check_formatting
       - check_license
+      - integration_tests
+      - unit_tests
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
