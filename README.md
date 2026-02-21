@@ -1,4 +1,4 @@
-# hermes
+# Hermes
 
 APC (Agent Client Protocol) client
 
@@ -16,12 +16,30 @@ Hermes currently has no UI (and may never), it exposes an api for making request
 
 ## Features
 
-- ✅ Full implementation of the APC `Client` trait
-- ✅ Configurable capabilities (filesystem, terminal)
-- [ ] send files
-- [ ] send text
-- [ ] send images 
-- [ ] send resource links
+- [x] Full implementation of APC Client
+- [x] Configurable capabilities (filesystem, terminal, etc)
+- [x] Trigger Autocommands for messages/notifications
+- [ ] Allow connectiing to Agents
+  - [ ] Via stdio
+  - [ ] Via http
+  - [ ] Via linux socket
+  - [ ] handle authentication
+- [ ] Allow mode selection
+- [ ] Allow model selection
+- [ ] Allow agent to write to files
+  - [ ] Automatically refresh open buffers that have been modified
+- [ ] Allow agent to read files
+- [ ] Allow agent to use terminal
+  - [ ] Create autocommands for Agent progress in the terminal
+- [ ] Allow user to give permission when needed
+- [ ] Allow user to configure/turn off any/all aspects of APC (if, for example, you just want to send data to the agent but still interact with it via the CLI)
+- [ ] Allow user to send prompts
+  - [ ] Send files
+  - [ ] Send text
+  - [ ] Send images 
+  - [ ] Send resource links
+  - [ ] Send audio
+  - [ ] Cancel
 
 ## Autocommands
 
@@ -140,7 +158,3 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
   </tbody>
 </table>
-
-## License
-
-See [LICENSE](LICENSE) file for details.
