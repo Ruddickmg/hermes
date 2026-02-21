@@ -55,7 +55,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
     <tr>
       <td><code>ClientImageMessage</code></td>
-      <td><pre><code>{ sessionId: string, data: string, mime_type: string, type: "image" }</code></pre></td>
+      <td><pre><code>{ sessionId: string, data: string, mimeType: string, type: "image" }</code></pre></td>
       <td>An image sent from the Client</td>
     </tr>
     <tr>
@@ -75,7 +75,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
     <tr>
       <td><code>AgentImageMessage</code></td>
-      <td><pre><code>{ sessionId: string, data: string, mime_type: string, type: "image" }</code></pre></td>
+      <td><pre><code>{ sessionId: string, data: string, mimeType: string, type: "image" }</code></pre></td>
       <td>an image from the agent</td>
     </tr>
     <tr>
@@ -95,7 +95,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
     <tr>
       <td><code>AgentImageThought</code></td>
-      <td><pre><code>{ sessionId: string, data: string, mime_type: string, type: "image" }</code></pre></td>
+      <td><pre><code>{ sessionId: string, data: string, mimeType: string, type: "image" }</code></pre></td>
       <td>image-based reasoning from the agent</td>
     </tr>
     <tr>
@@ -120,7 +120,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
     <tr>
       <td><code>AgentAvailableCommands</code></td>
-      <td><pre><code>{ available_commands: array, meta: string }</code></pre></td>
+      <td><pre><code>{ availableCommands: array, meta: string }</code></pre></td>
       <td>Fired when available commands are updated</td>
     </tr>
     <tr>
@@ -135,7 +135,7 @@ Below is a list of all autocommands, their purpose, and the data passed into the
     </tr>
     <tr>
       <td><code>AgentConfigOption</code></td>
-      <td><pre><code>{ config_options: array, meta: string }</code></pre></td>
+      <td><pre><code>{ configOptions: array, meta: string }</code></pre></td>
       <td>Fired when configuration options are updated</td>
     </tr>
   </tbody>

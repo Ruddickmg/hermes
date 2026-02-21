@@ -17,7 +17,7 @@ fn test_available_commands_event_empty_array() {
     let update = AvailableCommandsUpdate::new(vec![]);
 
     let result = available_commands_event(update).unwrap();
-    let commands = result.get("available_commands").unwrap();
+    let commands = result.get("availableCommands").unwrap();
     assert_eq!(*commands, nvim_oxi::Object::from(nvim_oxi::Array::new()));
 }
 
@@ -27,7 +27,7 @@ fn test_available_commands_event_single_command() {
     let update = AvailableCommandsUpdate::new(vec![cmd]);
 
     let result = available_commands_event(update).unwrap();
-    let commands = result.get("available_commands").unwrap();
+    let commands = result.get("availableCommands").unwrap();
 
     let mut expected_cmd = nvim_oxi::Dictionary::new();
     expected_cmd.insert("name", "read_file");
@@ -44,7 +44,7 @@ fn test_available_commands_event_multiple_commands() {
     let update = AvailableCommandsUpdate::new(vec![cmd1, cmd2]);
 
     let result = available_commands_event(update).unwrap();
-    let commands = result.get("available_commands").unwrap();
+    let commands = result.get("availableCommands").unwrap();
 
     let mut expected_cmd1 = nvim_oxi::Dictionary::new();
     expected_cmd1.insert("name", "read_file");
@@ -68,7 +68,7 @@ fn test_available_commands_event_without_input() {
     let update = AvailableCommandsUpdate::new(vec![cmd]);
 
     let result = available_commands_event(update).unwrap();
-    let commands = result.get("available_commands").unwrap();
+    let commands = result.get("availableCommands").unwrap();
 
     let mut expected_cmd = nvim_oxi::Dictionary::new();
     expected_cmd.insert("name", "delete_file");
@@ -86,7 +86,7 @@ fn test_available_commands_event_with_input() {
     let update = AvailableCommandsUpdate::new(vec![cmd]);
 
     let result = available_commands_event(update).unwrap();
-    let commands = result.get("available_commands").unwrap();
+    let commands = result.get("availableCommands").unwrap();
 
     let mut expected_cmd = nvim_oxi::Dictionary::new();
     expected_cmd.insert("name", "search");
