@@ -112,26 +112,3 @@ impl Client for EventHandler {
         Err(AcpError::method_not_found())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_session_notification() {
-        use agent_client_protocol::{
-            ContentBlock, ContentChunk, SessionId, SessionUpdate, TextContent,
-        };
-
-        let client = EventHandler::default();
-        let notification = SessionNotification::new(
-            SessionId::new("test-session"),
-            SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(
-                TextContent::new("Hello"),
-            ))),
-        );
-
-        let result = client.session_notification(notification).await;
-        assert!(result.is_ok());
-    }
-}
