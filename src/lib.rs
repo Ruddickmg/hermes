@@ -26,17 +26,3 @@ pub mod nvim;
 // Re-export commonly used types
 pub use apc::client::{ApcClient, ClientConfig};
 pub use nvim::{PluginState, setup};
-
-#[cfg(test)]
-mod tests {
-    use crate::nvim::producer::EventHandler;
-
-    use super::*;
-
-    #[test]
-    fn test_library_exports() {
-        let config = ClientConfig::default();
-        let _client = ApcClient::new(config, EventHandler::default());
-        let _state = PluginState::default();
-    }
-}

@@ -6,7 +6,7 @@ use agent_client_protocol::{
     SessionUpdate, TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
     WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
 };
-use nvim_oxi::{Dictionary, api::opts::ExecAutocmdsOpts};
+use nvim_oxi::api::opts::ExecAutocmdsOpts;
 
 #[derive(Clone)]
 pub struct EventHandler {
@@ -42,11 +42,11 @@ impl Client for EventHandler {
         let (mut data, command) =
             match args.update {
                 SessionUpdate::UserMessageChunk(chunk) => event::communication(chunk.content)
-                    .map(|(dict, t)| (dict, format!("UserMessage{}", t))),
+                    .map(|(dict, t)| (dict, format!("User{}Message", t))),
                 SessionUpdate::AgentMessageChunk(chunk) => event::communication(chunk.content)
-                    .map(|(dict, t)| (dict, format!("AgentMessage{}", t))),
+                    .map(|(dict, t)| (dict, format!("Agent{}Message", t))),
                 SessionUpdate::AgentThoughtChunk(chunk) => event::communication(chunk.content)
-                    .map(|(dict, t)| (dict, format!("AgentThought{}", t))),
+                    .map(|(dict, t)| (dict, format!("Agent{}Thought", t))),
                 SessionUpdate::ToolCall(tool_call) => event::tool_call_event(tool_call)
                     .map(|dict| (dict, "AgentToolCall".to_string())),
                 SessionUpdate::ToolCallUpdate(update) => event::tool_call_update_event(update)
@@ -65,7 +65,7 @@ impl Client for EventHandler {
                 _ => return Err(AcpError::method_not_found()),
             }?;
 
-        data.insert("session_id", args.session_id.to_string());
+        data.insert("sessionId", args.session_id.to_string());
 
         let opts = ExecAutocmdsOpts::builder().data(data).group(group).build();
 

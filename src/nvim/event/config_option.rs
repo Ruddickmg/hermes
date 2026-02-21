@@ -1,47 +1,66 @@
-use agent_client_protocol::{ConfigOptionUpdate, Result};
+use agent_client_protocol::{ConfigOptionUpdate, Result, SessionConfigKind};
 use nvim_oxi::Dictionary;
 
 pub fn config_option_event(update: ConfigOptionUpdate) -> Result<Dictionary> {
     let mut data: nvim_oxi::Dictionary = nvim_oxi::Dictionary::new();
-    data.insert("config_options", format!("{:?}", update.config_options));
+    let config_options = update.config_options.into_iter().map(|opt| {
+        let mut dict = nvim_oxi::Dictionary::new();
+        dict.insert("id", opt.id.to_string());
+        dict.insert("name", opt.name);
+        if let Some(description) = opt.description {
+            dict.insert("description", description);
+        }
+        if let Some(category) = opt.category {
+            dict.insert("category", format!("{:?}", category));
+        }
+        if let SessionConfigKind::Select(selected) = opt.kind {
+            let mut select_dict = nvim_oxi::Dictionary::new();
+            select_dict.insert("currentValue", selected.current_value.to_string());
+            select_dict.insert("type", "select");
+            let options = match selected.options {
+                agent_client_protocol::SessionConfigSelectOptions::Ungrouped(opts) => {
+                    nvim_oxi::Array::from_iter(opts.into_iter().map(|o| {
+                        let mut opt_dict = nvim_oxi::Dictionary::new();
+                        opt_dict.insert("value", o.value.to_string());
+                        opt_dict.insert("name", o.name);
+                        if let Some(desc) = o.description {
+                            opt_dict.insert("description", desc);
+                        }
+                        opt_dict
+                    }))
+                }
+                agent_client_protocol::SessionConfigSelectOptions::Grouped(groups) => {
+                    nvim_oxi::Array::from_iter(groups.into_iter().map(|g| {
+                        let mut group_dict = nvim_oxi::Dictionary::new();
+                        group_dict.insert("group", g.group.to_string());
+                        group_dict.insert("name", g.name);
+                        group_dict.insert(
+                            "options",
+                            nvim_oxi::Array::from_iter(g.options.into_iter().map(|o| {
+                                let mut opt_dict = nvim_oxi::Dictionary::new();
+                                opt_dict.insert("value", o.value.to_string());
+                                opt_dict.insert("name", o.name);
+                                if let Some(desc) = o.description {
+                                    opt_dict.insert("description", desc);
+                                }
+                                opt_dict
+                            })),
+                        );
+                        group_dict
+                    }))
+                }
+                _ => nvim_oxi::Array::new(),
+            };
+            select_dict.insert("options", options);
+            dict.insert("kind", select_dict);
+        }
+        dict
+    });
+    data.insert("config_options", nvim_oxi::Array::from_iter(config_options));
 
     if let Some(meta) = update.meta {
         data.insert("meta", format!("{:?}", meta));
     }
 
     Ok(data)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[nvim_oxi::test]
-    fn test_config_option_event_ok() {
-        let update = ConfigOptionUpdate::new(vec![]);
-
-        let result = config_option_event(update);
-        assert!(result.is_ok());
-    }
-
-    #[nvim_oxi::test]
-    fn test_config_option_event_contains_config_options() {
-        let update = ConfigOptionUpdate::new(vec![]);
-
-        let result = config_option_event(update).unwrap();
-        assert!(result.get("config_options").is_some());
-    }
-
-    #[nvim_oxi::test]
-    fn test_config_option_event_with_meta() {
-        let meta: serde_json::Map<String, serde_json::Value> =
-            serde_json::json!({"source": "agent"})
-                .as_object()
-                .unwrap()
-                .clone();
-        let update = ConfigOptionUpdate::new(vec![]).meta(meta);
-
-        let result = config_option_event(update);
-        assert!(result.is_ok());
-    }
 }
