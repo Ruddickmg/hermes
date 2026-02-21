@@ -56,7 +56,7 @@ pub fn config_option_event(update: ConfigOptionUpdate) -> Result<Dictionary> {
         }
         dict
     });
-    data.insert("config_options", nvim_oxi::Array::from_iter(config_options));
+    data.insert("configOptions", nvim_oxi::Array::from_iter(config_options));
 
     if let Some(meta) = update.meta {
         data.insert("meta", format!("{:?}", meta));

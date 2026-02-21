@@ -11,7 +11,7 @@ pub fn resource_link_event(block: ResourceLink) -> Result<(Dictionary, String)> 
         dict.insert("description", description);
     }
     if let Some(mime_type) = block.mime_type {
-        dict.insert("mime_type", mime_type);
+        dict.insert("mimeType", mime_type);
     }
     if let Some(size) = block.size {
         dict.insert("size", size);

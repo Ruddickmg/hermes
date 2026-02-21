@@ -4,7 +4,7 @@ use nvim_oxi::Dictionary;
 pub fn image_event(image: ImageContent) -> Result<(Dictionary, String)> {
     let mut dict: Dictionary = Dictionary::new();
     dict.insert("data", image.data);
-    dict.insert("mime_type", image.mime_type);
+    dict.insert("mimeType", image.mime_type);
     if let Some(uri) = image.uri {
         dict.insert("uri", uri);
     }

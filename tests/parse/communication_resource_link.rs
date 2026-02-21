@@ -57,7 +57,7 @@ fn test_resource_link_event_without_mime_type() {
     let block = ResourceLink::new("test.txt", "file:///test.txt");
     let (dict, _) = resource_link_event(block).unwrap();
 
-    assert_eq!(dict.get("mime_type").is_some(), false);
+    assert_eq!(dict.get("mimeType").is_some(), false);
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_resource_link_event_with_mime_type() {
         ResourceLink::new("test.txt", "file:///test.txt").mime_type("text/plain".to_string());
     let (dict, _) = resource_link_event(block).unwrap();
 
-    let mime_type = dict.get("mime_type").unwrap();
+    let mime_type = dict.get("mimeType").unwrap();
     assert_eq!(*mime_type, nvim_oxi::Object::from("text/plain"));
 }
 
@@ -186,7 +186,7 @@ fn test_resource_link_event_with_all_optional_fields() {
     let description = dict.get("description").unwrap();
     assert_eq!(*description, nvim_oxi::Object::from("Description"));
 
-    let mime_type = dict.get("mime_type").unwrap();
+    let mime_type = dict.get("mimeType").unwrap();
     assert_eq!(*mime_type, nvim_oxi::Object::from("text/plain"));
 
     let size = dict.get("size").unwrap();

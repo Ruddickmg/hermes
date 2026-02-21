@@ -25,7 +25,7 @@ pub fn resource_event(block: EmbeddedResource) -> Result<(Dictionary, String)> {
             inner.insert("text", contents.text);
             inner.insert("uri", contents.uri);
             if let Some(mime_type) = contents.mime_type {
-                inner.insert("mime_type", mime_type);
+                inner.insert("mimeType", mime_type);
             }
             inner
         }
@@ -34,7 +34,7 @@ pub fn resource_event(block: EmbeddedResource) -> Result<(Dictionary, String)> {
             inner.insert("blob", contents.blob);
             inner.insert("uri", contents.uri);
             if let Some(mime_type) = contents.mime_type {
-                inner.insert("mime_type", mime_type);
+                inner.insert("mimeType", mime_type);
             }
             inner
         }

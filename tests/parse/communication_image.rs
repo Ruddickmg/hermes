@@ -22,7 +22,7 @@ fn test_image_event_mime_type_value() {
     let image = ImageContent::new("data", "image/jpeg");
     let (dict, content_type) = image_event(image).unwrap();
 
-    let mime_type = dict.get("mime_type").unwrap();
+    let mime_type = dict.get("mimeType").unwrap();
     assert_eq!(*mime_type, nvim_oxi::Object::from("image/jpeg"));
 }
 

@@ -19,7 +19,7 @@ fn test_config_option_event_empty_config_options_array() {
     let update = ConfigOptionUpdate::new(vec![]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
     assert_eq!(
         *config_options,
         nvim_oxi::Object::from(nvim_oxi::Array::new())
@@ -40,7 +40,7 @@ fn test_config_option_event_with_option_id_and_name() {
     let update = ConfigOptionUpdate::new(vec![option]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
 
     let mut expected_option = nvim_oxi::Dictionary::new();
     expected_option.insert("id", "option_1");
@@ -79,7 +79,7 @@ fn test_config_option_event_with_description() {
     let update = ConfigOptionUpdate::new(vec![option]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
 
     let mut expected_option = nvim_oxi::Dictionary::new();
     expected_option.insert("id", "option_2");
@@ -119,7 +119,7 @@ fn test_config_option_event_with_category() {
     let update = ConfigOptionUpdate::new(vec![option]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
 
     let mut expected_option = nvim_oxi::Dictionary::new();
     expected_option.insert("id", "option_3");
@@ -158,7 +158,7 @@ fn test_config_option_event_with_select_kind_ungrouped() {
     let update = ConfigOptionUpdate::new(vec![option]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
 
     let mut expected_option = nvim_oxi::Dictionary::new();
     expected_option.insert("id", "option_4");
@@ -201,7 +201,7 @@ fn test_config_option_event_with_select_kind_ungrouped_option_description() {
     let update = ConfigOptionUpdate::new(vec![option]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
 
     let mut expected_option = nvim_oxi::Dictionary::new();
     expected_option.insert("id", "option_5");
@@ -245,7 +245,7 @@ fn test_config_option_event_with_select_kind_grouped() {
     let update = ConfigOptionUpdate::new(vec![option]);
 
     let result = config_option_event(update).unwrap();
-    let config_options = result.get("config_options").unwrap();
+    let config_options = result.get("configOptions").unwrap();
 
     let mut expected_option = nvim_oxi::Dictionary::new();
     expected_option.insert("id", "option_6");
