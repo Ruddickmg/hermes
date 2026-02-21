@@ -8,15 +8,10 @@ use crate::{
 use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
 use std::sync::Arc;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum NvimError {
-    #[error("Failed to initialize client: {0}")]
     InitializationError(String),
-
-    #[error("Client not connected")]
     NotConnected,
-
-    #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
 }
 
