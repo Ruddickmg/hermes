@@ -73,13 +73,7 @@ jobs:
           name: Install
           command: pnpm install --frozen-lockfile
       - attach_workspace:
-          at: /tmp/workspace
-      - run:
-          name: Move binaries to target/release
-          command: |
-            mkdir -p target/release
-            cp /tmp/workspace/build/libhermes.so target/release
-            cp /tmp/workspace/build-mac/libhermes.dylib target/release
+          at: target/release
       - run:
           name: Semantic release
           command: pnpm release
