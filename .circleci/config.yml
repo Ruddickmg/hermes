@@ -69,6 +69,9 @@ jobs:
       - run:
           name: Install
           command: pnpm install --frozen-lockfile
+      - run:
+          name: Install pnpm package manager
+          command: npm install -g pnpm
       - attach_workspace:
           at: /tmp/workspace
       - run:
