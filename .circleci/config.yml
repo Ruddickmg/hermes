@@ -87,11 +87,8 @@ jobs:
           name: Validate GCC
           command: gcc --version
       - run:
-          name: Specify toolchain
-          command: rustup default stable-x86_64-pc-windows-gnu
-      - run:
           name: Build Project
-          command: cargo build --release
+          command: cargo build --target stable-x86_64-pc-windows-gnu --release
       - store_artifacts:
           path: target/release
 
