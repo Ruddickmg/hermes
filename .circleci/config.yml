@@ -88,7 +88,7 @@ jobs:
           command: gcc --version
       - run:
           name: Build Project
-          command: cargo build --target stable-x86_64-pc-windows-gnu --release
+          command: cargo build --target x86_64-pc-windows-gnu --release
       - store_artifacts:
           path: target/release
 
