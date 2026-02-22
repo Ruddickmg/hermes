@@ -1,12 +1,17 @@
 version: 2.1
 
 orbs:
+  windows: circleci/windows@5.0
   rust: circleci/rust@1.8.0
   codecov: codecov/codecov@5.4.3
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
 executors:
+  mac:
+    resource_class: macos.m1.medium.gen1 
+    macos:
+      xcode: 26.3.0
   rust:
     docker:
       - image: cimg/rust:1.93.1
@@ -27,15 +32,60 @@ executors:
 workflows:
   ci_cd:
     jobs:
-      - build
       - check_formatting
       - check_license
       - integration_tests
       - unit_tests
+      - build
+      - build-mac:
+          requires:
+            - check_formatting
+            - check_license
+            - integration_tests
+            - unit_tests
+      - build-windows:
+          requires:
+            - check_formatting
+            - check_license
+            - integration_tests
+            - unit_tests
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
 jobs:
+  build-mac:
+    executor: mac
+    steps:
+      - checkout
+      - run: 
+          name: Install Node.js
+          command: brew install node@20 && echo 'export PATH="/usr/local/opt/node@20/bin:$PATH"' >> ~/.bash_profile
+      - run:
+          name: Install Rust
+          command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - run:
+          name: Source bash profile
+          command: source ~/.bash_profile
+      - run:
+          name: Build Rust Project
+          command: cargo build --release
+      - store_artifacts:
+          path: target/release
+
+  build-windows:
+    executor:
+      name: windows/default
+    steps:
+      - checkout
+      - run:
+          name: Install Rust
+          command: choco install rust -y --no-progress
+      - run:
+          name: Build Project
+          command: cargo build --release
+      - store_artifacts:
+          path: target/release
+
   check_license:
     executor: rust
     steps:
@@ -55,12 +105,13 @@ jobs:
           key: project-cache
       - run:
           name: Stable Build
-          command: cargo build
+          command: cargo build --release
       - save_cache:
           key: project-cache
           paths:
             - "~/.cargo"
             - "./target"
+            - "target/release"
 
   check_formatting:
     executor: rust
@@ -75,12 +126,6 @@ jobs:
     steps:
       - checkout
       - rust/install
-      - run:
-          name: Install Neovim
-          command: |
-            curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
-            chmod u+x nvim-linux-x86_64.appimage
-            sudo mv nvim-linux-x86_64.appimage /usr/local/bin/nvim
       - run:
           name: Install coverage tool
           command: cargo install cargo-llvm-cov@0.6.13
