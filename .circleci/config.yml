@@ -67,11 +67,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install
-          command: pnpm install --frozen-lockfile
-      - run:
           name: Install pnpm package manager
           command: npm install -g pnpm
+      - run:
+          name: Install
+          command: pnpm install --frozen-lockfile
       - attach_workspace:
           at: /tmp/workspace
       - run:
