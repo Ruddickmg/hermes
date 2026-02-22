@@ -36,14 +36,14 @@ workflows:
       - check_license
       - integration_tests
       - unit_tests
-      - build
+      - build-windows
       - build-mac:
           requires:
             - check_formatting
             - check_license
             - integration_tests
             - unit_tests
-      - build-windows:
+      - build:
           requires:
             - check_formatting
             - check_license
@@ -78,11 +78,17 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Mingw
+          name: Install MinGW
           command: choco install mingw
       - run:
           name: Install Rust
           command: choco install rust -y --no-progress
+      - run:
+          name: Validate GCC
+          command: gcc --version
+      - run:
+          name: Specify toolchain
+          command: rustup default stable-x86_64-pc-windows-gnu
       - run:
           name: Build Project
           command: cargo build --release
