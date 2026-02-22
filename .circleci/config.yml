@@ -78,6 +78,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install Mingw
+          command: choco install mingw
+      - run:
           name: Install Rust
           command: choco install rust -y --no-progress
       - run:
