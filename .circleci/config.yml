@@ -50,10 +50,33 @@ workflows:
             - check_license
             - integration_tests
             - unit_tests
+      - release:
+          requires:
+            - build
+            - build-mac
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
 jobs:
+  release:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Install
+          command: pnpm install --frozen-lockfile
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Move binaries to target/release
+          command: |
+            mkdir -p target/release
+            cp /tmp/workspace/build/libhermes.so target/release
+            cp /tmp/workspace/build-mac/libhermes.dylib target/release
+      - run:
+          name: Semantic release
+          command: pnpm release
+  
   build-mac:
     executor: mac
     steps:
@@ -70,8 +93,10 @@ jobs:
       - run:
           name: Build Rust Project
           command: cargo build --release
-      - store_artifacts:
-          path: target/release
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - libhermes.dylib
 
   build-windows:
     executor:
@@ -90,8 +115,10 @@ jobs:
       - run:
           name: Build Project
           command: cargo build --target x86_64-pc-windows-gnu --release
-      - store_artifacts:
-          path: target/release
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - hermes.dll
 
   check_license:
     executor: rust
@@ -113,12 +140,10 @@ jobs:
       - run:
           name: Stable Build
           command: cargo build --release
-      - save_cache:
-          key: project-cache
+      - persist_to_workspace:
+          root: target/release
           paths:
-            - "~/.cargo"
-            - "./target"
-            - "target/release"
+            - libhermes.so
 
   check_formatting:
     executor: rust
