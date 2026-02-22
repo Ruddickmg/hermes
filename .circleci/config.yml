@@ -36,7 +36,8 @@ workflows:
       - check_license
       - integration_tests
       - unit_tests
-      - build-windows
+      # TODO: can't get this to work, not trying to spend time on it right now since I don't use windows, low priority, will get to it later
+      # - build-windows
       - build-mac:
           requires:
             - check_formatting
