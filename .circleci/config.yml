@@ -36,6 +36,7 @@ executors:
 workflows:
   ci_cd:
     jobs:
+      # ---- CI ----
       - check_formatting
       - check_license
       - integration_tests
@@ -43,21 +44,47 @@ workflows:
       # TODO: can't get this to work, not trying to spend time on it right now since I don't use windows, low priority, will get to it later
       # - build-windows
       - build-mac:
+          filters:
+            branches:
+              not:
+                - main
+      - build-linux:
+          filters:
+            branches:
+              not:
+                - main
+
+      # ---- CD ---- 
+      - build-mac:
+          name: build-mac-binary
+          filters:
+            branches:
+              only:
+                - main
           requires:
             - check_formatting
             - check_license
             - integration_tests
             - unit_tests
-      - build:
+      - build-linux:
+          name: build-linux-binary
+          filters:
+            branches:
+              only:
+                - main
           requires:
             - check_formatting
             - check_license
             - integration_tests
             - unit_tests
       - release:
+          filters:
+            branches:
+              only: 
+                - main
           requires:
-            - build
-            - build-mac
+            - build-linux-binary
+            - build-mac-binary
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
@@ -82,15 +109,9 @@ jobs:
     executor: mac
     steps:
       - checkout
-      - run: 
-          name: Install Node.js
-          command: brew install node@20 && echo 'export PATH="/usr/local/opt/node@20/bin:$PATH"' >> ~/.bash_profile
       - run:
           name: Install Rust
           command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      - run:
-          name: Source bash profile
-          command: source ~/.bash_profile
       - run:
           name: Build Rust Project
           command: cargo build --release
@@ -132,12 +153,10 @@ jobs:
           name: Check for license
           command: cargo deny check licenses
 
-  build:
+  build-linux:
     executor: rust
     steps:
       - checkout
-      - restore_cache:
-          key: project-cache
       - run:
           name: Stable Build
           command: cargo build --release
@@ -172,6 +191,8 @@ jobs:
           upload_name: unit
 
   integration_tests:
+    environment:
+      NEOVIM_VERSION: 0.11.6
     executor: ubuntu
     steps:
       - checkout
@@ -179,7 +200,7 @@ jobs:
       - run:
           name: Install Neovim
           command: |
-            curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
+            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.appimage
             chmod u+x nvim-linux-x86_64.appimage
             sudo mv nvim-linux-x86_64.appimage /usr/local/bin/nvim
       - run:
