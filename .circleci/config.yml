@@ -46,12 +46,12 @@ workflows:
       - build-mac:
           filters:
             branches:
-              not:
+              ignore:
                 - main
       - build-linux:
           filters:
             branches:
-              not:
+              ignore:
                 - main
 
       # ---- CD ---- 
