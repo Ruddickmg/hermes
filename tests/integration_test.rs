@@ -3,12 +3,12 @@
 //! These tests verify the complete integration of the APC client
 //! with the agent-client-protocol library.
 
-use hermes::{ApcClient, ClientConfig};
 use agent_client_protocol::{
-    Client, SessionNotification, SessionId, SessionUpdate, ContentChunk, ContentBlock, TextContent,
-    RequestPermissionRequest, RequestPermissionResponse,
+    Client, ContentBlock, ContentChunk, RequestPermissionRequest, RequestPermissionResponse,
+    SessionId, SessionNotification, SessionUpdate, TextContent,
 };
 use async_trait::async_trait;
+use hermes::{ApcClient, ClientConfig};
 
 #[derive(Clone)]
 struct MockHandler;
@@ -22,7 +22,10 @@ impl Client for MockHandler {
         Err(agent_client_protocol::Error::method_not_found())
     }
 
-    async fn session_notification(&self, _args: SessionNotification) -> agent_client_protocol::Result<()> {
+    async fn session_notification(
+        &self,
+        _args: SessionNotification,
+    ) -> agent_client_protocol::Result<()> {
         Ok(())
     }
 }
@@ -66,9 +69,9 @@ async fn test_handle_session_notification() {
 
     let notification = SessionNotification::new(
         SessionId::new("test-session-123"),
-        SessionUpdate::AgentMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("Test message"))
-        )),
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "Test message",
+        )))),
     );
 
     let result = client.session_notification(notification).await;
@@ -83,9 +86,9 @@ async fn test_handle_multiple_notifications() {
     // Send first notification
     let notif1 = SessionNotification::new(
         SessionId::new("session-1"),
-        SessionUpdate::AgentMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("First message"))
-        )),
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "First message",
+        )))),
     );
     let result1 = client.session_notification(notif1).await;
     assert!(result1.is_ok());
@@ -93,9 +96,9 @@ async fn test_handle_multiple_notifications() {
     // Send second notification
     let notif2 = SessionNotification::new(
         SessionId::new("session-1"),
-        SessionUpdate::AgentMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("Second message"))
-        )),
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "Second message",
+        )))),
     );
     let result2 = client.session_notification(notif2).await;
     assert!(result2.is_ok());
@@ -103,9 +106,9 @@ async fn test_handle_multiple_notifications() {
     // Send third notification with different session
     let notif3 = SessionNotification::new(
         SessionId::new("session-2"),
-        SessionUpdate::AgentMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("Different session"))
-        )),
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "Different session",
+        )))),
     );
     let result3 = client.session_notification(notif3).await;
     assert!(result3.is_ok());
@@ -120,9 +123,9 @@ async fn test_handle_different_update_types() {
     // Test agent message chunk
     let agent_msg = SessionNotification::new(
         session_id.clone(),
-        SessionUpdate::AgentMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("Agent response"))
-        )),
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "Agent response",
+        )))),
     );
     let result1 = client.session_notification(agent_msg).await;
     assert!(result1.is_ok());
@@ -130,9 +133,9 @@ async fn test_handle_different_update_types() {
     // Test user message chunk
     let user_msg = SessionNotification::new(
         session_id.clone(),
-        SessionUpdate::UserMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("User input"))
-        )),
+        SessionUpdate::UserMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "User input",
+        )))),
     );
     let result2 = client.session_notification(user_msg).await;
     assert!(result2.is_ok());
@@ -140,9 +143,9 @@ async fn test_handle_different_update_types() {
     // Test agent thought chunk
     let thought = SessionNotification::new(
         session_id,
-        SessionUpdate::AgentThoughtChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("Internal reasoning"))
-        )),
+        SessionUpdate::AgentThoughtChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "Internal reasoning",
+        )))),
     );
     let result3 = client.session_notification(thought).await;
     assert!(result3.is_ok());
@@ -187,12 +190,13 @@ async fn test_client_cloneable() {
     // Both instances should work independently
     let notif = SessionNotification::new(
         SessionId::new("test"),
-        SessionUpdate::AgentMessageChunk(ContentChunk::new(
-            ContentBlock::Text(TextContent::new("Test"))
-        )),
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "Test",
+        )))),
     );
 
-    let result1: agent_client_protocol::Result<()> = client.session_notification(notif.clone()).await;
+    let result1: agent_client_protocol::Result<()> =
+        client.session_notification(notif.clone()).await;
     assert!(result1.is_ok());
 
     let result2: agent_client_protocol::Result<()> = client_clone.session_notification(notif).await;

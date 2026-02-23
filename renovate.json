@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "autoApprove": true,
+  "automerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "squash",
+  "configMigration": true,
+  "branchConcurrentLimit": 2,
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ]
+}

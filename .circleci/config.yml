@@ -1,0 +1,223 @@
+version: 2.1
+
+orbs:
+  windows: circleci/windows@5.0
+  rust: circleci/rust@1.8.0
+  codecov: codecov/codecov@5.4.3
+  node: circleci/node@7.1.0
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+executors:
+  node:
+    docker:
+      - image: node:22.16.0
+  mac:
+    resource_class: macos.m1.medium.gen1 
+    macos:
+      xcode: 26.3.0
+  rust:
+    docker:
+      - image: cimg/rust:1.93.1
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+  ubuntu:
+    resource_class: large
+    environment:
+      PIPELINE_NUM: << pipeline.number >>
+      TZ: "America/Los_Angeles"
+    machine:
+      image: ubuntu-2204:2025.09.1
+      docker_layer_caching: true
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+workflows:
+  ci_cd:
+    jobs:
+      # ---- CI ----
+      - check_formatting
+      - check_license
+      - integration_tests
+      - unit_tests
+      # TODO: can't get this to work, not trying to spend time on it right now since I don't use windows, low priority, will get to it later
+      # - build-windows
+      - build-mac:
+          filters:
+            branches:
+              ignore:
+                - main
+      - build-linux:
+          filters:
+            branches:
+              ignore:
+                - main
+
+      # ---- CD ---- 
+      - build-mac:
+          name: build-mac-binary
+          filters:
+            branches:
+              only:
+                - main
+          requires:
+            - check_formatting
+            - check_license
+            - integration_tests
+            - unit_tests
+      - build-linux:
+          name: build-linux-binary
+          filters:
+            branches:
+              only:
+                - main
+          requires:
+            - check_formatting
+            - check_license
+            - integration_tests
+            - unit_tests
+      - release:
+          filters:
+            branches:
+              only: 
+                - main
+          requires:
+            - build-linux-binary
+            - build-mac-binary
+
+#-----------------------------------------------------------------------------------------------------------------------------
+
+jobs:
+  release:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Install pnpm package manager
+          command: npm install -g pnpm
+      - run:
+          name: Install
+          command: pnpm install --frozen-lockfile
+      - attach_workspace:
+          at: target/release
+      - run:
+          name: Semantic release
+          command: pnpm release
+  
+  build-mac:
+    executor: mac
+    steps:
+      - checkout
+      - run:
+          name: Install Rust
+          command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - run:
+          name: Build Rust Project
+          command: cargo build --release
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - libhermes.dylib
+
+  build-windows:
+    executor:
+      name: windows/default
+    steps:
+      - checkout
+      - run:
+          name: Install MinGW
+          command: choco install mingw
+      - run:
+          name: Install Rust
+          command: choco install rust -y --no-progress
+      - run:
+          name: Validate GCC
+          command: gcc --version
+      - run:
+          name: Build Project
+          command: cargo build --target x86_64-pc-windows-gnu --release
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - hermes.dll
+
+  check_license:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Install cargo-deny
+          command: cargo install --locked cargo-deny
+      - run:
+          name: Check for license
+          command: cargo deny check licenses
+
+  build-linux:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Stable Build
+          command: cargo build --release
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - libhermes.so
+
+  check_formatting:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Check formatting
+          command: cargo fmt -- --check
+
+  unit_tests:
+    executor: ubuntu
+    steps:
+      - checkout
+      - rust/install
+      - run:
+          name: Install coverage tool
+          command: cargo install cargo-llvm-cov@0.6.13
+      - run:
+          name: Run unit tests
+          command: cargo llvm-cov --bins --lib --all-features --workspace --lcov --output-path unit.coverage.info
+      - codecov/upload:
+          fail_on_error: true
+          files: unit.coverage.info
+          git_service: github
+          upload_name: unit
+
+  integration_tests:
+    environment:
+      NEOVIM_VERSION: 0.11.6
+    executor: ubuntu
+    steps:
+      - checkout
+      - rust/install
+      - run:
+          name: Install Neovim
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.appimage
+            chmod u+x nvim-linux-x86_64.appimage
+            sudo mv nvim-linux-x86_64.appimage /usr/local/bin/nvim
+      - run:
+          name: Install coverage tool
+          command: cargo install cargo-llvm-cov@0.6.13
+      - run:
+          name: Install just
+          command: cargo install just
+      - run:
+          name: Set up environment
+          command: just
+      - run:
+          name: Run integration tests
+          command: cargo llvm-cov --test '*' --all-features --workspace --lcov --output-path integration.coverage.info
+      - codecov/upload:
+          fail_on_error: true
+          files: integration.coverage.info
+          git_service: github
+          upload_name: integration
+

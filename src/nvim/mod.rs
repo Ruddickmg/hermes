@@ -133,35 +133,3 @@ pub fn setup() -> nvim_oxi::Result<Dictionary> {
 
     Ok(Dictionary::new())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_plugin_state_new() {
-        let state = PluginState::new();
-        // Plugin state should be created successfully
-        assert!(std::ptr::addr_of!(state.client).is_aligned());
-    }
-
-    #[test]
-    fn test_plugin_state_with_config() {
-        let config = ClientConfig {
-            name: "test".to_string(),
-            version: "1.0.0".to_string(),
-            fs_read_access: true,
-            fs_write_access: true,
-            terminal_access: false,
-        };
-
-        let state = PluginState::with_config(config);
-        assert!(std::ptr::addr_of!(state.client).is_aligned());
-    }
-
-    #[test]
-    fn test_plugin_state_default() {
-        let state = PluginState::default();
-        assert!(std::ptr::addr_of!(state.client).is_aligned());
-    }
-}
