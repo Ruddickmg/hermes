@@ -1,2 +1,2 @@
-mod integration;
-mod e2e;
+mod parse;
+mod integration_test;

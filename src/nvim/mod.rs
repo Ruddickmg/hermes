@@ -1,10 +1,12 @@
 pub mod parse;
 pub mod producer;
 
+pub use crate::apc::connection::ConnectionDetails;
+
 use crate::{
     apc::{
         client::{ApcClient, ClientConfig},
-        connection::{Agent, Assistant, ConnectionDetails, Protocol},
+        connection::{Agent, Assistant, Protocol},
     },
     nvim::producer::EventHandler,
 };
@@ -12,7 +14,7 @@ use agent_client_protocol::ClientSideConnection;
 use nvim_oxi::{
     Dictionary, Function,
     api::opts::CreateAugroupOpts,
-    lua::{Error, Poppable, ffi::State},
+    lua::{Error, Poppable, Pushable, ffi::State},
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -168,6 +170,27 @@ impl Poppable for ConnectionArgs {
             .map(Protocol::from);
 
         Ok(Self { agent, protocol })
+    }
+}
+
+impl Pushable for ConnectionArgs {
+    unsafe fn push(self, state: *mut State) -> Result<i32, Error> {
+        let dict = nvim_oxi::Object::from({
+            let mut dict = Dictionary::new();
+            
+            if let Some(agent) = self.agent {
+                dict.insert("agent", agent.to_string());
+            }
+            
+            if let Some(protocol) = self.protocol {
+                dict.insert("protocol", protocol.to_string());
+            }
+            
+            dict
+        });
+        
+        // SAFETY: Caller must ensure valid state pointer
+        unsafe { dict.push(state) }
     }
 }
 

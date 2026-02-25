@@ -1,0 +1,14 @@
+[package]
+name = "hermes-e2e"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hermes = { path = ".." }
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }
+
+[build-dependencies]
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }

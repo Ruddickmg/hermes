@@ -1,6 +1,6 @@
 use crate::{
-    ApcClient,
     apc::{connection::Assistant, error::Error},
+    ApcClient,
 };
 use agent_client_protocol::{Client, ClientSideConnection};
 use std::{ffi::OsStr, process::Stdio, sync::Arc};
@@ -16,13 +16,20 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let mut child = tokio::process::Command::new(command)
-        .args(args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
         .map_err(|e| Error::Connection(e.to_string()))?;
+
+    let mut child = runtime.block_on(async {
+        tokio::process::Command::new(command)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+    })
+    .map_err(|e| Error::Connection(e.to_string()))?;
 
     let outgoing = child
         .stdin
@@ -36,12 +43,13 @@ where
         .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?
         .compat();
 
-    let (conn, handle_io) =
+    let (conn, handle_io) = runtime.block_on(async {
         agent_client_protocol::ClientSideConnection::new(client, outgoing, incoming, |fut| {
             tokio::task::spawn_local(fut);
-        });
+        })
+    });
 
-    tokio::spawn(handle_io);
+    runtime.spawn(handle_io);
 
     Ok(conn)
 }

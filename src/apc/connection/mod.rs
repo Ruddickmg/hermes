@@ -1,15 +1,25 @@
 pub mod stdio;
 
-use crate::{ApcClient, apc::error::Error};
+use crate::{apc::error::Error, ApcClient};
 use agent_client_protocol::{Client, ClientSideConnection};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, std::hash::Hash, Serialize, Deserialize, Debug)]
 pub enum Protocol {
     Socket,
     Http,
     Stdio,
+}
+
+impl std::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Protocol::Socket => write!(f, "socket"),
+            Protocol::Http => write!(f, "http"),
+            Protocol::Stdio => write!(f, "stdio"),
+        }
+    }
 }
 
 impl From<&str> for Protocol {
@@ -35,10 +45,19 @@ impl From<String> for Protocol {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, std::hash::Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, std::hash::Hash, Serialize, Deserialize, Debug)]
 pub enum Assistant {
     Copilot,
     Opencode,
+}
+
+impl std::fmt::Display for Assistant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Assistant::Copilot => write!(f, "copilot"),
+            Assistant::Opencode => write!(f, "opencode"),
+        }
+    }
 }
 
 impl Default for Assistant {
