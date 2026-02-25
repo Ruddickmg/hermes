@@ -135,7 +135,7 @@ impl Default for PluginState {
 }
 
 #[derive(Clone)]
-struct ConnectionArgs {
+pub struct ConnectionArgs {
     pub agent: Option<Assistant>,
     pub protocol: Option<Protocol>,
 }
@@ -174,9 +174,9 @@ impl Poppable for ConnectionArgs {
 pub fn setup() -> nvim_oxi::Result<Dictionary> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
 
-    let connect: Function<ConnectionArgs, Result<(), Error>> =
-        Function::from_fn::<_, Result<(), Error>>(move |arg: ConnectionArgs| {
-            let details = ConnectionDetails::from(arg);
+    let connect: Function<Option<ConnectionArgs>, Result<(), Error>> =
+        Function::from_fn(move |arg: Option<ConnectionArgs>| {
+            let details = arg.map(ConnectionDetails::from).unwrap_or_default();
             let connection = plugin_state
                 .lock()
                 .map_err(|e| Error::RuntimeError(e.to_string()))?

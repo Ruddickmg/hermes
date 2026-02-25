@@ -11,7 +11,7 @@ fn test_text_event_ok() {
 #[test]
 fn test_text_event_text_value() {
     let text = TextContent::new("Hello, world!");
-    let (dict, content_type) = text_event(text).unwrap();
+    let (dict, _content_type) = text_event(text).unwrap();
 
     let text_value = dict.get("text").unwrap();
     assert_eq!(*text_value, nvim_oxi::Object::from("Hello, world!"));
@@ -20,7 +20,7 @@ fn test_text_event_text_value() {
 #[test]
 fn test_text_event_content_type() {
     let text = TextContent::new("Test");
-    let (dict, content_type) = text_event(text).unwrap();
+    let (_dict, content_type) = text_event(text).unwrap();
 
     assert_eq!(content_type, "Text");
 }

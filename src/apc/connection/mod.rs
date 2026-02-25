@@ -63,7 +63,7 @@ impl From<String> for Assistant {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ConnectionDetails {
     pub agent: Assistant,
     pub protocol: Protocol,

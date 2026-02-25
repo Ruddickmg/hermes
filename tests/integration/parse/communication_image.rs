@@ -11,7 +11,7 @@ fn test_image_event_ok() {
 #[test]
 fn test_image_event_data_value() {
     let image = ImageContent::new("base64encoded", "image/png");
-    let (dict, content_type) = image_event(image).unwrap();
+    let (dict, _content_type) = image_event(image).unwrap();
 
     let data = dict.get("data").unwrap();
     assert_eq!(*data, nvim_oxi::Object::from("base64encoded"));
@@ -20,7 +20,7 @@ fn test_image_event_data_value() {
 #[test]
 fn test_image_event_mime_type_value() {
     let image = ImageContent::new("data", "image/jpeg");
-    let (dict, content_type) = image_event(image).unwrap();
+    let (dict, _content_type) = image_event(image).unwrap();
 
     let mime_type = dict.get("mimeType").unwrap();
     assert_eq!(*mime_type, nvim_oxi::Object::from("image/jpeg"));
@@ -29,7 +29,7 @@ fn test_image_event_mime_type_value() {
 #[test]
 fn test_image_event_content_type() {
     let image = ImageContent::new("data", "image/png");
-    let (dict, content_type) = image_event(image).unwrap();
+    let (_dict, content_type) = image_event(image).unwrap();
 
     assert_eq!(content_type, "Image");
 }

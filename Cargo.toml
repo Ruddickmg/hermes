@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 agent-client-protocol = "0.9.4"
 async-trait = "0.1"
-nvim-oxi = { version = "0.6.0", features = ["neovim-0-10"] }
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }
 nvim-utils = "0.1.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
