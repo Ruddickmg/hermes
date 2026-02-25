@@ -16,8 +16,8 @@ Hermes focuses on:
 - [x] Full implementation of APC Client
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Trigger Autocommands for messages/notifications
-- [ ] Allow connecting to Agents
-  - [ ] Via stdio
+- [x] Allow connecting to Agents
+  - [x] Via stdio
   - [ ] Via http
   - [ ] Via linux socket
   - [ ] handle authentication

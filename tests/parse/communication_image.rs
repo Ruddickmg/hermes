@@ -1,5 +1,5 @@
 use agent_client_protocol::ImageContent;
-use hermes::nvim::event::image_event;
+use hermes::nvim::parse::image_event;
 
 #[test]
 fn test_image_event_ok() {

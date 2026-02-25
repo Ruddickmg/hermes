@@ -3,7 +3,7 @@ use std::fs;
 use agent_client_protocol::{Error, Result, ToolCall};
 use nvim_oxi::Dictionary;
 
-use crate::nvim::event::tool_call_content::parse_tool_call_content;
+use crate::nvim::parse::tool_call_content::parse_tool_call_content;
 
 pub fn tool_call_event(tool_call: ToolCall) -> Result<Dictionary> {
     let mut data: nvim_oxi::Dictionary = nvim_oxi::Dictionary::new();

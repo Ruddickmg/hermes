@@ -2,7 +2,7 @@ use agent_client_protocol::{
     Annotations, BlobResourceContents, EmbeddedResource, EmbeddedResourceResource, Role,
     TextResourceContents,
 };
-use hermes::nvim::event::resource_event;
+use hermes::nvim::parse::resource_event;
 
 #[test]
 fn test_resource_event_ok() {

@@ -2,7 +2,7 @@ use agent_client_protocol::{
     Content, ContentBlock, TextContent, ToolCall, ToolCallContent, ToolCallId, ToolCallLocation,
     ToolKind,
 };
-use hermes::nvim::event::tool_call_event;
+use hermes::nvim::parse::tool_call_event;
 use std::io::Write;
 use tempfile::NamedTempFile;
 

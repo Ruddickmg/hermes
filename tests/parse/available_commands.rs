@@ -1,7 +1,7 @@
 use agent_client_protocol::{
     AvailableCommand, AvailableCommandInput, AvailableCommandsUpdate, UnstructuredCommandInput,
 };
-use hermes::nvim::event::available_commands_event;
+use hermes::nvim::parse::available_commands_event;
 
 #[test]
 fn test_available_commands_event_ok() {

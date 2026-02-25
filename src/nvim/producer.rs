@@ -1,4 +1,4 @@
-use crate::nvim::event;
+use crate::nvim::parse;
 use agent_client_protocol::{
     Client, CreateTerminalRequest, CreateTerminalResponse, Error as AcpError, ReadTextFileRequest,
     ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
@@ -41,26 +41,26 @@ impl Client for EventHandler {
 
         let (mut data, command) =
             match args.update {
-                SessionUpdate::UserMessageChunk(chunk) => event::communication(chunk.content)
+                SessionUpdate::UserMessageChunk(chunk) => parse::communication(chunk.content)
                     .map(|(dict, t)| (dict, format!("User{}Message", t))),
-                SessionUpdate::AgentMessageChunk(chunk) => event::communication(chunk.content)
+                SessionUpdate::AgentMessageChunk(chunk) => parse::communication(chunk.content)
                     .map(|(dict, t)| (dict, format!("Agent{}Message", t))),
-                SessionUpdate::AgentThoughtChunk(chunk) => event::communication(chunk.content)
+                SessionUpdate::AgentThoughtChunk(chunk) => parse::communication(chunk.content)
                     .map(|(dict, t)| (dict, format!("Agent{}Thought", t))),
-                SessionUpdate::ToolCall(tool_call) => event::tool_call_event(tool_call)
+                SessionUpdate::ToolCall(tool_call) => parse::tool_call_event(tool_call)
                     .map(|dict| (dict, "AgentToolCall".to_string())),
-                SessionUpdate::ToolCallUpdate(update) => event::tool_call_update_event(update)
+                SessionUpdate::ToolCallUpdate(update) => parse::tool_call_update_event(update)
                     .map(|dict| (dict, "AgentToolCallUpdate".to_string())),
                 SessionUpdate::Plan(plan) => {
-                    event::plan_event(plan).map(|dict| (dict, "AgentPlan".to_string()))
+                    parse::plan_event(plan).map(|dict| (dict, "AgentPlan".to_string()))
                 }
                 SessionUpdate::AvailableCommandsUpdate(update) => {
-                    event::available_commands_event(update)
+                    parse::available_commands_event(update)
                         .map(|dict| (dict, "AgentAvailableCommands".to_string()))
                 }
-                SessionUpdate::CurrentModeUpdate(update) => event::current_mode_event(update)
+                SessionUpdate::CurrentModeUpdate(update) => parse::current_mode_event(update)
                     .map(|dict| (dict, "AgentCurrentMode".to_string())),
-                SessionUpdate::ConfigOptionUpdate(update) => event::config_option_event(update)
+                SessionUpdate::ConfigOptionUpdate(update) => parse::config_option_event(update)
                     .map(|dict| (dict, "AgentConfigOption".to_string())),
                 _ => return Err(AcpError::method_not_found()),
             }?;

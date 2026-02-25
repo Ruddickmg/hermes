@@ -1,5 +1,5 @@
 use agent_client_protocol::TextContent;
-use hermes::nvim::event::text_event;
+use hermes::nvim::parse::text_event;
 
 #[test]
 fn test_text_event_ok() {

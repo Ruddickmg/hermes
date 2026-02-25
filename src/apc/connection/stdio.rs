@@ -1,13 +1,23 @@
-use crate::{ApcClient, apc::error::Error};
+use crate::{
+    ApcClient,
+    apc::{connection::Assistant, error::Error},
+};
 use agent_client_protocol::{Client, ClientSideConnection};
-use std::{process::Stdio, sync::Arc};
+use std::{ffi::OsStr, process::Stdio, sync::Arc};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-pub fn copilot<H: Client + 'static>(
+pub fn stdio_connection<H, I, S>(
     client: Arc<ApcClient<H>>,
-) -> Result<ClientSideConnection, Error> {
-    let mut child = tokio::process::Command::new("npx")
-        .args(["-y", "@github/copilot-language-server@latest", "--acp"])
+    command: &str,
+    args: I,
+) -> Result<ClientSideConnection, Error>
+where
+    H: Client + 'static,
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let mut child = tokio::process::Command::new(command)
+        .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -34,4 +44,16 @@ pub fn copilot<H: Client + 'static>(
     tokio::spawn(handle_io);
 
     Ok(conn)
+}
+
+pub fn connect<H: Client + 'static>(
+    client: Arc<ApcClient<H>>,
+    agent: Assistant,
+) -> Result<ClientSideConnection, Error> {
+    match agent {
+        Assistant::Copilot => {
+            stdio_connection(client, "node", ["copilot-language-server", "--acp"])
+        }
+        Assistant::Opencode => stdio_connection(client, "opencode", ["apc"]),
+    }
 }

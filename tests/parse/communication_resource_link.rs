@@ -1,5 +1,5 @@
 use agent_client_protocol::{Annotations, ResourceLink, Role};
-use hermes::nvim::event::resource_link_event;
+use hermes::nvim::parse::resource_link_event;
 
 #[test]
 fn test_resource_link_event_ok() {

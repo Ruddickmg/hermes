@@ -1,7 +1,7 @@
 use agent_client_protocol::{
     Content, ContentBlock, Diff, Terminal, TerminalId, TextContent, ToolCallContent,
 };
-use hermes::nvim::event::tool_call_content::parse_tool_call_content;
+use hermes::nvim::parse::tool_call_content::parse_tool_call_content;
 use std::io::Write;
 use tempfile::NamedTempFile;
 

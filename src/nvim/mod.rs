@@ -1,12 +1,23 @@
-pub mod event;
+pub mod parse;
 pub mod producer;
 
 use crate::{
-    apc::client::{ApcClient, ClientConfig},
+    apc::{
+        client::{ApcClient, ClientConfig},
+        connection::{Agent, Assistant, ConnectionDetails, Protocol},
+    },
     nvim::producer::EventHandler,
 };
-use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
-use std::sync::Arc;
+use agent_client_protocol::ClientSideConnection;
+use nvim_oxi::{
+    Dictionary, Function,
+    api::opts::CreateAugroupOpts,
+    lua::{Error, Poppable, ffi::State},
+};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+const GROUP: &str = "hermes";
 
 #[derive(Debug)]
 pub enum NvimError {
@@ -34,6 +45,8 @@ pub enum NvimError {
 /// ```
 pub struct PluginState {
     client: Arc<ApcClient<EventHandler>>,
+    agent: Arc<Agent<EventHandler>>,
+    connections: HashMap<Assistant, ClientSideConnection>,
 }
 
 impl PluginState {
@@ -49,8 +62,15 @@ impl PluginState {
     /// ```
     pub fn new() -> Self {
         let config = ClientConfig::default();
+
+        nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::default()).unwrap();
+
+        let client = Arc::new(ApcClient::new(config, EventHandler::new(GROUP.to_string())));
+
         Self {
-            client: Arc::new(ApcClient::new(config, EventHandler::default())),
+            client: client.clone(),
+            agent: Arc::new(Agent::new(client.clone())),
+            connections: HashMap::new(),
         }
     }
 
@@ -76,9 +96,17 @@ impl PluginState {
     /// assert_eq!(state.client().config().name, "custom");
     /// ```
     pub fn with_config(config: ClientConfig) -> Self {
+        let client = Arc::new(ApcClient::new(config, EventHandler::default()));
         Self {
-            client: Arc::new(ApcClient::new(config, EventHandler::default())),
+            client: client.clone(),
+            agent: Arc::new(Agent::new(client.clone())),
+            connections: HashMap::new(),
         }
+    }
+
+    pub fn set_connection(&mut self, agent: Assistant, connection: ClientSideConnection) -> &Self {
+        self.connections.insert(agent, connection);
+        self
     }
 
     /// Gets a reference to the APC client
@@ -106,30 +134,61 @@ impl Default for PluginState {
     }
 }
 
-/// Initializes the Neovim plugin
-///
-/// This function sets up the plugin commands and state. It should be called
-/// when the plugin is loaded by Neovim.
-///
-/// # Returns
-///
-/// A `Dictionary` containing plugin metadata (currently empty).
-///
-/// # Errors
-///
-/// Returns a `nvim_oxi::Error` if initialization fails.
-///
-/// # Examples
-///
-/// ```
-/// use hermes::nvim::setup;
-///
-/// let result = setup();
-/// assert!(result.is_ok());
-/// ```
-pub fn setup() -> nvim_oxi::Result<Dictionary> {
-    // Create the Hermes augroup for plugin autocommands
-    let _hermes_group = nvim_oxi::api::create_augroup("Hermes", &CreateAugroupOpts::default())?;
+#[derive(Clone)]
+struct ConnectionArgs {
+    pub agent: Option<Assistant>,
+    pub protocol: Option<Protocol>,
+}
 
-    Ok(Dictionary::new())
+impl From<ConnectionArgs> for ConnectionDetails {
+    fn from(args: ConnectionArgs) -> Self {
+        ConnectionDetails {
+            agent: args.agent.unwrap_or_default(),
+            protocol: args.protocol.unwrap_or_default(),
+        }
+    }
+}
+
+impl Poppable for ConnectionArgs {
+    unsafe fn pop(state: *mut State) -> Result<Self, Error> {
+        use nvim_oxi::Object;
+
+        let table = unsafe { Dictionary::pop(state)? };
+
+        let agent = table
+            .get("agent")
+            .map(|v: &Object| unsafe { v.as_nvim_str_unchecked() })
+            .map(|s: nvim_oxi::NvimStr| s.to_string())
+            .map(Assistant::from);
+
+        let protocol = table
+            .get("protocol")
+            .map(|v: &Object| unsafe { v.as_nvim_str_unchecked() })
+            .map(|s: nvim_oxi::NvimStr| s.to_string())
+            .map(Protocol::from);
+
+        Ok(Self { agent, protocol })
+    }
+}
+
+pub fn setup() -> nvim_oxi::Result<Dictionary> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+
+    let connect: Function<ConnectionArgs, Result<(), Error>> =
+        Function::from_fn::<_, Result<(), Error>>(move |arg: ConnectionArgs| {
+            let details = ConnectionDetails::from(arg);
+            let connection = plugin_state
+                .lock()
+                .map_err(|e| Error::RuntimeError(e.to_string()))?
+                .agent
+                .connect(details.clone())
+                .map_err(|e| Error::RuntimeError(e.to_string()))?;
+            plugin_state
+                .lock()
+                .map_err(|e| Error::RuntimeError(e.to_string()))?
+                .set_connection(details.agent, connection);
+            Ok(())
+        });
+
+    Ok(Dictionary::from_iter([("connect", connect)]))
 }
