@@ -1,9 +1,11 @@
 pub mod stdio;
 
-use crate::{apc::error::Error, ApcClient};
+use crate::{ApcClient, apc::error::Error};
 use agent_client_protocol::{Client, ClientSideConnection};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::runtime::Runtime;
+use tokio::task::LocalSet;
 
 #[derive(PartialEq, Eq, Clone, std::hash::Hash, Serialize, Deserialize, Debug)]
 pub enum Protocol {
@@ -82,7 +84,7 @@ impl From<String> for Assistant {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ConnectionDetails {
     pub agent: Assistant,
     pub protocol: Protocol,
@@ -91,18 +93,33 @@ pub struct ConnectionDetails {
 #[derive(Clone)]
 pub struct Agent<H: Client> {
     client: Arc<ApcClient<H>>,
+    runtime: Arc<Runtime>,
+    local: Arc<LocalSet>,
 }
 
 impl<H: Client + 'static> Agent<H> {
-    pub fn new(client: Arc<ApcClient<H>>) -> Self {
-        Self { client }
+    pub fn new(client: Arc<ApcClient<H>>) -> Result<Self, Error> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| Error::Internal(e.to_string()))?;
+
+        let local_set = tokio::task::LocalSet::new();
+
+        Ok(Self {
+            client,
+            runtime: Arc::new(runtime),
+            local: Arc::new(local_set),
+        })
     }
     pub fn connect(
         &self,
         ConnectionDetails { agent, protocol }: ConnectionDetails,
     ) -> Result<ClientSideConnection, Error> {
         match protocol {
-            Protocol::Stdio => stdio::connect(self.client.clone(), agent),
+            Protocol::Stdio => {
+                stdio::connect(&self.runtime, &self.local, self.client.clone(), agent)
+            }
             Protocol::Http => unimplemented!(),
             Protocol::Socket => unimplemented!(),
         }

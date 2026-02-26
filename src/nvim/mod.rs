@@ -71,7 +71,7 @@ impl PluginState {
 
         Self {
             client: client.clone(),
-            agent: Arc::new(Agent::new(client.clone())),
+            agent: Arc::new(Agent::new(client.clone()).expect("could not initialize agent")),
             connections: HashMap::new(),
         }
     }
@@ -99,9 +99,12 @@ impl PluginState {
     /// ```
     pub fn with_config(config: ClientConfig) -> Self {
         let client = Arc::new(ApcClient::new(config, EventHandler::default()));
+
         Self {
             client: client.clone(),
-            agent: Arc::new(Agent::new(client.clone())),
+            agent: Arc::new(
+                Agent::new(client.clone()).expect("couldn't initialize connection to agent"),
+            ),
             connections: HashMap::new(),
         }
     }
@@ -177,18 +180,18 @@ impl Pushable for ConnectionArgs {
     unsafe fn push(self, state: *mut State) -> Result<i32, Error> {
         let dict = nvim_oxi::Object::from({
             let mut dict = Dictionary::new();
-            
+
             if let Some(agent) = self.agent {
                 dict.insert("agent", agent.to_string());
             }
-            
+
             if let Some(protocol) = self.protocol {
                 dict.insert("protocol", protocol.to_string());
             }
-            
+
             dict
         });
-        
+
         // SAFETY: Caller must ensure valid state pointer
         unsafe { dict.push(state) }
     }
@@ -197,20 +200,15 @@ impl Pushable for ConnectionArgs {
 pub fn setup() -> nvim_oxi::Result<Dictionary> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
 
-    let connect: Function<Option<ConnectionArgs>, Result<(), Error>> =
+    let connect: Function<Option<ConnectionArgs>, ()> =
         Function::from_fn(move |arg: Option<ConnectionArgs>| {
             let details = arg.map(ConnectionDetails::from).unwrap_or_default();
-            let connection = plugin_state
-                .lock()
-                .map_err(|e| Error::RuntimeError(e.to_string()))?
-                .agent
-                .connect(details.clone())
-                .map_err(|e| Error::RuntimeError(e.to_string()))?;
-            plugin_state
-                .lock()
-                .map_err(|e| Error::RuntimeError(e.to_string()))?
-                .set_connection(details.agent, connection);
-            Ok(())
+
+            if let Ok(state) = plugin_state.lock() {
+                let _ = state.agent.connect(details.clone());
+            }
+
+            Ok::<(), Error>(())
         });
 
     Ok(Dictionary::from_iter([("connect", connect)]))
