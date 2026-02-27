@@ -3,6 +3,7 @@ pub mod stdio;
 use crate::{ApcClient, apc::error::Error};
 use agent_client_protocol::{Client, ClientSideConnection};
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::task::LocalSet;
@@ -94,7 +95,7 @@ pub struct ConnectionDetails {
 pub struct Agent<H: Client> {
     client: Arc<ApcClient<H>>,
     runtime: Arc<Runtime>,
-    local: Arc<LocalSet>,
+    local: Rc<LocalSet>,
 }
 
 impl<H: Client + 'static> Agent<H> {
@@ -109,7 +110,7 @@ impl<H: Client + 'static> Agent<H> {
         Ok(Self {
             client,
             runtime: Arc::new(runtime),
-            local: Arc::new(local_set),
+            local: Rc::new(local_set),
         })
     }
     pub fn connect(

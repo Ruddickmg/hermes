@@ -61,9 +61,13 @@ pub fn connect<H: Client + 'static>(
     agent: Assistant,
 ) -> Result<ClientSideConnection, Error> {
     match agent {
-        Assistant::Copilot => {
-            stdio_connection(runtime, local_set, client, "node", ["copilot-language-server", "--acp"])
-        }
+        Assistant::Copilot => stdio_connection(
+            runtime,
+            local_set,
+            client,
+            "node",
+            ["copilot-language-server", "--acp"],
+        ),
         Assistant::Opencode => stdio_connection(runtime, local_set, client, "opencode", ["apc"]),
     }
 }

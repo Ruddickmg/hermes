@@ -16,8 +16,8 @@ use nvim_oxi::{
     api::opts::CreateAugroupOpts,
     lua::{Error, Poppable, Pushable, ffi::State},
 };
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, rc::Rc};
 
 const GROUP: &str = "hermes";
 
@@ -40,7 +40,7 @@ const GROUP: &str = "hermes";
 /// ```
 pub struct PluginState {
     client: Arc<ApcClient<EventHandler>>,
-    agent: Arc<Agent<EventHandler>>,
+    agent: Agent<EventHandler>,
     connections: HashMap<Assistant, ClientSideConnection>,
 }
 
@@ -64,7 +64,7 @@ impl PluginState {
 
         Self {
             client: client.clone(),
-            agent: Arc::new(Agent::new(client.clone()).expect("could not initialize agent")),
+            agent: Agent::new(client.clone()).expect("could not initialize agent"),
             connections: HashMap::new(),
         }
     }
@@ -95,9 +95,7 @@ impl PluginState {
 
         Self {
             client: client.clone(),
-            agent: Arc::new(
-                Agent::new(client.clone()).expect("couldn't initialize connection to agent"),
-            ),
+            agent: Agent::new(client.clone()).expect("couldn't initialize connection to agent"),
             connections: HashMap::new(),
         }
     }
@@ -191,7 +189,7 @@ impl Pushable for ConnectionArgs {
 }
 
 pub fn setup() -> nvim_oxi::Result<Dictionary> {
-    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let plugin_state = Rc::new(Mutex::new(PluginState::new()));
 
     let connect: Function<Option<ConnectionArgs>, ()> =
         Function::from_fn(move |arg: Option<ConnectionArgs>| {
