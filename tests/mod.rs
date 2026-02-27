@@ -1,2 +1,2 @@
-mod parse;
 mod integration_test;
+mod parse;

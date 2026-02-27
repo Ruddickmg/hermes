@@ -244,6 +244,9 @@ jobs:
           name: Install just
           command: cargo install just
       - run:
+          name: Install Opencode
+          command: curl -fsSL https://opencode.ai/install | bash
+      - run:
           name: Set up environment
           command: just
       - run:
