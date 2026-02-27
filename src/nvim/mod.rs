@@ -21,13 +21,6 @@ use std::sync::{Arc, Mutex};
 
 const GROUP: &str = "hermes";
 
-#[derive(Debug)]
-pub enum NvimError {
-    InitializationError(String),
-    NotConnected,
-    InvalidConfig(String),
-}
-
 /// Neovim plugin state
 ///
 /// This structure maintains the state of the Neovim plugin, including
@@ -203,10 +196,16 @@ pub fn setup() -> nvim_oxi::Result<Dictionary> {
     let connect: Function<Option<ConnectionArgs>, ()> =
         Function::from_fn(move |arg: Option<ConnectionArgs>| {
             let details = arg.map(ConnectionDetails::from).unwrap_or_default();
-
-            if let Ok(state) = plugin_state.lock() {
-                let _ = state.agent.connect(details.clone());
-            }
+            let connection = plugin_state
+                .lock()
+                .map_err(|e| Error::RuntimeError(e.to_string()))?
+                .agent
+                .connect(details.clone())
+                .map_err(|e| Error::RuntimeError(e.to_string()))?;
+            plugin_state
+                .lock()
+                .map_err(|e| Error::RuntimeError(e.to_string()))?
+                .set_connection(details.agent.clone(), connection);
 
             Ok::<(), Error>(())
         });
