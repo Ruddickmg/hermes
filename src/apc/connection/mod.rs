@@ -1,13 +1,12 @@
 pub mod stdio;
 
+use crate::apc::connection::stdio::UserRequest;
 use crate::{ApcClient, apc::error::Error};
-use agent_client_protocol::{Client, ClientSideConnection};
+use agent_client_protocol::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::Arc;
-use tokio::runtime::Runtime;
-use tokio::task::LocalSet;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 
 #[derive(PartialEq, Eq, Clone, std::hash::Hash, Serialize, Deserialize, Debug)]
 pub enum Protocol {
@@ -64,6 +63,12 @@ impl std::fmt::Display for Assistant {
     }
 }
 
+use tokio::sync::mpsc::Sender;
+
+pub struct Connection {
+    tx: Sender<String>,
+}
+
 impl Default for Assistant {
     fn default() -> Self {
         Assistant::Copilot
@@ -94,55 +99,57 @@ pub struct ConnectionDetails {
 
 #[derive(Clone)]
 pub struct ConnectionManager<H: Client> {
-    connection: HashMap<Assistant, Rc<ClientSideConnection>>,
+    handles: Arc<Mutex<Vec<JoinHandle<Result<(), Error>>>>>,
+    connection: HashMap<Assistant, Sender<UserRequest>>,
     handler: Arc<ApcClient<H>>,
-    runtime: Arc<Runtime>,
-    local: Rc<LocalSet>,
 }
 
-impl<H: Client + 'static> ConnectionManager<H> {
+impl<H: Client + Sync + Send + 'static> ConnectionManager<H> {
     pub fn new(client: Arc<ApcClient<H>>) -> Result<Self, Error> {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| Error::Internal(e.to_string()))?;
-
-        let local_set = tokio::task::LocalSet::new();
-
         Ok(Self {
             handler: client,
+            handles: Arc::new(Mutex::new(Vec::new())),
             connection: HashMap::new(),
-            runtime: Arc::new(runtime),
-            local: Rc::new(local_set),
         })
     }
 
-    fn add_connection(&mut self, agent: Assistant, connection: ClientSideConnection) {
-        self.connection.insert(agent, Rc::new(connection));
+    fn add_connection(&mut self, agent: Assistant, connection: Sender<UserRequest>) {
+        self.connection.insert(agent, connection);
     }
 
-    pub fn get_connection(&self, agent: &Assistant) -> Option<Rc<ClientSideConnection>> {
+    pub fn get_connection(&self, agent: &Assistant) -> Option<Sender<UserRequest>> {
         self.connection.get(agent).cloned()
     }
 
     pub fn connect(
         &mut self,
         ConnectionDetails { agent, protocol }: ConnectionDetails,
-    ) -> Result<Rc<ClientSideConnection>, Error> {
-        let connection = match protocol {
-            Protocol::Stdio => stdio::connect(
-                &self.runtime,
-                &self.local,
-                self.handler.clone(),
-                agent.clone(),
-            ),
-            Protocol::Http => unimplemented!(),
-            Protocol::Socket => unimplemented!(),
-        }
-        .map_err(|e| Error::Connection(e.to_string()))?;
-        self.add_connection(agent.clone(), connection);
-        self.get_connection(&agent).ok_or_else(|| {
-            Error::Connection("Failed to retrieve connection after creation".to_string())
+    ) -> Result<Sender<UserRequest>, Error> {
+        Ok(match self.get_connection(&agent) {
+            Some(sender) => sender,
+            None => {
+                let (sender, receiver) = tokio::sync::mpsc::channel(50);
+                let handler = self.handler.clone();
+                let thread_agent = agent.clone();
+                self.handles
+                    .lock()
+                    .map_err(|e| Error::Internal(e.to_string()))?
+                    .push(std::thread::spawn(move || match protocol {
+                        Protocol::Stdio => stdio::connect(handler, thread_agent, receiver),
+                        Protocol::Http => unimplemented!(),
+                        Protocol::Socket => unimplemented!(),
+                    }));
+                self.add_connection(agent.clone(), sender.clone());
+                sender
+            }
         })
+    }
+
+    pub fn disconnect(&mut self, assistant: &Assistant) -> Result<(), Error> {
+        let sender = self.connection.remove(assistant).ok_or_else(|| {
+            Error::Connection(format!("No connection found for assistant {}", assistant))
+        })?;
+        drop(sender);
+        Ok(())
     }
 }

@@ -3,35 +3,40 @@ use crate::{
     apc::{connection::Assistant, error::Error},
 };
 use agent_client_protocol::{
-    Agent, Client, ClientSideConnection, ContentBlock, Implementation, InitializeRequest,
-    NewSessionRequest, PromptRequest, ProtocolVersion, TextContent,
+    Agent, Client, Implementation, InitializeRequest, NewSessionRequest, ProtocolVersion,
 };
-use std::{ffi::OsStr, process::Stdio, sync::Arc, vec};
-use tokio::runtime::Runtime;
-use tokio::task::LocalSet;
+use std::{ffi::OsStr, process::Stdio, sync::Arc};
+use tokio::sync::mpsc::Receiver;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
+#[derive(Debug)]
+pub enum UserRequest {
+    CreateSession,
+}
+
 pub fn stdio_connection<H, I, S>(
-    runtime: &Runtime,
-    local_set: &LocalSet,
+    mut reciever: Receiver<UserRequest>,
     client: Arc<ApcClient<H>>,
     command: &str,
     args: I,
-) -> Result<ClientSideConnection, Error>
+) -> Result<(), Error>
 where
     H: Client + 'static,
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let mut child = runtime
-        .block_on(async {
-            tokio::process::Command::new(command)
-                .args(args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-        })
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| Error::Connection(e.to_string()))?;
+    let local_set = tokio::task::LocalSet::new();
+
+    let mut child = tokio::process::Command::new(command)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|e| Error::Connection(e.to_string()))?;
 
     let outgoing = child
@@ -46,7 +51,7 @@ where
         .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?
         .compat();
 
-    let conne = runtime.block_on(local_set.run_until(async {
+    runtime.block_on(local_set.run_until(async {
         println!("creating connection");
         let (conn, handle_io) =
             agent_client_protocol::ClientSideConnection::new(client, outgoing, incoming, |fut| {
@@ -68,46 +73,59 @@ where
             .unwrap();
 
         println!("something! {:?}", result);
+        while let Ok(msg) = reciever.try_recv() {
+            println!("got a message from the channel! {:?}", msg);
+            match msg {
+                UserRequest::CreateSession => {
+                    let response = conn
+                        .new_session(NewSessionRequest::new(
+                            // TODO: find the project root
+                            std::env::current_dir()
+                                .map_err(|e| Error::Internal(e.to_string()))
+                                .unwrap_or(".".to_string().into()),
+                        ))
+                        .await
+                        .unwrap();
 
-        let response = conn
-            .new_session(NewSessionRequest::new(std::env::current_dir().unwrap()))
-            .await
-            .unwrap();
+                    println!("new session! {:?}", response);
+                }
+            }
+        }
 
-        println!("new session! {:?}", response);
-
-        let content = ContentBlock::Text(TextContent::new("Say Hello!"));
-        let res = conn
-            .prompt(PromptRequest::new(response.session_id, vec![content]))
-            .await
-            .unwrap();
-
-        println!("prompt response! {:?}", res);
-
-        conn
+        // let response = conn
+        //     .new_session(NewSessionRequest::new(std::env::current_dir().unwrap()))
+        //     .await
+        //     .unwrap();
+        //
+        // println!("new session! {:?}", response);
+        //
+        // let content = ContentBlock::Text(TextContent::new("Say Hello!"));
+        // let res = conn
+        //     .prompt(PromptRequest::new(response.session_id, vec![content]))
+        //     .await
+        //     .unwrap();
+        //
+        // println!("prompt response! {:?}", res);
     }));
 
-    Ok(conne)
+    Ok(())
 }
 
 pub fn connect<H: Client + 'static>(
-    runtime: &Runtime,
-    local_set: &LocalSet,
     client: Arc<ApcClient<H>>,
     agent: Assistant,
-) -> Result<ClientSideConnection, Error> {
+    receiver: Receiver<UserRequest>,
+) -> Result<(), Error> {
     match agent {
         Assistant::Copilot => stdio_connection(
-            runtime,
-            local_set,
+            receiver,
             client,
             "node",
             ["copilot-language-server", "--acp"],
         ),
         Assistant::Opencode => {
             stdio_connection(
-                runtime,
-                local_set,
+                receiver,
                 client,
                 "opencode",
                 [

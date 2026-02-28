@@ -1,6 +1,6 @@
 use nvim_oxi::lua;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     Internal(String),
     Connection(String),

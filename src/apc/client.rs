@@ -8,8 +8,6 @@ use agent_client_protocol::{
 
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
-    pub name: String,
-    pub version: String,
     pub fs_write_access: bool,
     pub fs_read_access: bool,
     pub terminal_access: bool,
@@ -18,8 +16,6 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
     fn default() -> Self {
         Self {
-            name: "hermes".to_string(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
             fs_write_access: true,
             fs_read_access: true,
             terminal_access: true,
