@@ -122,17 +122,21 @@ impl Poppable for ConnectionArgs {
 
         let table = unsafe { Dictionary::pop(state)? };
 
-        let agent = table
-            .get("agent")
-            .map(|v: &Object| unsafe { v.as_nvim_str_unchecked() })
-            .map(|s: nvim_oxi::NvimStr| s.to_string())
-            .map(Assistant::from);
+        let agent = match table.get("agent") {
+            Some(v) => {
+                let s: String = v.clone().try_into()?;
+                Some(Assistant::from(s))
+            }
+            None => None,
+        };
 
-        let protocol = table
-            .get("protocol")
-            .map(|v: &Object| unsafe { v.as_nvim_str_unchecked() })
-            .map(|s: nvim_oxi::NvimStr| s.to_string())
-            .map(Protocol::from);
+        let protocol = match table.get("protocol") {
+            Some(v) => {
+                let s: String = v.clone().try_into()?;
+                Some(Protocol::from(s))
+            }
+            None => None,
+        };
 
         Ok(Self { agent, protocol })
     }

@@ -250,7 +250,7 @@ jobs:
           name: Set up environment
           command: just
       - run:
-          name: Run integration tests
+          name: Run e2e tests
           command: cargo llvm-cov --manifest-path e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info
       - codecov/upload:
           fail_on_error: true
