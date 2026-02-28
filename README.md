@@ -38,6 +38,23 @@ Hermes focuses on:
   - [ ] Send audio
   - [ ] Cancel
 
+## API
+
+Below are a list of functions that Hermes provies to send requests to ai assistants.
+
+### Connect
+
+This method allows you to connect to an agent, it takes the agent name as an argument.
+
+```lua
+local hermes = require("hermes")
+
+hermes.connect({
+    agent: "copilot", -- optional, defaults to "copilot"
+    protocol: "stdio", -- optional, defaults to "stdio"
+})
+```
+
 ## Autocommands
 
 Hermes generates autocommands for all communication between agent and client. Here's an example of hooking into one:

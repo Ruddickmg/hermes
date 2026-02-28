@@ -3,6 +3,7 @@ pub mod stdio;
 use crate::{ApcClient, apc::error::Error};
 use agent_client_protocol::{Client, ClientSideConnection};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -92,13 +93,14 @@ pub struct ConnectionDetails {
 }
 
 #[derive(Clone)]
-pub struct Agent<H: Client> {
-    client: Arc<ApcClient<H>>,
+pub struct ConnectionManager<H: Client> {
+    connection: HashMap<Assistant, Rc<ClientSideConnection>>,
+    handler: Arc<ApcClient<H>>,
     runtime: Arc<Runtime>,
     local: Rc<LocalSet>,
 }
 
-impl<H: Client + 'static> Agent<H> {
+impl<H: Client + 'static> ConnectionManager<H> {
     pub fn new(client: Arc<ApcClient<H>>) -> Result<Self, Error> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -108,21 +110,39 @@ impl<H: Client + 'static> Agent<H> {
         let local_set = tokio::task::LocalSet::new();
 
         Ok(Self {
-            client,
+            handler: client,
+            connection: HashMap::new(),
             runtime: Arc::new(runtime),
             local: Rc::new(local_set),
         })
     }
+
+    fn add_connection(&mut self, agent: Assistant, connection: ClientSideConnection) {
+        self.connection.insert(agent, Rc::new(connection));
+    }
+
+    pub fn get_connection(&self, agent: &Assistant) -> Option<Rc<ClientSideConnection>> {
+        self.connection.get(agent).cloned()
+    }
+
     pub fn connect(
-        &self,
+        &mut self,
         ConnectionDetails { agent, protocol }: ConnectionDetails,
-    ) -> Result<ClientSideConnection, Error> {
-        match protocol {
-            Protocol::Stdio => {
-                stdio::connect(&self.runtime, &self.local, self.client.clone(), agent)
-            }
+    ) -> Result<Rc<ClientSideConnection>, Error> {
+        let connection = match protocol {
+            Protocol::Stdio => stdio::connect(
+                &self.runtime,
+                &self.local,
+                self.handler.clone(),
+                agent.clone(),
+            ),
             Protocol::Http => unimplemented!(),
             Protocol::Socket => unimplemented!(),
         }
+        .map_err(|e| Error::Connection(e.to_string()))?;
+        self.add_connection(agent.clone(), connection);
+        self.get_connection(&agent).ok_or_else(|| {
+            Error::Connection("Failed to retrieve connection after creation".to_string())
+        })
     }
 }

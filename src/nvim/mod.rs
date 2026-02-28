@@ -1,23 +1,22 @@
 pub mod parse;
 pub mod producer;
 
-pub use crate::apc::connection::ConnectionDetails;
-
 use crate::{
     apc::{
         client::{ApcClient, ClientConfig},
-        connection::{Agent, Assistant, Protocol},
+        connection::{Assistant, ConnectionDetails, ConnectionManager, Protocol},
     },
     nvim::producer::EventHandler,
 };
-use agent_client_protocol::ClientSideConnection;
 use nvim_oxi::{
     Dictionary, Function,
     api::opts::CreateAugroupOpts,
     lua::{Error, Poppable, Pushable, ffi::State},
 };
-use std::sync::{Arc, Mutex};
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 const GROUP: &str = "hermes";
 
@@ -39,9 +38,7 @@ const GROUP: &str = "hermes";
 /// let client = state.client();
 /// ```
 pub struct PluginState {
-    client: Arc<ApcClient<EventHandler>>,
-    agent: Agent<EventHandler>,
-    connections: HashMap<Assistant, ClientSideConnection>,
+    connection: ConnectionManager<EventHandler>,
 }
 
 impl PluginState {
@@ -63,9 +60,7 @@ impl PluginState {
         let client = Arc::new(ApcClient::new(config, EventHandler::new(GROUP.to_string())));
 
         Self {
-            client: client.clone(),
-            agent: Agent::new(client.clone()).expect("could not initialize agent"),
-            connections: HashMap::new(),
+            connection: ConnectionManager::new(client).expect("could not initialize agent"),
         }
     }
 
@@ -94,33 +89,9 @@ impl PluginState {
         let client = Arc::new(ApcClient::new(config, EventHandler::default()));
 
         Self {
-            client: client.clone(),
-            agent: Agent::new(client.clone()).expect("couldn't initialize connection to agent"),
-            connections: HashMap::new(),
+            connection: ConnectionManager::new(client.clone())
+                .expect("couldn't initialize connection to agent"),
         }
-    }
-
-    pub fn set_connection(&mut self, agent: Assistant, connection: ClientSideConnection) -> &Self {
-        self.connections.insert(agent, connection);
-        self
-    }
-
-    /// Gets a reference to the APC client
-    ///
-    /// Returns an `Arc` reference to the client, allowing it to be shared
-    /// across different parts of the plugin.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hermes::nvim::PluginState;
-    ///
-    /// let state = PluginState::new();
-    /// let client = state.client();
-    /// assert!(client.config().enable_fs);
-    /// ```
-    pub fn client(&self) -> &Arc<ApcClient<EventHandler>> {
-        &self.client
     }
 }
 
@@ -188,24 +159,19 @@ impl Pushable for ConnectionArgs {
     }
 }
 
-pub fn setup() -> nvim_oxi::Result<Dictionary> {
+#[nvim_oxi::plugin]
+pub fn api() -> nvim_oxi::Result<Dictionary> {
     let plugin_state = Rc::new(Mutex::new(PluginState::new()));
 
     let connect: Function<Option<ConnectionArgs>, ()> =
         Function::from_fn(move |arg: Option<ConnectionArgs>| {
             let details = arg.map(ConnectionDetails::from).unwrap_or_default();
-            let connection = plugin_state
-                .lock()
-                .map_err(|e| Error::RuntimeError(e.to_string()))?
-                .agent
-                .connect(details.clone())
-                .map_err(|e| Error::RuntimeError(e.to_string()))?;
             plugin_state
                 .lock()
-                .map_err(|e| Error::RuntimeError(e.to_string()))?
-                .set_connection(details.agent.clone(), connection);
-
-            Ok::<(), Error>(())
+                .unwrap()
+                .connection
+                .connect(details.clone())
+                .unwrap();
         });
 
     Ok(Dictionary::from_iter([("connect", connect)]))
