@@ -1,21 +1,17 @@
 use crate::{
     ApcClient,
-    apc::{connection::Assistant, error::Error},
+    apc::{
+        connection::{Assistant, UserRequest},
+        error::Error,
+    },
 };
-use agent_client_protocol::{
-    Agent, Client, Implementation, InitializeRequest, NewSessionRequest, ProtocolVersion,
-};
+use agent_client_protocol::{Agent, Client, Implementation, InitializeRequest, ProtocolVersion};
+use std::sync::mpsc::Receiver;
 use std::{ffi::OsStr, process::Stdio, sync::Arc};
-use tokio::sync::mpsc::Receiver;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
-#[derive(Debug)]
-pub enum UserRequest {
-    CreateSession,
-}
-
 pub fn stdio_connection<H, I, S>(
-    mut reciever: Receiver<UserRequest>,
+    reciever: Receiver<UserRequest>,
     client: Arc<ApcClient<H>>,
     command: &str,
     args: I,
@@ -76,18 +72,12 @@ where
         while let Ok(msg) = reciever.try_recv() {
             println!("got a message from the channel! {:?}", msg);
             match msg {
-                UserRequest::CreateSession => {
-                    let response = conn
-                        .new_session(NewSessionRequest::new(
-                            // TODO: find the project root
-                            std::env::current_dir()
-                                .map_err(|e| Error::Internal(e.to_string()))
-                                .unwrap_or(".".to_string().into()),
-                        ))
-                        .await
-                        .unwrap();
-
+                UserRequest::CreateSession(config) => {
+                    let response = conn.new_session(config).await.unwrap();
                     println!("new session! {:?}", response);
+                }
+                UserRequest::Cancel(config) => {
+                    println!("cancel session! {:?}", config);
                 }
             }
         }
