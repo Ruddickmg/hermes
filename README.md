@@ -40,7 +40,7 @@ Hermes focuses on:
 
 ## API
 
-Below are a list of functions that Hermes provies to send requests to ai assistants.
+Below are a list of functions that Hermes provides to send requests to ai assistants.
 
 ### Connect
 
@@ -50,8 +50,8 @@ This method allows you to connect to an agent, it takes the agent name as an arg
 local hermes = require("hermes")
 
 hermes.connect({
-    agent: "copilot", -- optional, defaults to "copilot"
-    protocol: "stdio", -- optional, defaults to "stdio"
+    agent = "copilot", -- optional, defaults to "copilot", can be "copilot" | "opencode"
+    protocol = "stdio", -- optional, defaults to "stdio"
 })
 ```
 

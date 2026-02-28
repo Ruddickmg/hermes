@@ -3,6 +3,7 @@ pub mod producer;
 
 use crate::{
     apc::{
+        self,
         client::{ApcClient, ClientConfig},
         connection::{Assistant, ConnectionDetails, ConnectionManager, Protocol},
     },
@@ -19,6 +20,12 @@ use std::{
 };
 
 const GROUP: &str = "hermes";
+
+impl From<apc::error::Error> for Error {
+    fn from(e: apc::error::Error) -> Self {
+        Error::RuntimeError(e.to_string())
+    }
+}
 
 /// Neovim plugin state
 ///
@@ -42,62 +49,24 @@ pub struct PluginState {
 }
 
 impl PluginState {
-    /// Creates a new plugin state with default configuration
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hermes::nvim::PluginState;
-    ///
-    /// let state = PluginState::new();
-    /// assert_eq!(state.client().config().name, "hermes");
-    /// ```
-    pub fn new() -> Self {
-        let config = ClientConfig::default();
+    pub fn new() -> Result<Self, Error> {
+        Self::with_config(ClientConfig::default())
+    }
+
+    pub fn with_config(config: ClientConfig) -> Result<Self, Error> {
+        let client = Arc::new(ApcClient::new(config, EventHandler::new(GROUP.to_string())));
 
         nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::default()).unwrap();
 
-        let client = Arc::new(ApcClient::new(config, EventHandler::new(GROUP.to_string())));
-
-        Self {
-            connection: ConnectionManager::new(client).expect("could not initialize agent"),
-        }
-    }
-
-    /// Creates a new plugin state with custom configuration
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - Client configuration to use
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hermes::nvim::PluginState;
-    /// use hermes::client::ClientConfig;
-    ///
-    /// let config = ClientConfig {
-    ///     name: "custom".to_string(),
-    ///     version: "1.0.0".to_string(),
-    ///     enable_fs: false,
-    ///     enable_terminal: true,
-    /// };
-    /// let state = PluginState::with_config(config);
-    /// assert_eq!(state.client().config().name, "custom");
-    /// ```
-    pub fn with_config(config: ClientConfig) -> Self {
-        let client = Arc::new(ApcClient::new(config, EventHandler::default()));
-
-        Self {
-            connection: ConnectionManager::new(client.clone())
-                .expect("couldn't initialize connection to agent"),
-        }
+        Ok(Self {
+            connection: ConnectionManager::new(client).map_err(Error::from)?,
+        })
     }
 }
 
 impl Default for PluginState {
     fn default() -> Self {
-        Self::new()
+        Self::new().unwrap()
     }
 }
 
@@ -165,17 +134,18 @@ impl Pushable for ConnectionArgs {
 
 #[nvim_oxi::plugin]
 pub fn api() -> nvim_oxi::Result<Dictionary> {
-    let plugin_state = Rc::new(Mutex::new(PluginState::new()));
+    let plugin_state = Rc::new(Mutex::new(PluginState::new()?));
 
-    let connect: Function<Option<ConnectionArgs>, ()> =
+    let connect: Function<Option<ConnectionArgs>, Result<(), Error>> =
         Function::from_fn(move |arg: Option<ConnectionArgs>| {
             let details = arg.map(ConnectionDetails::from).unwrap_or_default();
             plugin_state
                 .lock()
-                .unwrap()
+                .map_err(|e| Error::RuntimeError(e.to_string()))?
                 .connection
                 .connect(details.clone())
-                .unwrap();
+                .map_err(Error::from)?;
+            Ok(())
         });
 
     Ok(Dictionary::from_iter([("connect", connect)]))
