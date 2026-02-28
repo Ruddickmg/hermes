@@ -87,25 +87,35 @@ impl From<ConnectionArgs> for ConnectionDetails {
 
 impl Poppable for ConnectionArgs {
     unsafe fn pop(state: *mut State) -> Result<Self, Error> {
-        use nvim_oxi::Object;
+        use nvim_oxi::{Object, ObjectKind};
 
         let table = unsafe { Dictionary::pop(state)? };
 
-        let agent = match table.get("agent") {
-            Some(v) => {
-                let s: String = v.clone().try_into()?;
-                Some(Assistant::from(s))
-            }
-            None => None,
-        };
+        let agent = table
+            .get("agent")
+            .map(|v: &Object| {
+                if v.kind() != ObjectKind::String {
+                    return Err(Error::RuntimeError(
+                        "Invalid input for \"agent\", must be a string".to_string(),
+                    ));
+                }
+                let s: nvim_oxi::NvimStr = unsafe { v.as_nvim_str_unchecked() };
+                Ok(Assistant::from(s.to_string()))
+            })
+            .transpose()?;
 
-        let protocol = match table.get("protocol") {
-            Some(v) => {
-                let s: String = v.clone().try_into()?;
-                Some(Protocol::from(s))
-            }
-            None => None,
-        };
+        let protocol = table
+            .get("protocol")
+            .map(|v: &Object| {
+                if v.kind() != ObjectKind::String {
+                    return Err(Error::RuntimeError(
+                        "Invalid input for \"protocol\", must be a string".to_string(),
+                    ));
+                }
+                let s: nvim_oxi::NvimStr = unsafe { v.as_nvim_str_unchecked() };
+                Ok(Protocol::from(s.to_string()))
+            })
+            .transpose()?;
 
         Ok(Self { agent, protocol })
     }
