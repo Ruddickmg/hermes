@@ -1,3 +1,5 @@
+use nvim_oxi::lua;
+
 #[derive(Debug)]
 pub enum Error {
     Internal(String),
@@ -16,3 +18,9 @@ impl std::fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<Error> for lua::Error {
+    fn from(e: Error) -> Self {
+        lua::Error::RuntimeError(e.to_string())
+    }
+}
