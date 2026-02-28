@@ -1,18 +1,30 @@
-pub mod event;
+pub mod parse;
 pub mod producer;
 
 use crate::{
-    apc::client::{ApcClient, ClientConfig},
+    apc::{
+        self,
+        client::{ApcClient, ClientConfig},
+        connection::{Assistant, ConnectionDetails, ConnectionManager, Protocol},
+    },
     nvim::producer::EventHandler,
 };
-use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
-use std::sync::Arc;
+use nvim_oxi::{
+    Dictionary, Function,
+    api::opts::CreateAugroupOpts,
+    lua::{Error, Poppable, Pushable, ffi::State},
+};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
-#[derive(Debug)]
-pub enum NvimError {
-    InitializationError(String),
-    NotConnected,
-    InvalidConfig(String),
+const GROUP: &str = "hermes";
+
+impl From<apc::error::Error> for Error {
+    fn from(e: apc::error::Error) -> Self {
+        Error::RuntimeError(e.to_string())
+    }
 }
 
 /// Neovim plugin state
@@ -33,103 +45,118 @@ pub enum NvimError {
 /// let client = state.client();
 /// ```
 pub struct PluginState {
-    client: Arc<ApcClient<EventHandler>>,
+    connection: ConnectionManager<EventHandler>,
 }
 
 impl PluginState {
-    /// Creates a new plugin state with default configuration
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hermes::nvim::PluginState;
-    ///
-    /// let state = PluginState::new();
-    /// assert_eq!(state.client().config().name, "hermes");
-    /// ```
-    pub fn new() -> Self {
-        let config = ClientConfig::default();
-        Self {
-            client: Arc::new(ApcClient::new(config, EventHandler::default())),
-        }
+    pub fn new() -> Result<Self, Error> {
+        Self::with_config(ClientConfig::default())
     }
 
-    /// Creates a new plugin state with custom configuration
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - Client configuration to use
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hermes::nvim::PluginState;
-    /// use hermes::client::ClientConfig;
-    ///
-    /// let config = ClientConfig {
-    ///     name: "custom".to_string(),
-    ///     version: "1.0.0".to_string(),
-    ///     enable_fs: false,
-    ///     enable_terminal: true,
-    /// };
-    /// let state = PluginState::with_config(config);
-    /// assert_eq!(state.client().config().name, "custom");
-    /// ```
-    pub fn with_config(config: ClientConfig) -> Self {
-        Self {
-            client: Arc::new(ApcClient::new(config, EventHandler::default())),
-        }
-    }
+    pub fn with_config(config: ClientConfig) -> Result<Self, Error> {
+        let client = Arc::new(ApcClient::new(config, EventHandler::new(GROUP.to_string())));
 
-    /// Gets a reference to the APC client
-    ///
-    /// Returns an `Arc` reference to the client, allowing it to be shared
-    /// across different parts of the plugin.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hermes::nvim::PluginState;
-    ///
-    /// let state = PluginState::new();
-    /// let client = state.client();
-    /// assert!(client.config().enable_fs);
-    /// ```
-    pub fn client(&self) -> &Arc<ApcClient<EventHandler>> {
-        &self.client
+        nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::default()).unwrap();
+
+        Ok(Self {
+            connection: ConnectionManager::new(client).map_err(Error::from)?,
+        })
     }
 }
 
 impl Default for PluginState {
     fn default() -> Self {
-        Self::new()
+        Self::new().unwrap()
     }
 }
 
-/// Initializes the Neovim plugin
-///
-/// This function sets up the plugin commands and state. It should be called
-/// when the plugin is loaded by Neovim.
-///
-/// # Returns
-///
-/// A `Dictionary` containing plugin metadata (currently empty).
-///
-/// # Errors
-///
-/// Returns a `nvim_oxi::Error` if initialization fails.
-///
-/// # Examples
-///
-/// ```
-/// use hermes::nvim::setup;
-///
-/// let result = setup();
-/// assert!(result.is_ok());
-/// ```
-pub fn setup() -> nvim_oxi::Result<Dictionary> {
-    // Create the Hermes augroup for plugin autocommands
-    let _hermes_group = nvim_oxi::api::create_augroup("Hermes", &CreateAugroupOpts::default())?;
+#[derive(Clone)]
+pub struct ConnectionArgs {
+    pub agent: Option<Assistant>,
+    pub protocol: Option<Protocol>,
+}
 
-    Ok(Dictionary::new())
+impl From<ConnectionArgs> for ConnectionDetails {
+    fn from(args: ConnectionArgs) -> Self {
+        ConnectionDetails {
+            agent: args.agent.unwrap_or_default(),
+            protocol: args.protocol.unwrap_or_default(),
+        }
+    }
+}
+
+impl Poppable for ConnectionArgs {
+    unsafe fn pop(state: *mut State) -> Result<Self, Error> {
+        use nvim_oxi::{Object, ObjectKind};
+
+        let table = unsafe { Dictionary::pop(state)? };
+
+        let agent = table
+            .get("agent")
+            .map(|v: &Object| {
+                if v.kind() != ObjectKind::String {
+                    return Err(Error::RuntimeError(
+                        "Invalid input for \"agent\", must be a string".to_string(),
+                    ));
+                }
+                let s: nvim_oxi::NvimStr = unsafe { v.as_nvim_str_unchecked() };
+                Ok(Assistant::from(s.to_string()))
+            })
+            .transpose()?;
+
+        let protocol = table
+            .get("protocol")
+            .map(|v: &Object| {
+                if v.kind() != ObjectKind::String {
+                    return Err(Error::RuntimeError(
+                        "Invalid input for \"protocol\", must be a string".to_string(),
+                    ));
+                }
+                let s: nvim_oxi::NvimStr = unsafe { v.as_nvim_str_unchecked() };
+                Ok(Protocol::from(s.to_string()))
+            })
+            .transpose()?;
+
+        Ok(Self { agent, protocol })
+    }
+}
+
+impl Pushable for ConnectionArgs {
+    unsafe fn push(self, state: *mut State) -> Result<i32, Error> {
+        let dict = nvim_oxi::Object::from({
+            let mut dict = Dictionary::new();
+
+            if let Some(agent) = self.agent {
+                dict.insert("agent", agent.to_string());
+            }
+
+            if let Some(protocol) = self.protocol {
+                dict.insert("protocol", protocol.to_string());
+            }
+
+            dict
+        });
+
+        // SAFETY: Caller must ensure valid state pointer
+        unsafe { dict.push(state) }
+    }
+}
+
+#[nvim_oxi::plugin]
+pub fn api() -> nvim_oxi::Result<Dictionary> {
+    let plugin_state = Rc::new(Mutex::new(PluginState::new()?));
+
+    let connect: Function<Option<ConnectionArgs>, Result<(), Error>> =
+        Function::from_fn(move |arg: Option<ConnectionArgs>| {
+            let details = arg.map(ConnectionDetails::from).unwrap_or_default();
+            plugin_state
+                .lock()
+                .map_err(|e| Error::RuntimeError(e.to_string()))?
+                .connection
+                .connect(details.clone())
+                .map_err(Error::from)?;
+            Ok(())
+        });
+
+    Ok(Dictionary::from_iter([("connect", connect)]))
 }

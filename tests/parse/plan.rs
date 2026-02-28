@@ -1,5 +1,5 @@
 use agent_client_protocol::{Plan, PlanEntry, PlanEntryPriority, PlanEntryStatus};
-use hermes::nvim::event::plan_event;
+use hermes::nvim::parse::plan_event;
 
 #[test]
 fn test_plan_event_ok() {

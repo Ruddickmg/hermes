@@ -41,6 +41,7 @@ workflows:
       - check_license
       - integration_tests
       - unit_tests
+      - e2e_tests
       # TODO: can't get this to work, not trying to spend time on it right now since I don't use windows, low priority, will get to it later
       # - build-windows
       - build-mac:
@@ -65,6 +66,7 @@ workflows:
             - check_formatting
             - check_license
             - integration_tests
+            - e2e_tests
             - unit_tests
       - build-linux:
           name: build-linux-binary
@@ -76,6 +78,7 @@ workflows:
             - check_formatting
             - check_license
             - integration_tests
+            - e2e_tests
             - unit_tests
       - release:
           filters:
@@ -221,3 +224,36 @@ jobs:
           git_service: github
           upload_name: integration
 
+  e2e_tests:
+    environment:
+      NEOVIM_VERSION: 0.11.6
+    executor: ubuntu
+    steps:
+      - checkout
+      - rust/install
+      - run:
+          name: Install Neovim
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.appimage
+            chmod u+x nvim-linux-x86_64.appimage
+            sudo mv nvim-linux-x86_64.appimage /usr/local/bin/nvim
+      - run:
+          name: Install coverage tool
+          command: cargo install cargo-llvm-cov@0.6.13
+      - run:
+          name: Install just
+          command: cargo install just
+      - run:
+          name: Install Opencode
+          command: curl -fsSL https://opencode.ai/install | bash
+      - run:
+          name: Set up environment
+          command: just
+      - run:
+          name: Run e2e tests
+          command: cargo llvm-cov --manifest-path e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info
+      - codecov/upload:
+          fail_on_error: true
+          files: e2e.coverage.info
+          git_service: github
+          upload_name: e2e

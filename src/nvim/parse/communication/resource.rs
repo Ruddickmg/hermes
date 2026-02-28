@@ -1,4 +1,4 @@
-use crate::nvim::event::annotations::parse_annotations;
+use crate::nvim::parse::annotations::parse_annotations;
 use agent_client_protocol::{EmbeddedResource, EmbeddedResourceResource, Result};
 use nvim_oxi::Dictionary;
 

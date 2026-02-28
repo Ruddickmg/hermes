@@ -1,10 +1,9 @@
 use agent_client_protocol::{
-    ConfigOptionUpdate, SessionConfigGroupId, SessionConfigId, SessionConfigKind,
-    SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelect,
-    SessionConfigSelectGroup, SessionConfigSelectOption, SessionConfigSelectOptions,
-    SessionConfigValueId,
+    ConfigOptionUpdate, SessionConfigGroupId, SessionConfigId, SessionConfigOption,
+    SessionConfigOptionCategory, SessionConfigSelectGroup, SessionConfigSelectOption,
+    SessionConfigSelectOptions, SessionConfigValueId,
 };
-use hermes::nvim::event::config_option_event;
+use hermes::nvim::parse::config_option_event;
 
 #[test]
 fn test_config_option_event_ok() {

@@ -25,4 +25,4 @@ pub mod nvim;
 
 // Re-export commonly used types
 pub use apc::client::{ApcClient, ClientConfig};
-pub use nvim::{PluginState, setup};
+pub use nvim::{PluginState, api};

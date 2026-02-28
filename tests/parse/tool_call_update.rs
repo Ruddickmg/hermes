@@ -2,7 +2,7 @@ use agent_client_protocol::{
     Content, ContentBlock, TextContent, ToolCallContent, ToolCallId, ToolCallUpdate,
     ToolCallUpdateFields,
 };
-use hermes::nvim::event::tool_call_update_event;
+use hermes::nvim::parse::tool_call_update_event;
 
 #[test]
 fn test_tool_call_update_event_ok() {

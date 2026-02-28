@@ -1,0 +1,17 @@
+[package]
+name = "hermes-e2e"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hermes = { path = ".." }
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }
+tokio = { version = "1.49", features = ["full"] }
+tokio-test = "0.4"
+tokio-util = { version = "0.7", features = ["compat"] }
+
+[build-dependencies]
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }

@@ -1,5 +1,5 @@
 use agent_client_protocol::{CurrentModeUpdate, SessionModeId};
-use hermes::nvim::event::current_mode_event;
+use hermes::nvim::parse::current_mode_event;
 
 #[test]
 fn test_current_mode_event_ok() {

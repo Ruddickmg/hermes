@@ -16,8 +16,8 @@ Hermes focuses on:
 - [x] Full implementation of APC Client
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Trigger Autocommands for messages/notifications
-- [ ] Allow connecting to Agents
-  - [ ] Via stdio
+- [x] Allow connecting to Agents
+  - [x] Via stdio
   - [ ] Via http
   - [ ] Via linux socket
   - [ ] handle authentication
@@ -37,6 +37,23 @@ Hermes focuses on:
   - [ ] Send resource links
   - [ ] Send audio
   - [ ] Cancel
+
+## API
+
+Below are a list of functions that Hermes provides to send requests to ai assistants.
+
+### Connect
+
+This method allows you to connect to an agent, it takes the agent name as an argument.
+
+```lua
+local hermes = require("hermes")
+
+hermes.connect({
+    agent = "copilot", -- optional, defaults to "copilot", can be "copilot" | "opencode"
+    protocol = "stdio", -- optional, defaults to "stdio"
+})
+```
 
 ## Autocommands
 

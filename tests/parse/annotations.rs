@@ -1,5 +1,5 @@
 use agent_client_protocol::Annotations;
-use hermes::nvim::event::annotations::parse_annotations;
+use hermes::nvim::parse::annotations::parse_annotations;
 
 #[test]
 fn test_parse_annotations_empty() {

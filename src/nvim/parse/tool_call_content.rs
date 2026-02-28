@@ -1,17 +1,16 @@
-use crate::nvim::event;
+use crate::nvim::parse;
 use agent_client_protocol::{Error, Result, ToolCallContent};
 use nvim_oxi::Dictionary;
 use std::fs;
 
 pub fn parse_tool_call_content(content: ToolCallContent) -> Result<Dictionary> {
     match content {
-        ToolCallContent::Content(container) => event::communication::communication(
-            container.content.clone(),
-        )
-        .map(|(mut dict, content_type)| {
-            dict.insert("type", content_type.to_lowercase());
-            dict
-        }),
+        ToolCallContent::Content(container) => {
+            parse::communication(container.content.clone()).map(|(mut dict, content_type)| {
+                dict.insert("type", content_type.to_lowercase());
+                dict
+            })
+        }
         ToolCallContent::Terminal(terminal) => {
             let mut dict = Dictionary::new();
             dict.insert("id", terminal.terminal_id.to_string());
