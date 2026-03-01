@@ -8,7 +8,7 @@ use agent_client_protocol::{
     SessionId, SessionNotification, SessionUpdate, TextContent,
 };
 use async_trait::async_trait;
-use hermes::{ApcClient, ClientConfig};
+use hermes::{ClientConfig, Handler};
 
 #[derive(Clone)]
 struct MockHandler;
@@ -34,7 +34,7 @@ impl Client for MockHandler {
 #[test]
 fn test_create_client_with_defaults() {
     let config = ClientConfig::default();
-    let client = ApcClient::new(config, MockHandler);
+    let client = Handler::new(config, MockHandler);
 
     // Verify client is created
     assert_eq!(client.config().name, "hermes");
@@ -54,7 +54,7 @@ fn test_create_client_with_custom_config() {
         terminal_access: false,
     };
 
-    let client = ApcClient::new(config, MockHandler);
+    let client = Handler::new(config, MockHandler);
     assert_eq!(client.config().name, "custom-client");
     assert_eq!(client.config().version, "2.0.0");
     assert!(!client.config().fs_write_access);
@@ -65,7 +65,7 @@ fn test_create_client_with_custom_config() {
 /// Tests that session notifications are handled correctly
 #[tokio::test]
 async fn test_handle_session_notification() {
-    let client = ApcClient::new(ClientConfig::default(), MockHandler);
+    let client = Handler::new(ClientConfig::default(), MockHandler);
 
     let notification = SessionNotification::new(
         SessionId::new("test-session-123"),
@@ -81,7 +81,7 @@ async fn test_handle_session_notification() {
 /// Tests that multiple session notifications can be handled sequentially
 #[tokio::test]
 async fn test_handle_multiple_notifications() {
-    let client = ApcClient::new(ClientConfig::default(), MockHandler);
+    let client = Handler::new(ClientConfig::default(), MockHandler);
 
     // Send first notification
     let notif1 = SessionNotification::new(
@@ -117,7 +117,7 @@ async fn test_handle_multiple_notifications() {
 /// Tests that different types of session updates can be handled
 #[tokio::test]
 async fn test_handle_different_update_types() {
-    let client = ApcClient::new(ClientConfig::default(), MockHandler);
+    let client = Handler::new(ClientConfig::default(), MockHandler);
     let session_id = SessionId::new("test-session");
 
     // Test agent message chunk
@@ -162,7 +162,7 @@ fn test_client_capabilities() {
         fs_read_access: true,
         terminal_access: true,
     };
-    let full_client = ApcClient::new(full_config, MockHandler);
+    let full_client = Handler::new(full_config, MockHandler);
     assert!(full_client.config().fs_write_access);
     assert!(full_client.config().fs_read_access);
     assert!(full_client.config().terminal_access);
@@ -175,7 +175,7 @@ fn test_client_capabilities() {
         fs_read_access: false,
         terminal_access: false,
     };
-    let limited_client = ApcClient::new(limited_config, MockHandler);
+    let limited_client = Handler::new(limited_config, MockHandler);
     assert!(!limited_client.config().fs_write_access);
     assert!(!limited_client.config().fs_read_access);
     assert!(!limited_client.config().terminal_access);
@@ -184,7 +184,7 @@ fn test_client_capabilities() {
 /// Tests that client is cloneable for sharing across tasks
 #[tokio::test]
 async fn test_client_cloneable() {
-    let client = ApcClient::new(ClientConfig::default(), MockHandler);
+    let client = Handler::new(ClientConfig::default(), MockHandler);
     let client_clone = client.clone();
 
     // Both instances should work independently

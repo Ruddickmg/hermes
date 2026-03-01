@@ -1,5 +1,5 @@
 use crate::{
-    ApcClient,
+    Handler,
     apc::{
         connection::{Assistant, UserRequest},
         error::Error,
@@ -12,7 +12,7 @@ use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 pub fn stdio_connection<H, I, S>(
     reciever: Receiver<UserRequest>,
-    client: Arc<ApcClient<H>>,
+    client: Arc<Handler<H>>,
     command: &str,
     args: I,
 ) -> Result<(), Error>
@@ -47,62 +47,87 @@ where
         .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?
         .compat();
 
-    runtime.block_on(local_set.run_until(async {
+    let _: Result<(), Error> = runtime.block_on(local_set.run_until(async {
         println!("creating connection");
-        let (conn, handle_io) =
-            agent_client_protocol::ClientSideConnection::new(client, outgoing, incoming, |fut| {
+        let (conn, handle_io) = agent_client_protocol::ClientSideConnection::new(
+            client.clone(),
+            outgoing,
+            incoming,
+            |fut| {
                 tokio::task::spawn_local(fut);
-            });
-        println!("spawinging spawn_local");
+            },
+        );
 
-        // Handle I/O in the background.
         tokio::task::spawn_local(handle_io);
-
-        println!("initializing");
 
         let result = conn
             .initialize(
                 InitializeRequest::new(ProtocolVersion::V1)
                     .client_info(Implementation::new("neovim", "11.0.6")),
             )
-            .await
-            .unwrap();
+            .await?;
 
-        println!("something! {:?}", result);
         while let Ok(msg) = reciever.try_recv() {
-            println!("got a message from the channel! {:?}", msg);
             match msg {
-                UserRequest::CreateSession(config) => {
-                    let response = conn.new_session(config).await.unwrap();
-                    println!("new session! {:?}", response);
-                }
                 UserRequest::Cancel(config) => {
-                    println!("cancel session! {:?}", config);
+                    conn.cancel(config).await?;
                 }
-            }
+                UserRequest::Prompt(request) => {
+                    let response = conn.prompt(request).await?;
+                    client.prompted(response).await?;
+                }
+                UserRequest::Authenticate(request) => {
+                    let response = conn.authenticate(request).await?;
+                    client.authenticated(response).await?;
+                }
+                UserRequest::SetConfigOption(request) => {
+                    let response = conn.set_session_config_option(request).await?;
+                    client.config_option_set(response).await?;
+                }
+                UserRequest::SetMode(request) => {
+                    let response = conn.set_session_mode(request).await?;
+                    client.mode_set(response).await?;
+                }
+                UserRequest::CreateSession(config) => {
+                    let response = conn.new_session(config).await?;
+                    client.session_created(response).await?;
+                }
+                UserRequest::LoadSession(request) => {
+                    let response = conn.load_session(request).await?;
+                    client.session_loaded(response).await?;
+                }
+                UserRequest::ListSessions(request) => {
+                    let response = conn.list_sessions(request).await?;
+                    client.sessions_listed(response).await?;
+                }
+                UserRequest::ForkSession(request) => {
+                    let response = conn.fork_session(request).await?;
+                    client.session_forked(response).await?;
+                }
+                UserRequest::ResumeSession(request) => {
+                    let response = conn.resume_session(request).await?;
+                    client.session_resumed(response).await?;
+                }
+                UserRequest::SetSessionModel(request) => {
+                    let response = conn.set_session_model(request).await?;
+                    client.session_model_set(response).await?;
+                }
+                UserRequest::CustomCommand(request) => {
+                    let response = conn.ext_method(request).await?;
+                    client.custom_command_executed(response).await?;
+                }
+                UserRequest::CustomNotification(notification) => {
+                    conn.ext_notification(notification).await?;
+                }
+            };
         }
-
-        // let response = conn
-        //     .new_session(NewSessionRequest::new(std::env::current_dir().unwrap()))
-        //     .await
-        //     .unwrap();
-        //
-        // println!("new session! {:?}", response);
-        //
-        // let content = ContentBlock::Text(TextContent::new("Say Hello!"));
-        // let res = conn
-        //     .prompt(PromptRequest::new(response.session_id, vec![content]))
-        //     .await
-        //     .unwrap();
-        //
-        // println!("prompt response! {:?}", res);
+        Ok(())
     }));
-
     Ok(())
 }
 
 pub fn connect<H: Client + 'static>(
-    client: Arc<ApcClient<H>>,
+    client: Arc<Handler<H>>,
     agent: Assistant,
     receiver: Receiver<UserRequest>,
 ) -> Result<(), Error> {
@@ -113,16 +138,6 @@ pub fn connect<H: Client + 'static>(
             "node",
             ["copilot-language-server", "--acp"],
         ),
-        Assistant::Opencode => {
-            stdio_connection(
-                receiver,
-                client,
-                "opencode",
-                [
-                    "acp",
-                    // "--cwd",
-                ],
-            )
-        }
+        Assistant::Opencode => stdio_connection(receiver, client, "opencode", ["acp"]),
     }
 }

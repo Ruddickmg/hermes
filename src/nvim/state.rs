@@ -3,7 +3,7 @@ use std::sync::Arc;
 use nvim_oxi::{api::opts::CreateAugroupOpts, lua::Error};
 
 use crate::{
-    ApcClient, ClientConfig, apc::connection::ConnectionManager, nvim::producer::EventHandler,
+    ClientConfig, Handler, apc::connection::ConnectionManager, nvim::producer::EventHandler,
 };
 
 const GROUP: &str = "hermes";
@@ -18,7 +18,7 @@ impl PluginState {
     }
 
     pub fn with_config(config: ClientConfig) -> Result<Self, Error> {
-        let client = Arc::new(ApcClient::new(config, EventHandler::new(GROUP.to_string())));
+        let client = Arc::new(Handler::new(config, EventHandler::new(GROUP.to_string())));
 
         nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::default()).unwrap();
 
