@@ -1,4 +1,4 @@
-use agent_client_protocol::InitializeResponse;
+use agent_client_protocol::schema::InitializeResponse;
 use nvim_oxi::Dictionary;
 
 pub fn initialize_response(response: InitializeResponse) -> Dictionary {

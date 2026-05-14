@@ -1,4 +1,4 @@
-use agent_client_protocol::ResumeSessionResponse;
+use agent_client_protocol::schema::ResumeSessionResponse;
 use nvim_oxi::Dictionary;
 
 use crate::nvim::parse::parse_modes;

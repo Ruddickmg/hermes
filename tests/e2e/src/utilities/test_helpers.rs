@@ -4,7 +4,7 @@ use crate::{
     TIMEOUT_IN_SECONDS,
     utilities::{autocommand, mock_agent::MockAgent, mock_agent_handle::MockAgentHandle},
 };
-use agent_client_protocol::{InitializeResponse, NewSessionResponse};
+use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse};
 use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},
@@ -70,7 +70,7 @@ pub fn setup_mock_agent() -> Result<MockAgentSetup, nvim_oxi::Error> {
 /// Setup result containing session-related resources
 pub struct MockAgentWithSession {
     pub setup: MockAgentSetup,
-    pub session_id: agent_client_protocol::SessionId,
+    pub session_id: agent_client_protocol::schema::SessionId,
 }
 
 /// Start a mock agent, connect, and create a session

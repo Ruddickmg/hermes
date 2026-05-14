@@ -1,6 +1,6 @@
 //! Integration tests for RequestHandler trait and Requests implementation
 use crate::helpers::ui::wait_for;
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     CreateTerminalResponse, RequestPermissionOutcome, RequestPermissionRequest, SessionId,
     ToolCallId, ToolCallUpdate, ToolCallUpdateFields, WriteTextFileRequest, WriteTextFileResponse,
 };
@@ -738,7 +738,7 @@ fn test_request_terminal_true_for_terminal_create() -> nvim_oxi::Result<()> {
     );
     let session_id = String::from("test-session");
     let (sender, _receiver) = oneshot_channel::<Result<CreateTerminalResponse>>(1);
-    let create_request = agent_client_protocol::CreateTerminalRequest::new(
+    let create_request = agent_client_protocol::schema::CreateTerminalRequest::new(
         SessionId::from("test-session"),
         "echo".to_string(),
     );

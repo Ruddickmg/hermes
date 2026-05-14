@@ -71,12 +71,12 @@ impl<T> NvimMessenger<T> {
     }
 }
 
-#[async_trait::async_trait(?Send)]
-pub trait TransmitToNvim<T> {
+#[async_trait::async_trait]
+pub trait TransmitToNvim<T: Send>: Send + Sync {
     async fn send(&self, data: T) -> Result<()>;
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl<T: Send + 'static> TransmitToNvim<T> for NvimMessenger<T> {
     async fn send(&self, data: T) -> Result<()> {
         self.sender

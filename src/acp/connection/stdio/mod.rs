@@ -1,94 +1,60 @@
+//! stdio transport: spawn an agent subprocess and drive an ACP connection
+//! over its stdin/stdout.
+//!
+//! This module owns the child-process lifecycle (via the `child` submodule)
+//! and the per-protocol orchestration. The ACP `Client.builder()` plumbing is
+//! shared with all other transports via
+//! [`crate::acp::connection::connect::handle_connection`].
+
 pub mod child;
 
 use crate::{
     Handler,
     acp::{
-        connection::{Assistant, UserRequest},
+        connection::{Assistant, UserRequest, connect::handle_connection},
         error::Error,
-        handler::message::handle_requests,
     },
 };
+use agent_client_protocol::ByteStreams;
 use async_channel::Receiver;
 use child::Child;
-use std::rc::Rc;
 use std::sync::Arc;
-use tracing::{error, info, instrument, trace};
+use tracing::{info, instrument, trace, warn};
 
-#[instrument(level = "trace", skip(client, receiver, stdio, executor))]
-pub async fn stdio_connection(
-    receiver: Receiver<UserRequest>,
-    client: Arc<Handler>,
-    agent: &Assistant,
-    stdio: Arc<Child>,
-    executor: &Rc<smol::LocalExecutor<'static>>,
-) -> Result<(), Error> {
-    stdio.initialize(&mut agent.command()?).await?;
-
-    let stdin = stdio
-        .take_stdin()
-        .await
-        .ok_or_else(|| Error::Connection("Failed to take stdin".to_string()))?;
-
-    let stdout = stdio
-        .take_stdout()
-        .await
-        .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?;
-
-    // async_process types already implement futures::AsyncRead/AsyncWrite
-    let outgoing = stdin;
-    let incoming = stdout;
-
-    trace!("Starting async runtime for ACP communication");
-
-    // Clone the executor Rc for the spawn closure (must be 'static)
-    let exec_for_spawn = executor.clone();
-
-    trace!("creating ACP client connection");
-    let (connection, handle_io) = agent_client_protocol::ClientSideConnection::new(
-        client.clone(),
-        outgoing,
-        incoming,
-        move |fut| {
-            // Spawn onto the same LocalExecutor that drives this entire thread.
-            // The outer smol::block_on(executor.run(...)) in manager.rs will
-            // poll these tasks, matching the Tokio LocalSet::spawn_local pattern.
-            exec_for_spawn.spawn(fut).detach();
-        },
-    );
-
-    trace!("starting IO handling task for ACP connection");
-    // Spawn the IO driver onto the executor so it runs concurrently
-    // with handle_requests. This is the critical piece that was missing.
-    executor.spawn(handle_io).detach();
-
-    handle_requests(connection, receiver, client.clone(), agent).await;
-
-    // Wait for the child to exit (it may have already exited when the ACP
-    // connection closed, or we may need to wait briefly)
-    let status = stdio.wait().await?;
-    info!("Disconnected from '{}' with exit status: {}", agent, status);
-    Ok::<(), Error>(())
-}
-
-#[instrument(level = "trace", skip(client, receiver, stdio, executor))]
+#[instrument(level = "trace", skip(client, receiver, stdio))]
 pub async fn connect(
     client: Arc<Handler>,
     agent: Assistant,
     receiver: Receiver<UserRequest>,
     stdio: Arc<Child>,
-    executor: &Rc<smol::LocalExecutor<'static>>,
 ) -> Result<(), Error> {
-    match agent.clone() {
-        Assistant::Copilot
-        | Assistant::Opencode
-        | Assistant::Gemini
-        | Assistant::CustomStdio { .. } => {
-            trace!("Starting stdio connection for '{}'", agent);
-            stdio_connection(receiver, client, &agent, stdio, executor).await
-        }
-        _ => {
-            error!("Unsupported agent type for stdio connection: {}", agent);
-            Ok(())
-        }
+    trace!("Starting stdio connection for '{}'", agent);
+    stdio.initialize(&mut agent.command()?).await?;
+
+    let outgoing = stdio
+        .take_stdin()
+        .await
+        .ok_or_else(|| Error::Connection("Failed to take stdin".to_string()))?;
+
+    let incoming = stdio
+        .take_stdout()
+        .await
+        .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?;
+
+    let result = handle_connection(
+        client,
+        agent.clone(),
+        receiver,
+        ByteStreams::new(outgoing, incoming),
+    )
+    .await;
+
+    // Reap the child so its exit status is logged. Best-effort: if the wait
+    // fails we still propagate the connection result.
+    match stdio.wait().await {
+        Ok(status) => info!("Disconnected from '{}' with exit status: {}", agent, status),
+        Err(e) => warn!("Failed to reap child process for '{}': {}", agent, e),
     }
+
+    result
 }

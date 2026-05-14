@@ -2,7 +2,7 @@ use crate::PluginState;
 use crate::acp::connection::{Connection, stdio, tcp};
 use crate::nvim::configuration::Permissions;
 use crate::{Handler, acp::error::Error};
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     ClientCapabilities, FileSystemCapabilities, Implementation, InitializeRequest, ProtocolVersion,
 };
 use async_lock::Mutex;
@@ -234,13 +234,15 @@ impl ConnectionManager {
             // Run the connection in the executor.
             // smol::block_on drives the top-level future, while executor.run()
             // continuously polls all tasks spawned onto the LocalExecutor.
-            // This matches the Tokio pattern of LocalSet::run_until().
+            // Each protocol module owns its transport-specific orchestration
+            // (stream acquisition, post-disconnect cleanup) and delegates the
+            // shared ACP `Client.builder()` plumbing to `connect::handle_connection`.
             let run_result = smol::block_on(executor.run(async {
                 match protocol {
                     Protocol::Stdio => {
-                        stdio::connect(handler, thread_agent, receiver, child.unwrap(), &executor)
-                            .await
+                        stdio::connect(handler, thread_agent, receiver, child.unwrap()).await
                     }
+                    Protocol::Tcp => tcp::connect(handler, thread_agent, receiver).await,
                     Protocol::Http => {
                         error!("HTTP protocol is not yet implemented");
                         Err(Error::Internal(
@@ -253,7 +255,6 @@ impl ConnectionManager {
                             "Socket protocol is not yet implemented".to_string(),
                         ))
                     }
-                    Protocol::Tcp => tcp::connect(handler, thread_agent, receiver, &executor).await,
                 }
             }));
 

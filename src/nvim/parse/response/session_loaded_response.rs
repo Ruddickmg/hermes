@@ -1,4 +1,4 @@
-use agent_client_protocol::LoadSessionResponse;
+use agent_client_protocol::schema::LoadSessionResponse;
 use nvim_oxi::Dictionary;
 
 use crate::nvim::parse::parse_modes;

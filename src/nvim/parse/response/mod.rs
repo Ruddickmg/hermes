@@ -24,7 +24,7 @@ pub use session_model_response::*;
 pub use session_resumed_response::*;
 pub use sessions_listed_response::*;
 
-use agent_client_protocol::SessionConfigOption;
+use agent_client_protocol::schema::SessionConfigOption;
 use nvim_oxi::Dictionary;
 
 pub fn parse_session_config_option(opt: SessionConfigOption) -> Dictionary {
@@ -37,14 +37,14 @@ pub fn parse_session_config_option(opt: SessionConfigOption) -> Dictionary {
     if let Some(category) = opt.category {
         dict.insert("category", format!("{:?}", category));
     }
-    if let agent_client_protocol::SessionConfigKind::Select(selected) = opt.kind {
+    if let agent_client_protocol::schema::SessionConfigKind::Select(selected) = opt.kind {
         let mut select_dict = nvim_oxi::Dictionary::new();
         select_dict.insert(
             "currentValue",
             selected.current_value.0.as_ref().to_string(),
         );
         let options = match selected.options {
-            agent_client_protocol::SessionConfigSelectOptions::Ungrouped(opts) => {
+            agent_client_protocol::schema::SessionConfigSelectOptions::Ungrouped(opts) => {
                 nvim_oxi::Array::from_iter(opts.into_iter().map(|o| {
                     let mut opt_dict = nvim_oxi::Dictionary::new();
                     opt_dict.insert("value", o.value.0.as_ref().to_string());
@@ -55,7 +55,7 @@ pub fn parse_session_config_option(opt: SessionConfigOption) -> Dictionary {
                     opt_dict
                 }))
             }
-            agent_client_protocol::SessionConfigSelectOptions::Grouped(groups) => {
+            agent_client_protocol::schema::SessionConfigSelectOptions::Grouped(groups) => {
                 nvim_oxi::Array::from_iter(groups.into_iter().map(|g| {
                     let mut group_dict = nvim_oxi::Dictionary::new();
                     group_dict.insert("group", g.group.0.as_ref().to_string());

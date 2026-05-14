@@ -1,4 +1,4 @@
-use agent_client_protocol::SetSessionModelResponse;
+use agent_client_protocol::schema::SetSessionModelResponse;
 use nvim_oxi::Dictionary;
 
 pub fn session_model_response(response: SetSessionModelResponse) -> Dictionary {

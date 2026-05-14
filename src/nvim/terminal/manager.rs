@@ -155,7 +155,7 @@ mod tests {
             Ok(1) // Return a mock job ID
         }
 
-        fn from_request(_data: agent_client_protocol::CreateTerminalRequest) -> Self {
+        fn from_request(_data: agent_client_protocol::schema::CreateTerminalRequest) -> Self {
             Self::new("550e8400-e29b-41d4-a716-446655440000", "")
         }
 

@@ -1,4 +1,4 @@
-use agent_client_protocol::AuthenticateRequest;
+use agent_client_protocol::schema::AuthenticateRequest;
 
 use crate::{
     acp::{Result, error::Error},

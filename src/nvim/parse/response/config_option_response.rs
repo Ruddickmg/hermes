@@ -1,5 +1,5 @@
 use crate::nvim::parse::{convert_metadata_to_lua_object, parse_session_config_option};
-use agent_client_protocol::SetSessionConfigOptionResponse;
+use agent_client_protocol::schema::SetSessionConfigOptionResponse;
 use nvim_oxi::Dictionary;
 
 pub fn config_option_response(response: SetSessionConfigOptionResponse) -> Dictionary {
