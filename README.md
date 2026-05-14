@@ -1658,6 +1658,11 @@ Available formats:
     - [ ] Merge sessions
     - [ ] Fork sessions
 
+-- potential improvements
+- [ ] ACP outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `UserRequest` dispatches. Trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
+- [ ] Connection threading model: currently one OS thread per connection driving its own `smol::LocalExecutor`. Explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead. Trade-off: every type crossing `.await` must be `Send`.
+- [ ] MockAgent (e2e tests): the migration to `Agent.builder()` may still leave the `AgentToConnection` channel hop in place for some sub-request flows. Audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
+
 -- nice to haves
 - [ ] Status bar integration
   - [ ] Configurable
