@@ -27,7 +27,8 @@ impl Handler {
         if !self.can_request_permissions().await {
             return Err(Error::method_not_found());
         }
-        let (sender, receiver) = bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
+        let (sender, receiver) =
+            bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
         info!("Requesting permission for: {:?}", args);
 
         self.execute_autocommand_request(
@@ -47,7 +48,10 @@ impl Handler {
             .map(RequestPermissionResponse::new)
     }
 
-    pub async fn session_notification(&self, session_notification: SessionNotification) -> Result<()> {
+    pub async fn session_notification(
+        &self,
+        session_notification: SessionNotification,
+    ) -> Result<()> {
         if !self.can_receive_notifications().await {
             return Err(Error::method_not_found());
         }
@@ -85,7 +89,10 @@ impl Handler {
             .await?)
     }
 
-    pub async fn write_text_file(&self, args: WriteTextFileRequest) -> Result<WriteTextFileResponse> {
+    pub async fn write_text_file(
+        &self,
+        args: WriteTextFileRequest,
+    ) -> Result<WriteTextFileResponse> {
         if !self.can_write().await {
             return Err(Error::method_not_found());
         }
@@ -121,7 +128,10 @@ impl Handler {
         })?
     }
 
-    pub async fn create_terminal(&self, args: CreateTerminalRequest) -> Result<CreateTerminalResponse> {
+    pub async fn create_terminal(
+        &self,
+        args: CreateTerminalRequest,
+    ) -> Result<CreateTerminalResponse> {
         if !self.can_access_terminal().await {
             return Err(Error::method_not_found());
         }
@@ -144,7 +154,10 @@ impl Handler {
     }
 
     /// Gets the terminal output and exit status
-    pub async fn terminal_output(&self, args: TerminalOutputRequest) -> Result<TerminalOutputResponse> {
+    pub async fn terminal_output(
+        &self,
+        args: TerminalOutputRequest,
+    ) -> Result<TerminalOutputResponse> {
         if !self.can_access_terminal().await {
             return Err(Error::method_not_found());
         }

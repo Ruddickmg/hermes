@@ -187,43 +187,34 @@ impl MockAgent {
                                                 tx.try_send(response.outcome).ok();
                                             }
                                             Err(e) => {
-                                                error!(
-                                                    "Error sending permission request: {}",
-                                                    e
-                                                );
+                                                error!("Error sending permission request: {}", e);
                                                 tx.try_send(RequestPermissionOutcome::Cancelled)
                                                     .ok();
                                             }
                                         }
                                     }
                                     AgentToConnection::CreateTerminal(request, tx) => {
-                                        let result =
-                                            cx.send_request(request).block_task().await;
+                                        let result = cx.send_request(request).block_task().await;
                                         tx.try_send(result).ok();
                                     }
                                     AgentToConnection::TerminalOutput(request, tx) => {
-                                        let result =
-                                            cx.send_request(request).block_task().await;
+                                        let result = cx.send_request(request).block_task().await;
                                         tx.try_send(result).ok();
                                     }
                                     AgentToConnection::WaitForTerminalExit(request, tx) => {
-                                        let result =
-                                            cx.send_request(request).block_task().await;
+                                        let result = cx.send_request(request).block_task().await;
                                         tx.try_send(result).ok();
                                     }
                                     AgentToConnection::ReadTextFile(request, tx) => {
-                                        let result =
-                                            cx.send_request(request).block_task().await;
+                                        let result = cx.send_request(request).block_task().await;
                                         tx.try_send(result).ok();
                                     }
                                     AgentToConnection::WriteTextFile(request, tx) => {
-                                        let result =
-                                            cx.send_request(request).block_task().await;
+                                        let result = cx.send_request(request).block_task().await;
                                         tx.try_send(result).ok();
                                     }
                                     AgentToConnection::ReleaseTerminal(request, tx) => {
-                                        let result =
-                                            cx.send_request(request).block_task().await;
+                                        let result = cx.send_request(request).block_task().await;
                                         tx.try_send(result).ok();
                                     }
                                 }
@@ -232,9 +223,8 @@ impl MockAgent {
                             Ok(())
                         };
 
-                        let builder =
-                            build_mock_agent_builder(config.clone(), conn_tx.clone())
-                                .with_spawned(connection_task);
+                        let builder = build_mock_agent_builder(config.clone(), conn_tx.clone())
+                            .with_spawned(connection_task);
 
                         let serve_fut = async move {
                             let result = builder
@@ -370,7 +360,9 @@ fn build_mock_agent_builder(
                     async move {
                         let dur = config.lock().unwrap().timeout;
                         let result = timeout(dur, async {
-                            Ok::<_, acp::Error>(config.lock().unwrap().authenticate_response.clone())
+                            Ok::<_, acp::Error>(
+                                config.lock().unwrap().authenticate_response.clone(),
+                            )
                         })
                         .await
                         .map_err(|_| internal_error("authenticate timed out"))
@@ -393,10 +385,7 @@ fn build_mock_agent_builder(
                         let result = timeout(dur, async {
                             let mut config = config.lock().unwrap();
                             let response = config.new_session_response.clone();
-                            config.track_session(
-                                response.session_id.clone(),
-                                request.cwd.clone(),
-                            );
+                            config.track_session(response.session_id.clone(), request.cwd.clone());
                             config.new_session_response =
                                 NewSessionResponse::new(generate_session_id());
                             Ok::<_, acp::Error>(response)
@@ -516,9 +505,7 @@ fn build_mock_agent_builder(
                                 config
                                     .set_session_config_option_response
                                     .clone()
-                                    .unwrap_or_else(|| {
-                                        SetSessionConfigOptionResponse::new(vec![])
-                                    }),
+                                    .unwrap_or_else(|| SetSessionConfigOptionResponse::new(vec![])),
                             )
                         })
                         .await
@@ -651,9 +638,7 @@ async fn handle_prompt(
                 conn_tx
                     .send(AgentToConnection::WaitForTerminalExit(exit_req, tx))
                     .await
-                    .map_err(|_| {
-                        internal_error("failed to send wait_for_terminal_exit request")
-                    })?;
+                    .map_err(|_| internal_error("failed to send wait_for_terminal_exit request"))?;
 
                 recv_timeout(
                     rx,

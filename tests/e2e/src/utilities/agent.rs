@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse, PromptResponse, StopReason};
+use agent_client_protocol::schema::{
+    InitializeResponse, NewSessionResponse, PromptResponse, StopReason,
+};
 use hermes::{
     acp::connection::Assistant,
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, PromptArgs, PromptContent},

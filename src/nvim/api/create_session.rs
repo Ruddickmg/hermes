@@ -160,19 +160,22 @@ impl Api {
         let can_connect_over_sse = agent_info.can_connect_to_mcp_over_sse();
 
         let request = match session {
-            CreateSessionArgs::Default => agent_client_protocol::schema::NewSessionRequest::new(root),
+            CreateSessionArgs::Default => {
+                agent_client_protocol::schema::NewSessionRequest::new(root)
+            }
             CreateSessionArgs::Configuration { cwd, mcp_servers } => {
-                agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(root)).mcp_servers(
-                    mcp_servers
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter(|mcp| match mcp {
-                            McpServer::Http(_) => can_connect_over_http,
-                            McpServer::Sse(_) => can_connect_over_sse,
-                            _ => true,
-                        })
-                        .collect(),
-                )
+                agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(root))
+                    .mcp_servers(
+                        mcp_servers
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|mcp| match mcp {
+                                McpServer::Http(_) => can_connect_over_http,
+                                McpServer::Sse(_) => can_connect_over_sse,
+                                _ => true,
+                            })
+                            .collect(),
+                    )
             }
         };
 

@@ -49,12 +49,9 @@ pub async fn tcp_connection(
     let agent_for_main = agent.clone();
     let client_for_main = client.clone();
     build_client(client)
-        .connect_with(
-            ByteStreams::new(writer, reader),
-            async move |cx| {
-                run_user_requests(cx, receiver, client_for_main, agent_for_main).await
-            },
-        )
+        .connect_with(ByteStreams::new(writer, reader), async move |cx| {
+            run_user_requests(cx, receiver, client_for_main, agent_for_main).await
+        })
         .await
         .map_err(|e| Error::Connection(e.to_string()))?;
 
