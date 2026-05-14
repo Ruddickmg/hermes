@@ -1,58 +1,25 @@
+//! stdio transport: spawn an agent subprocess and drive an ACP connection
+//! over its stdin/stdout.
+//!
+//! This module owns the child-process lifecycle (via the `child` submodule)
+//! and the per-protocol orchestration. The ACP `Client.builder()` plumbing is
+//! shared with all other transports via
+//! [`crate::acp::connection::connect::run_connection`].
+
 pub mod child;
 
 use crate::{
     Handler,
     acp::{
-        connection::{Assistant, UserRequest},
+        connection::{Assistant, UserRequest, connect::handle_connection},
         error::Error,
-        handler::{build_client, message::run_user_requests},
     },
 };
-use agent_client_protocol::ByteStreams;
 use async_channel::Receiver;
 use child::Child;
 use std::sync::Arc;
-use tracing::{info, instrument, trace};
-
-#[instrument(level = "trace", skip(client, receiver, stdio))]
-pub async fn stdio_connection(
-    receiver: Receiver<UserRequest>,
-    client: Arc<Handler>,
-    agent: &Assistant,
-    stdio: Arc<Child>,
-) -> Result<(), Error> {
-    stdio.initialize(&mut agent.command()?).await?;
-
-    let stdin = stdio
-        .take_stdin()
-        .await
-        .ok_or_else(|| Error::Connection("Failed to take stdin".to_string()))?;
-
-    let stdout = stdio
-        .take_stdout()
-        .await
-        .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?;
-
-    trace!("Starting ACP client connection for '{}'", agent);
-
-    // 0.11 builder: register inbound handlers, then drive the connection.
-    // `connect_with` owns the dispatch loop internally; our `main_fn` (run_user_requests)
-    // pumps UserRequests off the mpsc receiver and forwards them via `cx.send_request(...)`.
-    let agent_for_main = agent.clone();
-    let client_for_main = client.clone();
-    build_client(client)
-        .connect_with(ByteStreams::new(stdin, stdout), async move |cx| {
-            run_user_requests(cx, receiver, client_for_main, agent_for_main).await
-        })
-        .await
-        .map_err(|e| Error::Connection(e.to_string()))?;
-
-    // Wait for the child to exit (it may have already exited when the ACP
-    // connection closed, or we may need to wait briefly)
-    let status = stdio.wait().await?;
-    info!("Disconnected from '{}' with exit status: {}", agent, status);
-    Ok::<(), Error>(())
-}
+use tracing::{info, instrument, trace, warn};
+use agent_client_protocol::ByteStreams;
 
 #[instrument(level = "trace", skip(client, receiver, stdio))]
 pub async fn connect(
@@ -61,17 +28,33 @@ pub async fn connect(
     receiver: Receiver<UserRequest>,
     stdio: Arc<Child>,
 ) -> Result<(), Error> {
-    match agent.clone() {
-        Assistant::Copilot
-        | Assistant::Opencode
-        | Assistant::Gemini
-        | Assistant::CustomStdio { .. } => {
-            trace!("Starting stdio connection for '{}'", agent);
-            stdio_connection(receiver, client, &agent, stdio).await
-        }
-        _ => {
-            tracing::error!("Unsupported agent type for stdio connection: {}", agent);
-            Ok(())
-        }
+    trace!("Starting stdio connection for '{}'", agent);
+    stdio.initialize(&mut agent.command()?).await?;
+
+    let outgoing = stdio
+        .take_stdin()
+        .await
+        .ok_or_else(|| Error::Connection("Failed to take stdin".to_string()))?;
+
+    let incoming = stdio
+        .take_stdout()
+        .await
+        .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?;
+
+    let result = handle_connection(
+        client,
+        agent.clone(),
+        receiver,
+        ByteStreams::new(outgoing, incoming),
+    )
+    .await;
+
+    // Reap the child so its exit status is logged. Best-effort: if the wait
+    // fails we still propagate the connection result.
+    match stdio.wait().await {
+        Ok(status) => info!("Disconnected from '{}' with exit status: {}", agent, status),
+        Err(e) => warn!("Failed to reap child process for '{}': {}", agent, e),
     }
+
+    result
 }

@@ -234,13 +234,15 @@ impl ConnectionManager {
             // Run the connection in the executor.
             // smol::block_on drives the top-level future, while executor.run()
             // continuously polls all tasks spawned onto the LocalExecutor.
-            // In 0.11 the ACP `Builder::connect_with(...)` future owns its own
-            // dispatch loop, so we just await it from inside our executor.
+            // Each protocol module owns its transport-specific orchestration
+            // (stream acquisition, post-disconnect cleanup) and delegates the
+            // shared ACP `Client.builder()` plumbing to `connect::run_connection`.
             let run_result = smol::block_on(executor.run(async {
                 match protocol {
                     Protocol::Stdio => {
                         stdio::connect(handler, thread_agent, receiver, child.unwrap()).await
                     }
+                    Protocol::Tcp => tcp::connect(handler, thread_agent, receiver).await,
                     Protocol::Http => {
                         error!("HTTP protocol is not yet implemented");
                         Err(Error::Internal(
@@ -253,7 +255,6 @@ impl ConnectionManager {
                             "Socket protocol is not yet implemented".to_string(),
                         ))
                     }
-                    Protocol::Tcp => tcp::connect(handler, thread_agent, receiver).await,
                 }
             }));
 

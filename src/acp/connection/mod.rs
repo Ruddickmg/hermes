@@ -1,3 +1,4 @@
+pub mod connect;
 pub mod manager;
 pub mod stdio;
 pub mod tcp;

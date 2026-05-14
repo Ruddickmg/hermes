@@ -1,6 +1,5 @@
 pub mod builder;
 pub mod client;
-pub mod message;
 pub mod response;
 
 pub use builder::build_client;

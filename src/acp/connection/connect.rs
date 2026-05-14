@@ -1,31 +1,19 @@
-//! Outbound request dispatch loop.
-//!
-//! Runs as the `main_fn` body passed to `Builder::connect_with(...)`. It pulls
-//! `UserRequest`s off the mpsc receiver that Neovim writes into and forwards
-//! them to the agent via `cx.send_request(...).block_task().await?` (or
-//! `cx.send_notification(...)?` for cancel). Each response is then fanned out
-//! back into Neovim by calling the matching `*_response` method on `Handler`,
-//! which fires the corresponding autocommand.
-//!
-//! Inbound traffic (agent → client) is handled separately by the closures
-//! registered on `Client.builder()` (see `super::builder::build_client`); the
-//! dispatch loop invokes those automatically without involving this function.
-
-use std::sync::Arc;
-
-use async_channel::Receiver;
-
-use agent_client_protocol::{self as acp, ConnectionTo};
-use tracing::{debug, error, instrument};
-
 use crate::{
     Handler,
     acp::{
         Result,
         connection::{Assistant, UserRequest},
         error::Error,
+        handler::build_client,
     },
 };
+use agent_client_protocol::ByteStreams;
+use agent_client_protocol::{self as acp, ConnectionTo};
+use async_channel::Receiver;
+use futures::AsyncRead;
+use futures::AsyncWrite;
+use std::sync::Arc;
+use tracing::{debug, error, instrument, trace};
 
 #[instrument(level = "trace", skip(cx, client))]
 async fn dispatch(
@@ -87,27 +75,38 @@ async fn dispatch(
     Ok(())
 }
 
-/// Drive the connection: read `UserRequest`s from `receiver` and dispatch each
-/// one through the ACP connection. Exits cleanly on `UserRequest::Close` or
-/// when the channel is closed (signaling disconnect).
-#[instrument(level = "trace", skip(cx, receiver, client))]
-pub async fn run_user_requests(
-    cx: ConnectionTo<acp::Agent>,
-    receiver: Receiver<UserRequest>,
+#[instrument(level = "trace", skip(client, receiver, stream))]
+pub async fn handle_connection<OB, IB>(
     client: Arc<Handler>,
     agent: Assistant,
-) -> std::result::Result<(), acp::Error> {
-    while let Ok(msg) = receiver.recv().await {
-        debug!("Received request from '{}': {:#?}", agent, msg);
-        if matches!(msg, UserRequest::Close) {
-            debug!("Close requested for '{}'", agent);
-            break;
-        }
-        if let Err(e) = dispatch(&cx, &client, &agent, msg).await {
-            error!("Error dispatching user request for '{}': {:?}", agent, e);
-        } else {
-            debug!("Completed request for '{}'", agent);
-        }
-    }
-    Ok(())
+    receiver: Receiver<UserRequest>,
+    stream: ByteStreams<OB, IB>,
+) -> Result<()>
+where
+    OB: AsyncWrite + Send + 'static,
+    IB: AsyncRead + Send + 'static,
+{
+    trace!("Starting ACP client connection for '{}'", agent);
+
+    let agent_for_main = agent.clone();
+    let client_for_main = client.clone();
+
+    build_client(client)
+        .connect_with(stream, async move |cx| {
+            while let Ok(msg) = receiver.recv().await {
+                debug!("Received request from '{}': {:#?}", agent, msg);
+                if matches!(msg, UserRequest::Close) {
+                    debug!("Close requested for '{}'", agent);
+                    break;
+                }
+                if let Err(e) = dispatch(&cx, &client_for_main, &agent_for_main, msg).await {
+                    error!("Error dispatching user request for '{}': {:?}", agent, e);
+                } else {
+                    debug!("Completed request for '{}'", agent);
+                }
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| Error::Connection(e.to_string()))
 }
