@@ -1,5 +1,5 @@
 use crate::nvim::parse;
-use agent_client_protocol::SetSessionModeResponse;
+use agent_client_protocol::schema::SetSessionModeResponse;
 use nvim_oxi::Dictionary;
 
 pub fn mode_response(response: SetSessionModeResponse) -> Option<Dictionary> {

@@ -1,4 +1,4 @@
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     AudioContent, BlobResourceContents, ContentBlock, EmbeddedResource, EmbeddedResourceResource,
     ImageContent, PromptRequest, ResourceLink, TextContent, TextResourceContents,
 };

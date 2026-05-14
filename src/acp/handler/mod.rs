@@ -1,6 +1,9 @@
+pub mod builder;
 pub mod client;
 pub mod message;
 pub mod response;
+
+pub use builder::build_client;
 
 use crate::{
     PluginState,
@@ -156,7 +159,7 @@ impl Handler {
     pub async fn set_agent_info(
         &self,
         agent: Assistant,
-        info: agent_client_protocol::InitializeResponse,
+        info: agent_client_protocol::schema::InitializeResponse,
     ) {
         let mut config = self.state.lock().await;
         config.set_agent_info(agent.clone(), info.clone());

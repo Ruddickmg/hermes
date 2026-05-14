@@ -1,4 +1,4 @@
-use agent_client_protocol::PromptResponse;
+use agent_client_protocol::schema::PromptResponse;
 use nvim_oxi::Dictionary;
 
 pub fn prompt_response(response: PromptResponse) -> Dictionary {

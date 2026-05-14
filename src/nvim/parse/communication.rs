@@ -1,4 +1,4 @@
-use agent_client_protocol::{ContentBlock, Error as AcpError, Result};
+use agent_client_protocol::{Error as AcpError, Result, schema::ContentBlock};
 
 pub fn communication(content: ContentBlock) -> Result<String> {
     match content {
@@ -14,7 +14,7 @@ pub fn communication(content: ContentBlock) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_client_protocol::{ContentBlock, TextContent};
+    use agent_client_protocol::schema::{ContentBlock, TextContent};
     use pretty_assertions::assert_eq;
 
     #[test]

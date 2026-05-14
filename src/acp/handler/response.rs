@@ -1,4 +1,4 @@
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     AuthenticateResponse, ExtResponse, ForkSessionResponse, InitializeResponse,
     ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PromptResponse,
     ResumeSessionResponse, SetSessionConfigOptionResponse, SetSessionModeResponse,

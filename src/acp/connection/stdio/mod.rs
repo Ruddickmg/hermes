@@ -5,22 +5,21 @@ use crate::{
     acp::{
         connection::{Assistant, UserRequest},
         error::Error,
-        handler::message::handle_requests,
+        handler::{build_client, message::run_user_requests},
     },
 };
+use agent_client_protocol::ByteStreams;
 use async_channel::Receiver;
 use child::Child;
-use std::rc::Rc;
 use std::sync::Arc;
-use tracing::{error, info, instrument, trace};
+use tracing::{info, instrument, trace};
 
-#[instrument(level = "trace", skip(client, receiver, stdio, executor))]
+#[instrument(level = "trace", skip(client, receiver, stdio))]
 pub async fn stdio_connection(
     receiver: Receiver<UserRequest>,
     client: Arc<Handler>,
     agent: &Assistant,
     stdio: Arc<Child>,
-    executor: &Rc<smol::LocalExecutor<'static>>,
 ) -> Result<(), Error> {
     stdio.initialize(&mut agent.command()?).await?;
 
@@ -34,34 +33,22 @@ pub async fn stdio_connection(
         .await
         .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?;
 
-    // async_process types already implement futures::AsyncRead/AsyncWrite
-    let outgoing = stdin;
-    let incoming = stdout;
+    trace!("Starting ACP client connection for '{}'", agent);
 
-    trace!("Starting async runtime for ACP communication");
-
-    // Clone the executor Rc for the spawn closure (must be 'static)
-    let exec_for_spawn = executor.clone();
-
-    trace!("creating ACP client connection");
-    let (connection, handle_io) = agent_client_protocol::ClientSideConnection::new(
-        client.clone(),
-        outgoing,
-        incoming,
-        move |fut| {
-            // Spawn onto the same LocalExecutor that drives this entire thread.
-            // The outer smol::block_on(executor.run(...)) in manager.rs will
-            // poll these tasks, matching the Tokio LocalSet::spawn_local pattern.
-            exec_for_spawn.spawn(fut).detach();
-        },
-    );
-
-    trace!("starting IO handling task for ACP connection");
-    // Spawn the IO driver onto the executor so it runs concurrently
-    // with handle_requests. This is the critical piece that was missing.
-    executor.spawn(handle_io).detach();
-
-    handle_requests(connection, receiver, client.clone(), agent).await;
+    // 0.11 builder: register inbound handlers, then drive the connection.
+    // `connect_with` owns the dispatch loop internally; our `main_fn` (run_user_requests)
+    // pumps UserRequests off the mpsc receiver and forwards them via `cx.send_request(...)`.
+    let agent_for_main = agent.clone();
+    let client_for_main = client.clone();
+    build_client(client)
+        .connect_with(
+            ByteStreams::new(stdin, stdout),
+            async move |cx| {
+                run_user_requests(cx, receiver, client_for_main, agent_for_main).await
+            },
+        )
+        .await
+        .map_err(|e| Error::Connection(e.to_string()))?;
 
     // Wait for the child to exit (it may have already exited when the ACP
     // connection closed, or we may need to wait briefly)
@@ -70,13 +57,12 @@ pub async fn stdio_connection(
     Ok::<(), Error>(())
 }
 
-#[instrument(level = "trace", skip(client, receiver, stdio, executor))]
+#[instrument(level = "trace", skip(client, receiver, stdio))]
 pub async fn connect(
     client: Arc<Handler>,
     agent: Assistant,
     receiver: Receiver<UserRequest>,
     stdio: Arc<Child>,
-    executor: &Rc<smol::LocalExecutor<'static>>,
 ) -> Result<(), Error> {
     match agent.clone() {
         Assistant::Copilot
@@ -84,10 +70,10 @@ pub async fn connect(
         | Assistant::Gemini
         | Assistant::CustomStdio { .. } => {
             trace!("Starting stdio connection for '{}'", agent);
-            stdio_connection(receiver, client, &agent, stdio, executor).await
+            stdio_connection(receiver, client, &agent, stdio).await
         }
         _ => {
-            error!("Unsupported agent type for stdio connection: {}", agent);
+            tracing::error!("Unsupported agent type for stdio connection: {}", agent);
             Ok(())
         }
     }

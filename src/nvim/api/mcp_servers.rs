@@ -1,4 +1,4 @@
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     EnvVariable, HttpHeader, McpServer, McpServerHttp, McpServerSse, McpServerStdio,
 };
 use nvim_oxi::{Dictionary, Object, ObjectKind};
@@ -171,7 +171,7 @@ fn parse_stdio_server(server_dict: &Dictionary, name: nvim_oxi::String) -> Optio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_client_protocol::McpServer;
+    use agent_client_protocol::schema::McpServer;
     use nvim_oxi::Object;
     use pretty_assertions::assert_eq;
     use proptest::prelude::*;

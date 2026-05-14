@@ -4,7 +4,7 @@ use crate::{
     TIMEOUT_IN_SECONDS,
     utilities::{autocommand, mock_agent::MockAgent},
 };
-use agent_client_protocol::{InitializeResponse, NewSessionResponse, PromptResponse, StopReason};
+use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse, PromptResponse, StopReason};
 use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, PromptArgs, PromptContent},
     nvim::{autocommands::Commands, hermes},

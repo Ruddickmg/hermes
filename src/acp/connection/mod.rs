@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use tracing::{debug, error, warn};
 
 use crate::acp::{Result, error::Error};
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     AuthenticateRequest, CancelNotification, ForkSessionRequest, InitializeRequest,
     ListSessionsRequest, LoadSessionRequest, NewSessionRequest, PromptRequest,
     ResumeSessionRequest, SetSessionConfigOptionRequest, SetSessionModeRequest,
@@ -278,7 +278,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use agent_client_protocol::{InitializeRequest, ProtocolVersion};
+    use agent_client_protocol::schema::{InitializeRequest, ProtocolVersion};
     use pretty_assertions::assert_eq;
 
     /// Creates a mock thread handle that immediately returns Ok for testing
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_connection_create_session() {
-        use agent_client_protocol::NewSessionRequest;
+        use agent_client_protocol::schema::NewSessionRequest;
         let executor = mock_runtime();
         let (sender, receiver) = async_channel::bounded(1);
         let connection = Arc::new(Connection::new(sender, mock_handle(), None));

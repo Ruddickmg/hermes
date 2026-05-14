@@ -1,4 +1,4 @@
-use agent_client_protocol::ListSessionsResponse;
+use agent_client_protocol::schema::ListSessionsResponse;
 use nvim_oxi::Dictionary;
 
 pub fn sessions_listed_response(response: ListSessionsResponse) -> Dictionary {

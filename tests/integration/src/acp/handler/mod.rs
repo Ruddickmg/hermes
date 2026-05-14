@@ -1,8 +1,10 @@
 //! Integration tests for Handler notification and permissions
 use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
-    Client, ContentBlock, ContentChunk, Error, SessionNotification, SessionUpdate, TextContent,
-    UsageUpdate,
+    Error,
+    schema::{
+        ContentBlock, ContentChunk, SessionNotification, SessionUpdate, TextContent, UsageUpdate,
+    },
 };
 use async_lock::Mutex;
 use hermes::acp::handler::Handler;
@@ -228,8 +230,8 @@ fn test_set_agent_info_updates_agent_information() -> nvim_oxi::Result<()> {
     .expect("Handler creation should succeed");
 
     let agent = hermes::acp::connection::Assistant::from("test-agent");
-    let info = agent_client_protocol::InitializeResponse::new(
-        agent_client_protocol::ProtocolVersion::LATEST,
+    let info = agent_client_protocol::schema::InitializeResponse::new(
+        agent_client_protocol::schema::ProtocolVersion::LATEST,
     );
 
     smol::block_on(handler.set_agent_info(agent.clone(), info.clone()));
@@ -309,7 +311,7 @@ fn test_can_receive_notifications_returns_true_when_enabled() -> nvim_oxi::Resul
 fn test_execute_autocommand_request_sends_with_responder() -> nvim_oxi::Result<()> {
     // Test execute_autocommand_request with a responder - covers lines 207-208
     // This sends an autocommand with response_data, triggering the full flow
-    use agent_client_protocol::WriteTextFileResponse;
+    use agent_client_protocol::schema::WriteTextFileResponse;
     use hermes::nvim::requests::Responder;
     use std::sync::Arc;
 
@@ -324,8 +326,8 @@ fn test_execute_autocommand_request_sends_with_responder() -> nvim_oxi::Result<(
     let (sender, _receiver) = async_channel::bounded::<WriteTextFileResponse>(1);
     let responder = Responder::WriteFileResponse(
         sender,
-        agent_client_protocol::WriteTextFileRequest::new(
-            agent_client_protocol::SessionId::from("test-session"),
+        agent_client_protocol::schema::WriteTextFileRequest::new(
+            agent_client_protocol::schema::SessionId::from("test-session"),
             std::path::Path::new("/tmp/test.txt"),
             "test content",
         ),
@@ -349,7 +351,7 @@ fn test_no_listener_with_request_triggers_default_response_error_path() -> nvim_
     // Test lines 71-78: "No listener but has request" error handling path
     // This triggers when no autocommand listener is attached but a request is provided
     // AND when default_response fails (to trigger the error! at lines 74-77)
-    use agent_client_protocol::WriteTextFileResponse;
+    use agent_client_protocol::schema::WriteTextFileResponse;
     use hermes::nvim::requests::{RequestHandler, Responder};
     use std::sync::Arc;
     use uuid::Uuid;
@@ -405,8 +407,8 @@ fn test_no_listener_with_request_triggers_default_response_error_path() -> nvim_
     let (sender, _receiver) = async_channel::bounded::<WriteTextFileResponse>(1);
     let responder = Responder::WriteFileResponse(
         sender,
-        agent_client_protocol::WriteTextFileRequest::new(
-            agent_client_protocol::SessionId::from("test-session"),
+        agent_client_protocol::schema::WriteTextFileRequest::new(
+            agent_client_protocol::schema::SessionId::from("test-session"),
             std::path::Path::new("/tmp/test.txt"),
             "test content",
         ),

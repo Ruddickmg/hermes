@@ -1,20 +1,21 @@
 #![allow(private_interfaces)]
 
-use agent_client_protocol::{
-    Agent, AgentCapabilities, AgentSideConnection, AuthenticateRequest, AuthenticateResponse,
-    CancelNotification, Client, ContentBlock, ContentChunk, CreateTerminalRequest,
-    CreateTerminalResponse, ExtNotification, ExtRequest, ExtResponse, Implementation,
-    InitializeRequest, InitializeResponse, ListSessionsRequest, ListSessionsResponse,
-    LoadSessionRequest, LoadSessionResponse, McpCapabilities, NewSessionRequest,
-    NewSessionResponse, PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion,
-    ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
-    RequestPermissionOutcome, RequestPermissionRequest, SessionCapabilities,
-    SessionForkCapabilities, SessionListCapabilities, SessionNotification,
+use agent_client_protocol::schema::{
+    AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification, ContentBlock,
+    ContentChunk, CreateTerminalRequest, CreateTerminalResponse, ExtNotification, ExtRequest,
+    ExtResponse, Implementation, InitializeRequest, InitializeResponse, ListSessionsRequest,
+    ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, McpCapabilities,
+    NewSessionRequest, NewSessionResponse, PromptCapabilities, PromptRequest, PromptResponse,
+    ProtocolVersion, ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest,
+    ReleaseTerminalResponse, RequestPermissionOutcome, RequestPermissionRequest,
+    SessionCapabilities, SessionForkCapabilities, SessionListCapabilities, SessionNotification,
     SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
     SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse, StopReason,
     TerminalOutputRequest, TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
     WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
 };
+// NOTE: `Agent`, `AgentSideConnection`, `Client` are removed pending Phase 7 rewrite.
+// The `impl Agent for MockAgent` below will be replaced with `Agent.builder()`.
 use async_channel::{Receiver, Sender, bounded, unbounded};
 use async_io::{Async, Timer};
 use async_trait::async_trait;

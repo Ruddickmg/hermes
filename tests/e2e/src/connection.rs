@@ -1,4 +1,4 @@
-use agent_client_protocol::{AuthenticateResponse, InitializeResponse};
+use agent_client_protocol::schema::{AuthenticateResponse, InitializeResponse};
 use hermes::{
     api::{ConnectionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},

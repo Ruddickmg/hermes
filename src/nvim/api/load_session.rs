@@ -16,7 +16,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 pub struct LoadSessionConfig {
     pub cwd: Option<PathBuf>,
-    pub mcp_servers: Vec<agent_client_protocol::McpServer>,
+    pub mcp_servers: Vec<agent_client_protocol::schema::McpServer>,
 }
 
 impl FromObject for LoadSessionConfig {
@@ -31,7 +31,7 @@ impl FromObject for LoadSessionConfig {
                 .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
         });
 
-        let mcp_servers: Vec<agent_client_protocol::McpServer> = dict
+        let mcp_servers: Vec<agent_client_protocol::schema::McpServer> = dict
             .get("mcpServers")
             .and_then(parse_mcp_servers)
             .unwrap_or_default();
@@ -90,8 +90,8 @@ impl Api {
             return Ok(());
         }
 
-        let request = agent_client_protocol::LoadSessionRequest::new(
-            agent_client_protocol::SessionId::from(session_id),
+        let request = agent_client_protocol::schema::LoadSessionRequest::new(
+            agent_client_protocol::schema::SessionId::from(session_id),
             config.cwd.unwrap_or_else(|| {
                 let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
                 crate::utilities::get_project_root(current_dir, root_markers)
