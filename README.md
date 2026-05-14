@@ -1658,7 +1658,6 @@ Available formats:
     - [ ] Merge sessions
     - [ ] Fork sessions
   - [ ] Follow message Ids
-  - [ ] 
 
 -- nice to haves
 - [ ] Status bar integration

@@ -4,7 +4,7 @@
 //! This module owns the child-process lifecycle (via the `child` submodule)
 //! and the per-protocol orchestration. The ACP `Client.builder()` plumbing is
 //! shared with all other transports via
-//! [`crate::acp::connection::connect::run_connection`].
+//! [`crate::acp::connection::connect::handle_connection`].
 
 pub mod child;
 

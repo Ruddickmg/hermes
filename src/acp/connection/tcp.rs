@@ -3,7 +3,7 @@
 //!
 //! Like the `stdio` module, this owns the per-protocol orchestration. The ACP
 //! `Client.builder()` plumbing is shared via
-//! [`crate::acp::connection::connect::run_connection`].
+//! [`crate::acp::connection::connect::handle_connection`].
 
 use crate::{
     Handler,

@@ -236,7 +236,7 @@ impl ConnectionManager {
             // continuously polls all tasks spawned onto the LocalExecutor.
             // Each protocol module owns its transport-specific orchestration
             // (stream acquisition, post-disconnect cleanup) and delegates the
-            // shared ACP `Client.builder()` plumbing to `connect::run_connection`.
+            // shared ACP `Client.builder()` plumbing to `connect::handle_connection`.
             let run_result = smol::block_on(executor.run(async {
                 match protocol {
                     Protocol::Stdio => {
