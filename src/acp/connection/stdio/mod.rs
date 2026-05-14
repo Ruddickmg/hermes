@@ -15,11 +15,11 @@ use crate::{
         error::Error,
     },
 };
+use agent_client_protocol::ByteStreams;
 use async_channel::Receiver;
 use child::Child;
 use std::sync::Arc;
 use tracing::{info, instrument, trace, warn};
-use agent_client_protocol::ByteStreams;
 
 #[instrument(level = "trace", skip(client, receiver, stdio))]
 pub async fn connect(
