@@ -1,5 +1,5 @@
 import semanticRelease from 'semantic-release';
-const { WritableStreamBuffer } = require("stream-buffers");
+import { WritableStreamBuffer } from "stream-buffers";
 
 const stdoutBuffer = new WritableStreamBuffer();
 const stderrBuffer = new WritableStreamBuffer();
