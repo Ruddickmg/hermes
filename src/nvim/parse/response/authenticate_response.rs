@@ -1,5 +1,5 @@
 use crate::nvim::parse::convert_metadata_to_lua_object;
-use agent_client_protocol::AuthenticateResponse;
+use agent_client_protocol::schema::AuthenticateResponse;
 use nvim_oxi::Dictionary;
 
 pub fn authenticate_response(response: AuthenticateResponse) -> Dictionary {

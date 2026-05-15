@@ -1,4 +1,4 @@
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     CreateTerminalRequest, CreateTerminalResponse, KillTerminalRequest, KillTerminalResponse,
     ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
     RequestPermissionOutcome, RequestPermissionRequest, SelectedPermissionOutcome,
@@ -748,8 +748,8 @@ mod tests {
         let responder = Responder::TerminalOutput(
             sender,
             TerminalOutputRequest::new(
-                agent_client_protocol::SessionId::from("test"),
-                agent_client_protocol::TerminalId::from("term-1"),
+                agent_client_protocol::schema::SessionId::from("test"),
+                agent_client_protocol::schema::TerminalId::from("term-1"),
             ),
         );
         let command: Commands = responder.into();
@@ -762,8 +762,8 @@ mod tests {
         let responder = Responder::TerminalKill(
             sender,
             KillTerminalRequest::new(
-                agent_client_protocol::SessionId::from("test"),
-                agent_client_protocol::TerminalId::from("term-1"),
+                agent_client_protocol::schema::SessionId::from("test"),
+                agent_client_protocol::schema::TerminalId::from("term-1"),
             ),
         );
         let command: Commands = responder.into();
@@ -777,7 +777,7 @@ mod tests {
         let responder = Responder::ReadFileResponse(
             sender,
             ReadTextFileRequest::new(
-                agent_client_protocol::SessionId::from("test"),
+                agent_client_protocol::schema::SessionId::from("test"),
                 std::path::PathBuf::from("/test.txt"),
             ),
         );
@@ -799,7 +799,7 @@ mod tests {
         let responder = Responder::WriteFileResponse(
             sender,
             WriteTextFileRequest::new(
-                agent_client_protocol::SessionId::from("test"),
+                agent_client_protocol::schema::SessionId::from("test"),
                 std::path::PathBuf::from("/test.txt"),
                 "content".to_string(),
             ),
@@ -814,7 +814,7 @@ mod tests {
         let responder = Responder::TerminalCreate(
             sender,
             CreateTerminalRequest::new(
-                agent_client_protocol::SessionId::from("test"),
+                agent_client_protocol::schema::SessionId::from("test"),
                 "echo".to_string(),
             ),
         );
@@ -829,8 +829,8 @@ mod tests {
         let responder = Responder::TerminalExit(
             sender,
             WaitForTerminalExitRequest::new(
-                agent_client_protocol::SessionId::from("test"),
-                agent_client_protocol::TerminalId::from("term-1"),
+                agent_client_protocol::schema::SessionId::from("test"),
+                agent_client_protocol::schema::TerminalId::from("term-1"),
             ),
         );
         let command: Commands = responder.into();
@@ -843,8 +843,8 @@ mod tests {
         let responder = Responder::TerminalRelease(
             sender,
             ReleaseTerminalRequest::new(
-                agent_client_protocol::SessionId::from("test"),
-                agent_client_protocol::TerminalId::from("term-1"),
+                agent_client_protocol::schema::SessionId::from("test"),
+                agent_client_protocol::schema::TerminalId::from("term-1"),
             ),
         );
         let command: Commands = responder.into();

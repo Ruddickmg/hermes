@@ -1,4 +1,4 @@
-use agent_client_protocol::SessionMode;
+use agent_client_protocol::schema::SessionMode;
 
 pub fn parse_modes(modes: Vec<SessionMode>) -> nvim_oxi::Array {
     nvim_oxi::Array::from_iter(modes.into_iter().map(|mode| {

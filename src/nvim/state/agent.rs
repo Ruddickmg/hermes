@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use agent_client_protocol::InitializeResponse;
+use agent_client_protocol::schema::InitializeResponse;
 
 use crate::acp::connection::Assistant;
 
@@ -25,7 +25,7 @@ impl AgentInfo {
         self.agents.get(&self.current)
     }
 
-    pub fn get_capabilities(&self) -> Option<&agent_client_protocol::AgentCapabilities> {
+    pub fn get_capabilities(&self) -> Option<&agent_client_protocol::schema::AgentCapabilities> {
         self.get_current_info().map(|info| &info.agent_capabilities)
     }
 
@@ -113,7 +113,7 @@ impl AgentInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_client_protocol::{
+    use agent_client_protocol::schema::{
         AgentCapabilities, McpCapabilities, PromptCapabilities, ProtocolVersion,
         SessionCapabilities, SessionForkCapabilities, SessionListCapabilities,
         SessionResumeCapabilities,

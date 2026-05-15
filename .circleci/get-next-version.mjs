@@ -1,16 +1,29 @@
 import semanticRelease from 'semantic-release';
+import { WritableStreamBuffer } from "stream-buffers";
+
+const stdoutBuffer = new WritableStreamBuffer();
+const stderrBuffer = new WritableStreamBuffer();
 
 try {
-  const result = await semanticRelease({ dryRun: true });
+  const result = await semanticRelease(
+    {
+      dryRun: true,
+      ci: false,
+    },
+    {
+      stdout: stdoutBuffer,
+      stderr: stderrBuffer,
+    }
+  );
+
   const version = result?.nextRelease?.version;
 
   if (version) {
     process.stdout.write(version);
   } else {
-    // write empty string to stdout so that the last line is an empty string
-    process.stdout.write("");
-    process.stderr.write('No next release version determined by semantic-release.\n');
+    process.stderr.write(`semantic-release error: No version found in the result.\n`);
   }
+
 } catch (err) {
   process.stderr.write(`semantic-release error: ${err.message}\n`);
   process.exit(1);

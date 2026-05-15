@@ -11,7 +11,7 @@ use crate::{
         },
     },
 };
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     InitializeResponse, NewSessionResponse, PromptResponse, ReleaseTerminalRequest, SessionId,
     StopReason, TerminalId,
 };

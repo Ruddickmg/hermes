@@ -13,7 +13,7 @@ use crate::helpers::mock_runtime;
 use hermes::acp::handler::Handler;
 use hermes::nvim::state::PluginState;
 
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     AgentCapabilities, InitializeResponse, McpCapabilities, PromptCapabilities, ProtocolVersion,
     SessionCapabilities, SessionForkCapabilities, SessionListCapabilities,
     SessionResumeCapabilities,

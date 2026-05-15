@@ -2,7 +2,7 @@ use crate::{
     acp::{Result, error::Error},
     nvim::{configuration::TerminalConfig, terminal::parse_exit_code},
 };
-use agent_client_protocol::EnvVariable;
+use agent_client_protocol::schema::EnvVariable;
 use async_channel::Sender;
 use nvim_oxi::{
     Array, Dictionary, Function, Object,
@@ -29,8 +29,8 @@ pub struct TerminalInfo {
     pub configuration: Dictionary,
 }
 
-impl From<agent_client_protocol::CreateTerminalRequest> for TerminalInfo {
-    fn from(request: agent_client_protocol::CreateTerminalRequest) -> Self {
+impl From<agent_client_protocol::schema::CreateTerminalRequest> for TerminalInfo {
+    fn from(request: agent_client_protocol::schema::CreateTerminalRequest) -> Self {
         let mut info = TerminalInfo::new(request.output_byte_limit).environment(request.env);
         if let Some(cwd) = request.cwd {
             info = info.working_directory(cwd);
@@ -219,7 +219,7 @@ pub trait Terminal {
     fn stop(&self) -> Result<()>;
     fn report_exit_to(&self, sender: OneshotSender<Result<ExitStatus>>) -> Result<()>;
     fn id(&self) -> Uuid;
-    fn from_request(data: agent_client_protocol::CreateTerminalRequest) -> Self;
+    fn from_request(data: agent_client_protocol::schema::CreateTerminalRequest) -> Self;
     fn delete(&mut self) -> Result<()>;
     fn buffer(&self) -> Option<nvim_oxi::api::Buffer>;
 
@@ -240,7 +240,7 @@ pub trait Terminal {
 }
 
 impl Terminal for TerminalInfo {
-    fn from_request(data: agent_client_protocol::CreateTerminalRequest) -> Self {
+    fn from_request(data: agent_client_protocol::schema::CreateTerminalRequest) -> Self {
         Self::from(data)
     }
 

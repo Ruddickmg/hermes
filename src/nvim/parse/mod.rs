@@ -1,7 +1,7 @@
 pub mod communication;
 pub mod response;
 
-use agent_client_protocol::Meta;
+use agent_client_protocol::schema::Meta;
 pub use communication::*;
 pub use response::*;
 

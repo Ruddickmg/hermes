@@ -12,10 +12,10 @@ The architecture separates Neovim logic from Rust ACP interactions:
   - tests/integration: Contains integration tests.
   - tests/e2e: Contains end to end tests.
 
-- **Concurrency Model:** The ACP SDK is single-threaded and async. We spawn a dedicated thread for each connection, each running a single-threaded Tokio runtime. This ensures every Agent has its own [independent](https://docs.rs/tokio/latest/tokio/task/struct.JoinHandle.html) environment. Thread handles are stored to be joined and dropped upon disconnection.
+- **Concurrency Model:** The ACP SDK is single-threaded and async. We spawn a dedicated thread for each connection, each running a single-threaded `smol::LocalExecutor` driven by `smol::block_on(executor.run(...))`. This ensures every Agent has its own [independent](https://doc.rust-lang.org/std/thread/struct.JoinHandle.html) environment. Thread handles are stored to be joined and dropped upon disconnection. We intentionally do not depend on tokio directly; `agent-client-protocol` 0.11 pulls tokio in as a transitive dependency for its internal helpers, but Hermes code paths use smol exclusively.
 
 - **Communication:**
-  - Agent threads communicate with the main Neovim thread via [mpsc channels](https://docs.rs/tokio/latest/tokio/sync/mpsc/fn.channel.html).
+  - Agent threads communicate with the main Neovim thread via [async-channel](https://docs.rs/async-channel/latest/async_channel/) mpsc channels.
   - Since Neovim is synchronous, an [AsyncHandle callback](https://docs.rs/nvim-oxi-libuv/latest/nvim_oxi_libuv/struct.AsyncHandle.html) triggers the processing of messages on the main thread.
 
 ### Message Handling
@@ -1058,12 +1058,12 @@ async fn test_async_mock() {
 **Important:** Mockall is already included in dev-dependencies. Use `#[automock]` on traits that need mocking rather than writing manual mock implementations.
 
 **When NOT to use mockall:**
-- **Complex trait bounds with multiple traits**: When a type parameter requires multiple traits (e.g., `T: Client + ResponseHandler`), mockall's `mock!` macro can struggle with the complexity, especially when traits have:
+- **Complex trait bounds with multiple traits**: When a type parameter requires multiple traits, mockall's `mock!` macro can struggle with the complexity, especially when traits have:
   - Generic methods with complex lifetime bounds
   - Conflicting method names between traits
   - Associated types or async methods with different constraints
-  
-In such cases, a simple manual mock struct may be more practical than fighting with macro limitations. For example, in `src/acp/handler/client.rs`, we use a manual `MockClient` instead of mockall because the handler requires `Client + ResponseHandler` bounds that are difficult to mock together.
+
+In such cases, a simple manual mock struct may be more practical than fighting with macro limitations.
 
 ### Writing Tests with Pretty Assertions
 

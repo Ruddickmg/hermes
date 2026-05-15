@@ -1,7 +1,7 @@
 //! Integration tests for Responder::CreateTerminal
 //!
 //! Each test verifies exactly ONE behavior with exactly ONE assertion.
-use agent_client_protocol::{CreateTerminalRequest, CreateTerminalResponse, SessionId};
+use agent_client_protocol::schema::{CreateTerminalRequest, CreateTerminalResponse, SessionId};
 use async_channel::bounded as oneshot_channel;
 use async_lock::Mutex;
 use hermes::acp::Result;

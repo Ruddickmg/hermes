@@ -1,10 +1,11 @@
-use agent_client_protocol::McpServer;
+use agent_client_protocol::schema::McpServer;
 use nvim_oxi::{
     Dictionary, Object,
     conversion::{Error, FromObject},
     lua::{Poppable, Pushable},
 };
 use std::path::PathBuf;
+use tracing::error;
 
 use crate::api::{Api, mcp_servers::parse_mcp_servers};
 
@@ -44,7 +45,14 @@ impl FromObject for CreateSessionArgs {
 impl Poppable for CreateSessionArgs {
     unsafe fn pop(lua_state: *mut nvim_oxi::lua::ffi::State) -> Result<Self, nvim_oxi::lua::Error> {
         let obj = unsafe { Object::pop(lua_state)? };
-        Self::from_object(obj).map_err(|e| nvim_oxi::lua::Error::RuntimeError(e.to_string()))
+        Ok(Self::from_object(obj)
+            .inspect_err(|e| {
+                error!(
+                    "Error occurred while parsing session arguments: {:?}, reverting to defaults",
+                    e
+                )
+            })
+            .unwrap_or(Self::Default))
     }
 }
 
@@ -152,19 +160,22 @@ impl Api {
         let can_connect_over_sse = agent_info.can_connect_to_mcp_over_sse();
 
         let request = match session {
-            CreateSessionArgs::Default => agent_client_protocol::NewSessionRequest::new(root),
+            CreateSessionArgs::Default => {
+                agent_client_protocol::schema::NewSessionRequest::new(root)
+            }
             CreateSessionArgs::Configuration { cwd, mcp_servers } => {
-                agent_client_protocol::NewSessionRequest::new(cwd.unwrap_or(root)).mcp_servers(
-                    mcp_servers
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter(|mcp| match mcp {
-                            McpServer::Http(_) => can_connect_over_http,
-                            McpServer::Sse(_) => can_connect_over_sse,
-                            _ => true,
-                        })
-                        .collect(),
-                )
+                agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(root))
+                    .mcp_servers(
+                        mcp_servers
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|mcp| match mcp {
+                                McpServer::Http(_) => can_connect_over_http,
+                                McpServer::Sse(_) => can_connect_over_sse,
+                                _ => true,
+                            })
+                            .collect(),
+                    )
             }
         };
 
@@ -183,7 +194,7 @@ impl Api {
 #[cfg(test)]
 mod session_args_tests {
     use crate::api::mcp_servers::McpServerType;
-    use agent_client_protocol::McpServer;
+    use agent_client_protocol::schema::McpServer;
     use nvim_oxi::{Dictionary, Object, conversion::FromObject};
     use pretty_assertions::assert_eq;
     use proptest::prelude::*;

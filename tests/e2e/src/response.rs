@@ -6,7 +6,7 @@ use crate::{
         mock_config::{MockConfig, create_test_permission_request},
     },
 };
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     InitializeResponse, NewSessionResponse, PermissionOption, SessionId, ToolCallUpdate,
 };
 use hermes::{

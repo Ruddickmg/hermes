@@ -5,7 +5,7 @@ use crate::{
     TIMEOUT_IN_SECONDS,
     utilities::{autocommand, mock_agent::MockAgent, mock_config::MockConfig},
 };
-use agent_client_protocol::{
+use agent_client_protocol::schema::{
     InitializeResponse, NewSessionResponse, PromptResponse, ReadTextFileRequest, SessionId,
     StopReason, WriteTextFileRequest,
 };

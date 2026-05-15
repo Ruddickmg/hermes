@@ -3,26 +3,32 @@ use crate::{
     nvim::{autocommands::Commands, parse, requests::Responder},
 };
 use agent_client_protocol::{
-    Client, CreateTerminalRequest, CreateTerminalResponse, Error, ReadTextFileRequest,
-    ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
-    RequestPermissionRequest, RequestPermissionResponse, Result, SessionNotification,
-    SessionUpdate, TerminalExitStatus, TerminalOutputRequest, TerminalOutputResponse,
-    WaitForTerminalExitRequest, WaitForTerminalExitResponse, WriteTextFileRequest,
-    WriteTextFileResponse,
+    Error, Result,
+    schema::{
+        CreateTerminalRequest, CreateTerminalResponse, ReadTextFileRequest, ReadTextFileResponse,
+        ReleaseTerminalRequest, ReleaseTerminalResponse, RequestPermissionRequest,
+        RequestPermissionResponse, SessionNotification, SessionUpdate, TerminalExitStatus,
+        TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
+        WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
+    },
 };
 use async_channel::bounded;
 use tracing::{error, info};
 
-#[async_trait::async_trait(?Send)]
-impl Client for Handler {
-    async fn request_permission(
+// In 0.10.x these were trait methods on `impl Client for Handler`. In 0.11
+// the `Client` trait is gone and handlers are registered as builder closures
+// (see `src/acp/handler/builder.rs`). The methods below remain as inherent
+// methods on `Handler` so the builder closures can delegate to them.
+impl Handler {
+    pub async fn request_permission(
         &self,
         args: RequestPermissionRequest,
     ) -> Result<RequestPermissionResponse> {
         if !self.can_request_permissions().await {
             return Err(Error::method_not_found());
         }
-        let (sender, receiver) = bounded::<agent_client_protocol::RequestPermissionOutcome>(1);
+        let (sender, receiver) =
+            bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
         info!("Requesting permission for: {:?}", args);
 
         self.execute_autocommand_request(
@@ -42,7 +48,10 @@ impl Client for Handler {
             .map(RequestPermissionResponse::new)
     }
 
-    async fn session_notification(&self, session_notification: SessionNotification) -> Result<()> {
+    pub async fn session_notification(
+        &self,
+        session_notification: SessionNotification,
+    ) -> Result<()> {
         if !self.can_receive_notifications().await {
             return Err(Error::method_not_found());
         }
@@ -80,7 +89,10 @@ impl Client for Handler {
             .await?)
     }
 
-    async fn write_text_file(&self, args: WriteTextFileRequest) -> Result<WriteTextFileResponse> {
+    pub async fn write_text_file(
+        &self,
+        args: WriteTextFileRequest,
+    ) -> Result<WriteTextFileResponse> {
         if !self.can_write().await {
             return Err(Error::method_not_found());
         }
@@ -98,7 +110,7 @@ impl Client for Handler {
         })
     }
 
-    async fn read_text_file(&self, args: ReadTextFileRequest) -> Result<ReadTextFileResponse> {
+    pub async fn read_text_file(&self, args: ReadTextFileRequest) -> Result<ReadTextFileResponse> {
         if !self.can_read().await {
             return Err(Error::method_not_found());
         }
@@ -116,7 +128,10 @@ impl Client for Handler {
         })?
     }
 
-    async fn create_terminal(&self, args: CreateTerminalRequest) -> Result<CreateTerminalResponse> {
+    pub async fn create_terminal(
+        &self,
+        args: CreateTerminalRequest,
+    ) -> Result<CreateTerminalResponse> {
         if !self.can_access_terminal().await {
             return Err(Error::method_not_found());
         }
@@ -139,7 +154,10 @@ impl Client for Handler {
     }
 
     /// Gets the terminal output and exit status
-    async fn terminal_output(&self, args: TerminalOutputRequest) -> Result<TerminalOutputResponse> {
+    pub async fn terminal_output(
+        &self,
+        args: TerminalOutputRequest,
+    ) -> Result<TerminalOutputResponse> {
         if !self.can_access_terminal().await {
             return Err(Error::method_not_found());
         }
@@ -162,7 +180,7 @@ impl Client for Handler {
     }
 
     /// Waits for a terminal command to exit
-    async fn wait_for_terminal_exit(
+    pub async fn wait_for_terminal_exit(
         &self,
         args: WaitForTerminalExitRequest,
     ) -> Result<WaitForTerminalExitResponse> {
@@ -202,7 +220,7 @@ impl Client for Handler {
     }
 
     /// Releases a terminal resource
-    async fn release_terminal(
+    pub async fn release_terminal(
         &self,
         args: ReleaseTerminalRequest,
     ) -> Result<ReleaseTerminalResponse> {

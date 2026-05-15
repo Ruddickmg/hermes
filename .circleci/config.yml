@@ -126,6 +126,10 @@ jobs:
 
   release:
     executor: node
+    environment:
+      CIRCLE_PR_NUMBER: ""
+      CIRCLE_PULL_REQUEST: ""
+      CI_PULL_REQUEST: ""
     steps:
       - checkout
       - run:

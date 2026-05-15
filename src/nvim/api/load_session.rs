@@ -4,6 +4,7 @@ use nvim_oxi::{
     lua::{Poppable, Pushable},
 };
 use std::path::PathBuf;
+use tracing::error;
 
 use crate::{
     acp::{Result, error::Error},
@@ -15,7 +16,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 pub struct LoadSessionConfig {
     pub cwd: Option<PathBuf>,
-    pub mcp_servers: Vec<agent_client_protocol::McpServer>,
+    pub mcp_servers: Vec<agent_client_protocol::schema::McpServer>,
 }
 
 impl FromObject for LoadSessionConfig {
@@ -30,7 +31,7 @@ impl FromObject for LoadSessionConfig {
                 .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
         });
 
-        let mcp_servers: Vec<agent_client_protocol::McpServer> = dict
+        let mcp_servers: Vec<agent_client_protocol::schema::McpServer> = dict
             .get("mcpServers")
             .and_then(parse_mcp_servers)
             .unwrap_or_default();
@@ -50,7 +51,14 @@ impl Poppable for LoadSessionConfig {
         lua_state: *mut nvim_oxi::lua::ffi::State,
     ) -> std::result::Result<Self, nvim_oxi::lua::Error> {
         let obj = unsafe { Object::pop(lua_state)? };
-        Self::from_object(obj).map_err(|e| nvim_oxi::lua::Error::RuntimeError(e.to_string()))
+        Ok(Self::from_object(obj)
+            .inspect_err(|e| {
+                error!(
+                    "An error occurred parsing session load arguments, reverting to defaults: {:?}",
+                    e
+                )
+            })
+            .unwrap_or_default())
     }
 }
 
@@ -82,8 +90,8 @@ impl Api {
             return Ok(());
         }
 
-        let request = agent_client_protocol::LoadSessionRequest::new(
-            agent_client_protocol::SessionId::from(session_id),
+        let request = agent_client_protocol::schema::LoadSessionRequest::new(
+            agent_client_protocol::schema::SessionId::from(session_id),
             config.cwd.unwrap_or_else(|| {
                 let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
                 crate::utilities::get_project_root(current_dir, root_markers)
