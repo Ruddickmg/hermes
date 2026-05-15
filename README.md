@@ -1646,18 +1646,31 @@ Available formats:
 ## TODO:
 
 -- functionality
+- [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
+- [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
+- [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
+- [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
   - [x] Via tcp socket
   - [ ] Via unix socket
 - [ ] Add autocommand that triggers on all events
-- [ ] Support "unstable" ACP methods
-  - [ ] model selection
-  - [ ] session methods
-    - [ ] Merge sessions
-    - [ ] Fork sessions
-  - [ ] Follow message Ids
+- [ ] Support "unstable"/proposed ACP methods
+  - [ ] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
+  - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
+  - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
+  - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
+  - [ ] model
+    - [ ] selection (SetSessionModelRequest)
+    - [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
+  - [ ] authentication
+    - [ ] [logout](https://agentclientprotocol.com/rfds/logout-method)
+    - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
+  - [ ] session
+    - [ ] [track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
+    - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
+    - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
 
 -- nice to haves
 - [ ] Status bar integration
