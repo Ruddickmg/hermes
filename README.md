@@ -350,50 +350,57 @@ There are five types of prompts you can send to an agent
 
 ```lua
 local hermes = require("hermes")
-local sessionId = "current-session-id";
+local session_id = "current-session-id";
+local custom_prompt_id = "prompt-id-to-correlate-prompts-and-their-responses";
 
 -- single prompt call signature
-hermes.prompt(sessionId, {
+local default_prompt_id = hermes.prompt(sessionId, {
+  type = "text",
+  text = "What time is it?"
+})
+
+-- prompt with message id signature
+hermes.prompt(session_id, custom_prompt_id, {
   type = "text",
   text = "What time is it?"
 })
 
 -- multiple prompt call signature
-hermes.prompt(sessionId, {
+hermes.prompt(session_id, {
   {
-  type = "text",
-  text = "What time is it?"
+    type = "text",
+    text = "What time is it?"
   },
   {
-  type = "link",
-  name = "Example file",
-  uri = "/path/to/example.txt"
+    type = "link",
+    name = "Example file",
+    uri = "/path/to/example.txt"
   },
   { -- text
-  type = "embedded",
-  resource = {
-    uri = "file:///home/user/script.py",
-    mimeType = "text/x-python",
-    text = "def hello():\n    print('Hello, world!')"
-  }
+    type = "embedded",
+    resource = {
+      uri = "file:///home/user/script.py",
+      mimeType = "text/x-python",
+      text = "def hello():\n    print('Hello, world!')"
+    }
   },
   { -- blob
-  type = "embedded",
-  resource = {
-    uri = "file:///home/user/script.py",
-    mimeType = "application/pdf",
-    blob = "Base64-encoded binary data"
-  }
+    type = "embedded",
+    resource = {
+      uri = "file:///home/user/script.py",
+      mimeType = "application/pdf",
+      blob = "Base64-encoded binary data"
+    }
   },
   {
-  type = "image",
-  data = "base64-encoded-image-data",
-  mimeType = "image/png"
+    type = "image",
+    data = "base64-encoded-image-data",
+    mimeType = "image/png"
   },
   {
-  type = "audio",
-  data = "base64-encoded-audio-data",
-  mimeType = "audio/wav"
+    type = "audio",
+    data = "base64-encoded-audio-data",
+    mimeType = "audio/wav"
   }
 }
 
@@ -1646,6 +1653,7 @@ Available formats:
 ## TODO:
 
 -- functionality
+- [ ] [Configure session: set mode (fallback to SetSessionModeRequest), model (fallback to SetSessionModelRequest), etc](https://agentclientprotocol.com/protocol/session-config-options)
 - [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
 - [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
 - [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
@@ -1657,18 +1665,18 @@ Available formats:
   - [ ] Via unix socket
 - [ ] Add autocommand that triggers on all events
 - [ ] Support "unstable"/proposed ACP methods
-  - [ ] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
+  - [x] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
   - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
   - [ ] model
-    - [ ] selection (SetSessionModelRequest)
+    - [ ] selection (via unstable SetSessionModelRequest)
     - [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
   - [ ] authentication
     - [ ] [logout](https://agentclientprotocol.com/rfds/logout-method)
     - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
   - [ ] session
-    - [ ] [track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
+    - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
     - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
     - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
 
