@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::info;
 
-fn create_func<A>(plugin: Dictionary, name: &str) -> Function<A, ()> {
+fn create_func<A, R>(plugin: Dictionary, name: &str) -> Function<A, R> {
     FromObject::from_object(plugin.get(name).unwrap().clone())
         .unwrap_or_else(|_| panic!("Failed to create function for {}", name))
 }
@@ -53,10 +53,10 @@ fn test_permission_request_fires_with_mock_agent() -> Result<(), nvim_oxi::Error
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
 
     // Set up autocommand listeners
     let wait_for_initialization =
@@ -89,7 +89,7 @@ fn test_permission_request_fires_with_mock_agent() -> Result<(), nvim_oxi::Error
     content_dict.insert("text", "Run a tool that needs permission");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session_id.to_string(), content))?;
+    let _ = prompt.call((session_id.to_string(), content))?;
 
     // 5. Wait for PermissionRequest autocommand
     let permission_request = wait_for_permission_request(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
@@ -114,7 +114,7 @@ fn test_permission_request_fires_with_mock_agent() -> Result<(), nvim_oxi::Error
 #[nvim_oxi::test]
 fn respond_with_invalid_uuid_does_not_crash() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
-    let respond = create_func::<RespondArgs>(dict.clone(), "respond");
+    let respond: Function<RespondArgs, ()> = create_func(dict.clone(), "respond");
 
     // Call respond with an invalid UUID format - should log error and return Ok
     let result = respond.call((
@@ -134,7 +134,7 @@ fn respond_with_invalid_uuid_does_not_crash() -> Result<(), nvim_oxi::Error> {
 #[nvim_oxi::test]
 fn respond_with_unknown_request_id_does_not_crash() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
-    let respond = create_func::<RespondArgs>(dict.clone(), "respond");
+    let respond: Function<RespondArgs, ()> = create_func(dict.clone(), "respond");
 
     // Call respond with a valid UUID format but unknown request ID
     let result = respond.call((

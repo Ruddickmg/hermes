@@ -61,7 +61,7 @@ struct TerminalReleaseData {
     pub terminal_id: TerminalId,
 }
 
-fn create_func<A>(plugin: Dictionary, name: &str) -> Function<A, ()> {
+fn create_func<A, R>(plugin: Dictionary, name: &str) -> Function<A, R> {
     FromObject::from_object(plugin.get(name).unwrap().clone())
         .unwrap_or_else(|_| panic!("Failed to create function for {}", name))
 }
@@ -91,10 +91,10 @@ fn test_terminal_create_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -122,7 +122,7 @@ fn test_terminal_create_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     content_dict.insert("text", "Run echo in a terminal");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     let terminal_create = wait_for_terminal_create(Duration::from_secs(TIMEOUT_IN_SECONDS))
         .map_err(|_| make_err("TerminalCreate autocommand did not fire"))?;
@@ -171,10 +171,10 @@ fn test_terminal_output_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -204,7 +204,7 @@ fn test_terminal_output_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     content_dict.insert("text", "Run echo in a terminal");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     // Respond to TerminalCreate with a terminal ID
     let terminal_create = wait_for_terminal_create(Duration::from_secs(TIMEOUT_IN_SECONDS))
@@ -263,10 +263,10 @@ fn test_terminal_exit_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -296,7 +296,7 @@ fn test_terminal_exit_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     content_dict.insert("text", "Run echo in a terminal");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     // Respond to TerminalCreate with a terminal ID
     let terminal_create = wait_for_terminal_create(Duration::from_secs(TIMEOUT_IN_SECONDS))
@@ -355,10 +355,10 @@ fn test_terminal_full_workflow_with_mock_agent() -> Result<(), nvim_oxi::Error> 
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -390,7 +390,7 @@ fn test_terminal_full_workflow_with_mock_agent() -> Result<(), nvim_oxi::Error> 
     content_dict.insert("text", "Run echo in a terminal");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     // Step 1: Respond to TerminalCreate with a terminal ID
     let terminal_create = wait_for_terminal_create(Duration::from_secs(TIMEOUT_IN_SECONDS))
@@ -446,10 +446,10 @@ fn test_terminal_release_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> 
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -477,7 +477,7 @@ fn test_terminal_release_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> 
     content_dict.insert("text", "Release the terminal");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     let terminal_release = wait_for_terminal_release(Duration::from_secs(TIMEOUT_IN_SECONDS))
         .map_err(|_| make_err("TerminalRelease autocommand did not fire"))?;
