@@ -55,8 +55,10 @@ fn test_permission_request_fires_with_mock_agent() -> Result<(), nvim_oxi::Error
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
     let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
-    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
-    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> = create_func(dict.clone(), "prompt");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> =
+        create_func(dict.clone(), "prompt");
 
     // Set up autocommand listeners
     let wait_for_initialization =

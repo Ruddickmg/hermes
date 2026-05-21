@@ -73,7 +73,8 @@ fn test_read_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
     let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
-    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
     let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
@@ -148,7 +149,8 @@ fn test_write_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
     let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
-    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
     let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
@@ -223,7 +225,8 @@ fn test_write_file_default_handler_writes_to_disk() -> Result<(), nvim_oxi::Erro
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
     let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
-    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
     let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
 
     let wait_for_init =
@@ -293,7 +296,8 @@ fn test_read_file_default_handler_reads_from_disk() -> Result<(), nvim_oxi::Erro
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
     let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
-    let create_session: Function<CreateSessionArgs, ()> = create_func(dict.clone(), "create_session");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
     let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
 
     let wait_for_init =
