@@ -20,7 +20,7 @@ pub fn test_agent_prompt(agent: Assistant) -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let prompt: Function<PromptArgs, ()> =
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> =
         FromObject::from_object(dict.get("prompt").unwrap().clone())?;
 
     let wait_for_initialization =
@@ -44,7 +44,7 @@ pub fn test_agent_prompt(agent: Assistant) -> Result<(), nvim_oxi::Error> {
     content_dict.insert("text", "Hello, what time is it?");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session_id.to_string(), content))?;
+    let _prompt_result = prompt.call((session_id.to_string(), content))?;
 
     // Wait for agent response (mock agent is fast)
     let response = wait_for_prompt(Duration::from_secs(TIMEOUT_IN_SECONDS))?;

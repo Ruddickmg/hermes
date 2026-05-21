@@ -56,19 +56,27 @@ impl Hermes {
     {
         let nvim_runtime = self.nvim_runtime.clone();
         let api = self.api.clone();
-        let function: Function<A, Result<()>> = Function::from_fn(move |args: A| -> Result<()> {
+        let function: Function<A, Option<R>> = Function::from_fn(move |args: A| -> Option<R> {
             let api = api.clone();
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 nvim_runtime.run(func(api, args))
             }))
             .map(|result| match result {
-                Some(Err(e)) => error!("An error occurred while executing api method: {:?}", e),
-                Some(Ok(_)) => debug!("API method executed successfully"),
-                None => debug!("API method scheduled (re-entrant call)"),
+                Some(Err(e)) => {
+                    error!("An error occurred while executing api method: {:?}", e);
+                    None
+                }
+                Some(Ok(value)) => {
+                    debug!("API method executed successfully");
+                    Some(value)
+                }
+                None => {
+                    debug!("API method scheduled (re-entrant call)");
+                    None
+                }
             })
             .inspect_err(|e| error!("A panic occurred while executing api method: {:?}", e))
-            .ok();
-            Ok(())
+            .unwrap_or(None)
         });
         function.into()
     }

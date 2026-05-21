@@ -37,7 +37,7 @@ struct WriteTextFileData {
     pub content: String,
 }
 
-fn create_func<A>(plugin: Dictionary, name: &str) -> Function<A, ()> {
+fn create_func<A, R>(plugin: Dictionary, name: &str) -> Function<A, R> {
     FromObject::from_object(plugin.get(name).unwrap().clone())
         .unwrap_or_else(|_| panic!("Failed to create function for {}", name))
 }
@@ -71,10 +71,11 @@ fn test_read_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
+    let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -102,7 +103,7 @@ fn test_read_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     content_dict.insert("text", "Read the test file");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     let read_file = wait_for_read_file(Duration::from_secs(TIMEOUT_IN_SECONDS))
         .map_err(|_| make_err("ReadTextFile autocommand did not fire"))?;
@@ -146,10 +147,11 @@ fn test_write_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
+    let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
     let respond: Function<(String, Object), ()> = create_func(dict.clone(), "respond");
 
     let wait_for_init =
@@ -177,7 +179,7 @@ fn test_write_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     content_dict.insert("text", "Write to the test file");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     let write_file = wait_for_write_file(Duration::from_secs(TIMEOUT_IN_SECONDS))
         .map_err(|_| make_err("WriteTextFile autocommand did not fire"))?;
@@ -221,10 +223,11 @@ fn test_write_file_default_handler_writes_to_disk() -> Result<(), nvim_oxi::Erro
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
+    let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
 
     let wait_for_init =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
@@ -251,7 +254,7 @@ fn test_write_file_default_handler_writes_to_disk() -> Result<(), nvim_oxi::Erro
     content_dict.insert("text", "Write to the test file");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     let _prompt_response = wait_for_prompt(Duration::from_secs(TIMEOUT_IN_SECONDS))
         .map_err(|_| make_err("Prompt did not complete after write file workflow"))?;
@@ -291,10 +294,11 @@ fn test_read_file_default_handler_reads_from_disk() -> Result<(), nvim_oxi::Erro
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
-    let connect = create_func::<ConnectionArgs>(dict.clone(), "connect");
-    let disconnect = create_func::<DisconnectArgs>(dict.clone(), "disconnect");
-    let create_session = create_func::<CreateSessionArgs>(dict.clone(), "create_session");
-    let prompt = create_func::<PromptArgs>(dict.clone(), "prompt");
+    let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
+    let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
+    let create_session: Function<CreateSessionArgs, ()> =
+        create_func(dict.clone(), "create_session");
+    let prompt = create_func::<PromptArgs, Option<nvim_oxi::String>>(dict.clone(), "prompt");
 
     let wait_for_init =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
@@ -321,7 +325,7 @@ fn test_read_file_default_handler_reads_from_disk() -> Result<(), nvim_oxi::Erro
     content_dict.insert("text", "Read the test file");
     let content = PromptContent::Single(FromObject::from_object(Object::from(content_dict))?);
 
-    prompt.call((session.session_id.to_string(), content))?;
+    let _ = prompt.call((session.session_id.to_string(), content))?;
 
     // If the default handler fails to read, the mock agent will error and the prompt
     // will not complete, causing this to time out

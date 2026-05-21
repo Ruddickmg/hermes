@@ -2,7 +2,7 @@
 use hermes::{api::DisconnectArgs, nvim::hermes};
 use nvim_oxi::{Dictionary, Function, conversion::FromObject};
 
-fn create_func<A>(plugin: Dictionary, name: &str) -> Function<A, ()> {
+fn create_func<A, R>(plugin: Dictionary, name: &str) -> Function<A, R> {
     FromObject::from_object(plugin.get(name).unwrap().clone())
         .unwrap_or_else(|_| panic!("Failed to create function for {}", name))
 }

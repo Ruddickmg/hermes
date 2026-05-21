@@ -338,6 +338,8 @@ vim.api.nvim_create_autocmd("User", {
 > **Triggers:** [Authenticated](#authenticated) autocommand upon completion.
 
 ### Prompt
+> **Note on `promptId`:** All agent notification autocommands (sourced from 🤖 Agent) include a `promptId` field. This UUID is generated when a prompt is sent (via `prompt()`) or when a user message chunk arrives from the agent, and it is attached to all subsequent notifications for that session so you can correlate messages within a single prompt/response cycle.
+
 
 Send prompts to the agent 
 
@@ -350,7 +352,7 @@ There are five types of prompts you can send to an agent
 
 ```lua
 local hermes = require("hermes")
-local sessionId = "current-session-id";
+local session_id = "current-session-id";
 
 -- single prompt call signature
 hermes.prompt(sessionId, {
@@ -359,41 +361,41 @@ hermes.prompt(sessionId, {
 })
 
 -- multiple prompt call signature
-hermes.prompt(sessionId, {
+hermes.prompt(session_id, {
   {
-  type = "text",
-  text = "What time is it?"
+    type = "text",
+    text = "What time is it?"
   },
   {
-  type = "link",
-  name = "Example file",
-  uri = "/path/to/example.txt"
+    type = "link",
+    name = "Example file",
+    uri = "/path/to/example.txt"
   },
   { -- text
-  type = "embedded",
-  resource = {
-    uri = "file:///home/user/script.py",
-    mimeType = "text/x-python",
-    text = "def hello():\n    print('Hello, world!')"
-  }
+    type = "embedded",
+    resource = {
+      uri = "file:///home/user/script.py",
+      mimeType = "text/x-python",
+      text = "def hello():\n    print('Hello, world!')"
+    }
   },
   { -- blob
-  type = "embedded",
-  resource = {
-    uri = "file:///home/user/script.py",
-    mimeType = "application/pdf",
-    blob = "Base64-encoded binary data"
-  }
+    type = "embedded",
+    resource = {
+      uri = "file:///home/user/script.py",
+      mimeType = "application/pdf",
+      blob = "Base64-encoded binary data"
+    }
   },
   {
-  type = "image",
-  data = "base64-encoded-image-data",
-  mimeType = "image/png"
+    type = "image",
+    data = "base64-encoded-image-data",
+    mimeType = "image/png"
   },
   {
-  type = "audio",
-  data = "base64-encoded-audio-data",
-  mimeType = "audio/wav"
+    type = "audio",
+    data = "base64-encoded-audio-data",
+    mimeType = "audio/wav"
   }
 }
 
@@ -404,7 +406,7 @@ vim.api.nvim_create_autocmd("User", {
   callback = function(args)
     local sessionId = args.data.sessionId
 
-    hermes.prompt(sessionId, {
+    local prompt_id = hermes.prompt(sessionId, {
       type = "text",
       text = "What time is it?"
     })
@@ -413,6 +415,7 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [Prompted](#prompted) autocommand upon completion.
+> **Returns:** A prompt id, used to correlate agent responses to specific prompts
 
 ### Create Session
 
@@ -895,6 +898,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "data": "base64 string",
   "mimeType": "string",
   "uri": "string (optional)",
@@ -907,6 +911,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "data": "base64 string",
   "mimeType": "string",
   "uri": "string (optional)",
@@ -919,6 +924,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "name": "string",
   "uri": "string",
   "description": "string (optional)",
@@ -934,6 +940,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "name": "string",
   "uri": "string",
   "description": "string (optional)",
@@ -949,6 +956,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "resource": {
     "text": "string (if text resource)",
     "blob": "string (if blob resource)",
@@ -964,6 +972,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "resource": {
     "text": "string (if text resource)",
     "blob": "string (if blob resource)",
@@ -979,6 +988,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "text": "string",
   "annotations": { "audience": [], "priority": 1 }
 }</code></pre></td>
@@ -989,6 +999,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "text": "string",
   "annotations": { "audience": [], "priority": 1 }
 }</code></pre></td>
@@ -1006,6 +1017,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "commands": [
     {
       "id": "string",
@@ -1021,6 +1033,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "options": [
     {
       "id": "string",
@@ -1117,6 +1130,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "id": "string"
 }</code></pre></td>
     </tr>
@@ -1173,6 +1187,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "entries": [
     { "content": "string", "priority": "High | Medium | Low" }
   ]
@@ -1441,6 +1456,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "id": "string",
   "title": "string",
   "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other",
@@ -1482,6 +1498,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "toolCallId": "string",
   "fields": {
     "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other (optional)",
@@ -1525,6 +1542,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "used": "number (tokens used)",
   "size": "number (max context size)",
   "cost": {
@@ -1539,6 +1557,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "data": "base64 string",
   "mimeType": "string",
   "uri": "string (optional)",
@@ -1551,6 +1570,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "name": "string",
   "uri": "string",
   "description": "string (optional)",
@@ -1566,6 +1586,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "resource": {
     "text": "string (if text resource)",
     "blob": "string (if blob resource)",
@@ -1581,6 +1602,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "text": "string",
   "annotations": {
     "audience": ["Role1", "Role2"],
@@ -1646,18 +1668,32 @@ Available formats:
 ## TODO:
 
 -- functionality
+- [ ] [Configure session: set mode (fallback to SetSessionModeRequest), model (fallback to SetSessionModelRequest), etc](https://agentclientprotocol.com/protocol/session-config-options)
+- [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
+- [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
+- [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
+- [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
   - [x] Via tcp socket
   - [ ] Via unix socket
 - [ ] Add autocommand that triggers on all events
-- [ ] Support "unstable" ACP methods
-  - [ ] model selection
-  - [ ] session methods
-    - [ ] Merge sessions
-    - [ ] Fork sessions
-  - [ ] Follow message Ids
+- [ ] Support "unstable"/proposed ACP methods
+  - [x] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
+  - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
+  - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
+  - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
+  - [ ] model
+    - [ ] selection (via unstable SetSessionModelRequest)
+    - [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
+  - [ ] authentication
+    - [ ] [logout](https://agentclientprotocol.com/rfds/logout-method)
+    - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
+  - [ ] session
+    - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
+    - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
+    - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
 
 -- nice to haves
 - [ ] Status bar integration

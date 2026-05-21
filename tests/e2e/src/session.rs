@@ -124,7 +124,7 @@ fn test_cancel_during_prompt() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let prompt: Function<PromptArgs, ()> =
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> =
         FromObject::from_object(dict.get("prompt").unwrap().clone())?;
     let cancel: Function<String, ()> =
         FromObject::from_object(dict.get("cancel").unwrap().clone())?;
@@ -167,7 +167,7 @@ fn test_cancel_during_prompt() -> Result<(), nvim_oxi::Error> {
             .collect::<Result<Vec<_>, _>>()?,
     );
 
-    prompt.call((session_id.to_string(), content))?;
+    let _prompt_result = prompt.call((session_id.to_string(), content))?;
 
     std::thread::sleep(Duration::from_secs(1));
 
