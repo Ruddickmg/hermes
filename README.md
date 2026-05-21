@@ -902,6 +902,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "data": "base64 string",
   "mimeType": "string",
   "uri": "string (optional)",
@@ -914,6 +915,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "data": "base64 string",
   "mimeType": "string",
   "uri": "string (optional)",
@@ -926,6 +928,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "name": "string",
   "uri": "string",
   "description": "string (optional)",
@@ -941,6 +944,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "name": "string",
   "uri": "string",
   "description": "string (optional)",
@@ -956,6 +960,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "resource": {
     "text": "string (if text resource)",
     "blob": "string (if blob resource)",
@@ -971,6 +976,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "resource": {
     "text": "string (if text resource)",
     "blob": "string (if blob resource)",
@@ -986,6 +992,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "text": "string",
   "annotations": { "audience": [], "priority": 1 }
 }</code></pre></td>
@@ -996,6 +1003,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "text": "string",
   "annotations": { "audience": [], "priority": 1 }
 }</code></pre></td>
@@ -1013,6 +1021,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "commands": [
     {
       "id": "string",
@@ -1028,6 +1037,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "options": [
     {
       "id": "string",
@@ -1124,6 +1134,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "id": "string"
 }</code></pre></td>
     </tr>
@@ -1180,6 +1191,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "entries": [
     { "content": "string", "priority": "High | Medium | Low" }
   ]
@@ -1448,6 +1460,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "id": "string",
   "title": "string",
   "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other",
@@ -1489,6 +1502,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "toolCallId": "string",
   "fields": {
     "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other (optional)",
@@ -1532,6 +1546,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "used": "number (tokens used)",
   "size": "number (max context size)",
   "cost": {
@@ -1546,6 +1561,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "data": "base64 string",
   "mimeType": "string",
   "uri": "string (optional)",
@@ -1558,6 +1574,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "name": "string",
   "uri": "string",
   "description": "string (optional)",
@@ -1573,6 +1590,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "resource": {
     "text": "string (if text resource)",
     "blob": "string (if blob resource)",
@@ -1588,6 +1606,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>🤖 Agent</td>
       <td><pre><code class="language-json">{
   "sessionId": "string",
+  "promptId": "uuid string",
   "text": "string",
   "annotations": {
     "audience": ["Role1", "Role2"],
