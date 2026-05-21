@@ -111,8 +111,8 @@ impl Handler {
 
     #[instrument(level = "trace", skip(self))]
     pub async fn get_prompt_id(&self, session_id: &str) -> Result<String> {
-        let state = self.state.lock().await;
-        let prompt_id = state.get_session_prompt(session_id)?;
+        let mut state = self.state.lock().await;
+        let prompt_id = state.get_session_prompt(session_id);
         drop(state);
         Ok(prompt_id)
     }

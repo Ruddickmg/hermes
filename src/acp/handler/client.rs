@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HermesNotification {
     pub session_id: SessionId,
     pub prompt_id: String,

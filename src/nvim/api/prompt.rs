@@ -9,7 +9,7 @@ use nvim_oxi::{
 };
 use tracing::{error, instrument, warn};
 
-use crate::api::{Api, prompt};
+use crate::api::Api;
 
 /// Extracts a required string field from a Lua dictionary.
 fn required_string(dict: &Dictionary, key: &str) -> Result<String, ConversionError> {
@@ -328,11 +328,12 @@ pub type PromptArgs = (String, PromptContent);
 
 impl Api {
     #[instrument(level = "trace", skip_all)]
-    pub async fn prompt(&self, (session_id, content): PromptArgs) -> crate::acp::Result<()> {
+    pub async fn prompt(&self, (session_id, content): PromptArgs) -> crate::acp::Result<String> {
         let content_vec = content.into_vec();
         if content_vec.is_empty() {
-            warn!("No valid content blocks to send in prompt, skipping prompt call");
-            return Ok(());
+            return Err(crate::acp::error::Error::InvalidInput(
+                "No valid content blocks to send in prompt, skipping prompt call".to_string(),
+            ));
         }
         let prompt_id = uuid::Uuid::new_v4().to_string();
         let mut state = self.state.lock().await;
@@ -353,7 +354,7 @@ impl Api {
             })
             .collect();
 
-        let request = PromptRequest::new(session_id, content_blocks).message_id(prompt_id);
+        let request = PromptRequest::new(session_id, content_blocks).message_id(prompt_id.clone());
         let connection = self
             .connection
             .get_current_connection()
@@ -364,7 +365,9 @@ impl Api {
                 )
             })?;
 
-        connection.prompt(request).await
+        connection.prompt(request).await?;
+
+        Ok(prompt_id)
     }
 }
 

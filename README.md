@@ -338,6 +338,8 @@ vim.api.nvim_create_autocmd("User", {
 > **Triggers:** [Authenticated](#authenticated) autocommand upon completion.
 
 ### Prompt
+> **Note on `promptId`:** All agent notification autocommands (sourced from 🤖 Agent) include a `promptId` field. This UUID is generated when a prompt is sent (via `prompt()`) or when a user message chunk arrives from the agent, and it is attached to all subsequent notifications for that session so you can correlate messages within a single prompt/response cycle.
+
 
 Send prompts to the agent 
 
@@ -351,16 +353,9 @@ There are five types of prompts you can send to an agent
 ```lua
 local hermes = require("hermes")
 local session_id = "current-session-id";
-local custom_prompt_id = "prompt-id-to-correlate-prompts-and-their-responses";
 
 -- single prompt call signature
-local default_prompt_id = hermes.prompt(sessionId, {
-  type = "text",
-  text = "What time is it?"
-})
-
--- prompt with message id signature
-hermes.prompt(session_id, custom_prompt_id, {
+hermes.prompt(sessionId, {
   type = "text",
   text = "What time is it?"
 })
@@ -411,7 +406,7 @@ vim.api.nvim_create_autocmd("User", {
   callback = function(args)
     local sessionId = args.data.sessionId
 
-    hermes.prompt(sessionId, {
+    local prompt_id = hermes.prompt(sessionId, {
       type = "text",
       text = "What time is it?"
     })
@@ -420,6 +415,7 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [Prompted](#prompted) autocommand upon completion.
+> **Returns:** A prompt id, used to correlate agent responses to specific prompts
 
 ### Create Session
 

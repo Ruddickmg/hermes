@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    acp::{Result, connection::Assistant, error::Error},
+    acp::connection::Assistant,
     nvim::{configuration::ClientConfig, state::agent::AgentInfo},
 };
 use agent_client_protocol::schema::InitializeResponse;
@@ -39,11 +39,15 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
-    pub fn get_session_prompt(&self, session_id: &str) -> Result<String> {
-        self.prompt
-            .get(session_id)
-            .cloned()
-            .ok_or(Error::Internal("Prompt id was not initialized".to_string()))
+    pub fn get_session_prompt(&mut self, session_id: &str) -> String {
+        if let Some(prompt_id) = self.prompt.get(session_id) {
+            prompt_id.to_string()
+        } else {
+            let prompt_id = uuid::Uuid::new_v4().to_string();
+            self.prompt
+                .insert(session_id.to_string(), prompt_id.to_string());
+            prompt_id
+        }
     }
 
     #[instrument(level = "trace")]
@@ -64,21 +68,5 @@ impl PluginState {
 impl Default for PluginState {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn get_session_prompt_returns_error_for_missing_session() {
-        let state = PluginState::default();
-        let result = state.get_session_prompt("unknown");
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "Internal error: Prompt id was not initialized"
-        );
     }
 }
