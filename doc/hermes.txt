@@ -369,6 +369,12 @@ Hermes generates autocommands for agent communication. Listen to them with: >
     })
 <
 
+All agent notification autocommands include a `promptId` field in
+`args.data`. This UUID is generated when a prompt is sent or when a user
+message chunk arrives, and it is attached to all subsequent notifications
+for that session so you can correlate messages within a single
+prompt/response cycle.
+
 See |hermes-api| sections above for autocommands triggered by each method.
 Full autocommand list: |hermes-autocommands-list|
 

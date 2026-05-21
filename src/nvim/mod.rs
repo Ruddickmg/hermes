@@ -47,12 +47,13 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
     let hermes = Hermes::new(nvim_runtime, api)?;
 
     let group =
-        nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::default()).map_err(|e| {
-            nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
-                "Failed to create autogroup for the '{}' group: {}",
-                GROUP, e
-            )))
-        })?;
+        nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::builder().clear(true).build())
+            .map_err(|e| {
+                nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+                    "Failed to create autogroup for the '{}' group: {}",
+                    GROUP, e
+                )))
+            })?;
 
     // clean up on exit
     nvim_oxi::api::create_autocmd(

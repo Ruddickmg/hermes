@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     acp::connection::Assistant,
     nvim::{configuration::ClientConfig, state::agent::AgentInfo},
@@ -10,6 +12,7 @@ pub mod agent;
 #[derive(Debug)]
 pub struct PluginState {
     pub config: ClientConfig,
+    pub prompt: HashMap<String, String>,
     pub agent_info: AgentInfo,
 }
 
@@ -23,7 +26,27 @@ impl PluginState {
     pub fn with_config(config: ClientConfig) -> Self {
         Self {
             config,
+            prompt: HashMap::new(),
             agent_info: AgentInfo::default(),
+        }
+    }
+
+    #[instrument(level = "trace")]
+    pub fn update_session_prompt_id(&mut self, session_id: String, prompt_id: String) -> &mut Self {
+        self.prompt.insert(session_id.clone(), prompt_id.clone());
+        debug!("Updated prompt for session '{}'", session_id);
+        self
+    }
+
+    #[instrument(level = "trace")]
+    pub fn get_session_prompt(&mut self, session_id: &str) -> String {
+        if let Some(prompt_id) = self.prompt.get(session_id) {
+            prompt_id.to_string()
+        } else {
+            let prompt_id = uuid::Uuid::new_v4().to_string();
+            self.prompt
+                .insert(session_id.to_string(), prompt_id.to_string());
+            prompt_id
         }
     }
 
@@ -45,5 +68,24 @@ impl PluginState {
 impl Default for PluginState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn get_session_prompt_generates_and_caches_uuid_for_new_session() {
+        let mut state = PluginState::default();
+
+        let first_id = state.get_session_prompt("session-1");
+        let second_id = state.get_session_prompt("session-1");
+
+        assert_eq!(
+            first_id, second_id,
+            "Should return the same cached id on repeated calls"
+        );
     }
 }

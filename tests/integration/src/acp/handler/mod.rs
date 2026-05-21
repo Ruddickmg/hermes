@@ -260,10 +260,7 @@ fn test_session_notification_usage_update_succeeds() -> nvim_oxi::Result<()> {
     let notification = SessionNotification::new("session_id", SessionUpdate::UsageUpdate(usage));
     let res: agent_client_protocol::Result<()> =
         smol::block_on(handler.session_notification(notification));
-    assert!(
-        res.is_ok(),
-        "UsageUpdate should succeed and fire autocommand"
-    );
+    assert_eq!(res, Ok(()));
 
     Ok(())
 }
@@ -477,6 +474,97 @@ fn test_no_listener_no_request_triggers_warn_path() -> nvim_oxi::Result<()> {
     assert!(
         logs_contain("No listener attached for command 'TestWarnCommand'"),
         "Expected warn log for no listener with no request (line 80)"
+    );
+
+    Ok(())
+}
+
+fn create_agent_notification() -> SessionNotification {
+    let chunk = ContentChunk::new(ContentBlock::Text(TextContent::new("test message")));
+    SessionNotification::new("session_id", SessionUpdate::AgentMessageChunk(chunk))
+}
+
+#[nvim_oxi::test]
+fn get_prompt_id_returns_value_after_user_message_chunk() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let notification = create_test_notification();
+    let _ = smol::block_on(handler.session_notification(notification));
+
+    let prompt_id = smol::block_on(handler.get_prompt_id("session_id")).unwrap();
+    let mut state_guard = smol::block_on(state.lock());
+    let stored_id = state_guard.get_session_prompt("session_id");
+    assert_eq!(prompt_id, stored_id);
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn agent_message_chunk_succeeds_and_stores_prompt_id_when_none_exists() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let notification = create_agent_notification();
+    smol::block_on(handler.session_notification(notification)).unwrap();
+
+    let mut state_guard = smol::block_on(state.lock());
+    let stored_id = state_guard.get_session_prompt("session_id");
+    assert!(
+        !stored_id.is_empty(),
+        "A prompt id should be auto-generated and stored"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn agent_message_chunk_succeeds_after_user_message_chunk() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let user_notification = create_test_notification();
+    let _ = smol::block_on(handler.session_notification(user_notification));
+
+    let agent_notification = create_agent_notification();
+    let res = smol::block_on(handler.session_notification(agent_notification));
+    assert_eq!(res, Ok(()));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn get_prompt_id_returns_same_value_on_repeated_calls_without_user_message() -> nvim_oxi::Result<()>
+{
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let first_id = smol::block_on(handler.get_prompt_id("session_id")).unwrap();
+    let second_id = smol::block_on(handler.get_prompt_id("session_id")).unwrap();
+
+    assert_eq!(
+        first_id, second_id,
+        "Repeated calls should return the same cached id"
     );
 
     Ok(())
