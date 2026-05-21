@@ -56,29 +56,28 @@ impl Hermes {
     {
         let nvim_runtime = self.nvim_runtime.clone();
         let api = self.api.clone();
-        let function: Function<A, Option<R>> =
-            Function::from_fn(move |args: A| -> Option<R> {
-                let api = api.clone();
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    nvim_runtime.run(func(api, args))
-                }))
-                .map(|result| match result {
-                    Some(Err(e)) => {
-                        error!("An error occurred while executing api method: {:?}", e);
-                        None
-                    }
-                    Some(Ok(value)) => {
-                        debug!("API method executed successfully");
-                        Some(value)
-                    }
-                    None => {
-                        debug!("API method scheduled (re-entrant call)");
-                        None
-                    }
-                })
-                .inspect_err(|e| error!("A panic occurred while executing api method: {:?}", e))
-                .unwrap_or(None)
-            });
+        let function: Function<A, Option<R>> = Function::from_fn(move |args: A| -> Option<R> {
+            let api = api.clone();
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                nvim_runtime.run(func(api, args))
+            }))
+            .map(|result| match result {
+                Some(Err(e)) => {
+                    error!("An error occurred while executing api method: {:?}", e);
+                    None
+                }
+                Some(Ok(value)) => {
+                    debug!("API method executed successfully");
+                    Some(value)
+                }
+                None => {
+                    debug!("API method scheduled (re-entrant call)");
+                    None
+                }
+            })
+            .inspect_err(|e| error!("A panic occurred while executing api method: {:?}", e))
+            .unwrap_or(None)
+        });
         function.into()
     }
 

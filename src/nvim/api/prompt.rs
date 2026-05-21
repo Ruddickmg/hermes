@@ -334,8 +334,9 @@ impl Api {
             warn!("No valid content blocks to send in prompt, skipping prompt call");
             return Ok(());
         }
-        let state = self.state.lock().await;
+        let mut state = self.state.lock().await;
         let agent_info = state.agent_info.clone();
+        state.update_session_prompt_id(session_id.clone(), uuid::Uuid::new_v4().to_string());
         drop(state);
         let can_send_images = agent_info.can_send_images();
         let can_send_audio = agent_info.can_send_audio();

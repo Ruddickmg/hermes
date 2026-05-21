@@ -7,13 +7,22 @@ use agent_client_protocol::{
     schema::{
         CreateTerminalRequest, CreateTerminalResponse, ReadTextFileRequest, ReadTextFileResponse,
         ReleaseTerminalRequest, ReleaseTerminalResponse, RequestPermissionRequest,
-        RequestPermissionResponse, SessionNotification, SessionUpdate, TerminalExitStatus,
-        TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
-        WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
+        RequestPermissionResponse, SessionId, SessionNotification, SessionUpdate,
+        TerminalExitStatus, TerminalOutputRequest, TerminalOutputResponse,
+        WaitForTerminalExitRequest, WaitForTerminalExitResponse, WriteTextFileRequest,
+        WriteTextFileResponse,
     },
 };
 use async_channel::bounded;
+use serde::{Deserialize, Serialize};
 use tracing::{error, info};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HermesNotification {
+    pub session_id: SessionId,
+    pub prompt_id: String,
+    pub update: SessionUpdate,
+}
 
 // In 0.10.x these were trait methods on `impl Client for Handler`. In 0.11
 // the `Client` trait is gone and handlers are registered as builder closures
@@ -55,13 +64,18 @@ impl Handler {
         if !self.can_receive_notifications().await {
             return Err(Error::method_not_found());
         }
+        let session_id = session_notification.session_id.to_string();
         let command = match session_notification.update.clone() {
-            SessionUpdate::UserMessageChunk(chunk) => parse::communication(chunk.content)
-                .map_err(Error::into_internal_error)
-                .and_then(|s| {
-                    Commands::try_from(format!("User{}Message", s))
-                        .map_err(Error::into_internal_error)
-                }),
+            SessionUpdate::UserMessageChunk(chunk) => {
+                self.set_prompt_id(session_id.clone(), uuid::Uuid::new_v4().to_string())
+                    .await;
+                parse::communication(chunk.content)
+                    .map_err(Error::into_internal_error)
+                    .and_then(|s| {
+                        Commands::try_from(format!("User{}Message", s))
+                            .map_err(Error::into_internal_error)
+                    })
+            }
             SessionUpdate::AgentMessageChunk(chunk) => parse::communication(chunk.content)
                 .map_err(Error::into_internal_error)
                 .and_then(|s| {
@@ -85,7 +99,14 @@ impl Handler {
         }?;
 
         Ok(self
-            .execute_autocommand(command, session_notification)
+            .execute_autocommand(
+                command,
+                HermesNotification {
+                    session_id: session_notification.session_id.clone(),
+                    prompt_id: self.get_prompt_id(&session_id).await?,
+                    update: session_notification.update.clone(),
+                },
+            )
             .await?)
     }
 

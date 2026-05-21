@@ -16,7 +16,11 @@ use crate::{
 use async_lock::Mutex;
 use nvim_oxi::{Array, Dictionary, Object, api::opts::ExecAutocmdsOpts};
 use serde::Serialize;
-use std::{fmt::Debug, fmt::Display, rc::Rc, sync::Arc};
+use std::{
+    fmt::{Debug, Display},
+    rc::Rc,
+    sync::Arc,
+};
 use tracing::{debug, error, instrument, warn};
 
 type NvimHandleArgs = (String, serde_json::Value, Option<(Responder, String)>);
@@ -96,6 +100,21 @@ impl Handler {
             },
         )?;
         Ok(Self { channel, state })
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn set_prompt_id(&self, session_id: String, prompt_id: String) {
+        let mut state = self.state.lock().await;
+        state.update_session_prompt_id(session_id, prompt_id);
+        drop(state);
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn get_prompt_id(&self, session_id: &str) -> Result<String> {
+        let state = self.state.lock().await;
+        let prompt_id = state.get_session_prompt(session_id)?;
+        drop(state);
+        Ok(prompt_id)
     }
 
     #[instrument(level = "trace")]
