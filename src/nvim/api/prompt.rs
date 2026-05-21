@@ -9,7 +9,7 @@ use nvim_oxi::{
 };
 use tracing::{error, instrument, warn};
 
-use crate::api::Api;
+use crate::api::{Api, prompt};
 
 /// Extracts a required string field from a Lua dictionary.
 fn required_string(dict: &Dictionary, key: &str) -> Result<String, ConversionError> {
@@ -334,9 +334,10 @@ impl Api {
             warn!("No valid content blocks to send in prompt, skipping prompt call");
             return Ok(());
         }
+        let prompt_id = uuid::Uuid::new_v4().to_string();
         let mut state = self.state.lock().await;
         let agent_info = state.agent_info.clone();
-        state.update_session_prompt_id(session_id.clone(), uuid::Uuid::new_v4().to_string());
+        state.update_session_prompt_id(session_id.clone(), prompt_id.to_string());
         drop(state);
         let can_send_images = agent_info.can_send_images();
         let can_send_audio = agent_info.can_send_audio();
@@ -352,7 +353,7 @@ impl Api {
             })
             .collect();
 
-        let request = PromptRequest::new(session_id, content_blocks);
+        let request = PromptRequest::new(session_id, content_blocks).message_id(prompt_id);
         let connection = self
             .connection
             .get_current_connection()

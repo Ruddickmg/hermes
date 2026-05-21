@@ -66,3 +66,19 @@ impl Default for PluginState {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn get_session_prompt_returns_error_for_missing_session() {
+        let state = PluginState::default();
+        let result = state.get_session_prompt("unknown");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Internal error: Prompt id was not initialized"
+        );
+    }
+}
