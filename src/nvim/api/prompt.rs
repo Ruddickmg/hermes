@@ -330,16 +330,8 @@ impl Api {
     #[instrument(level = "trace", skip_all)]
     pub async fn prompt(&self, (session_id, content): PromptArgs) -> crate::acp::Result<String> {
         let content_vec = content.into_vec();
-        if content_vec.is_empty() {
-            return Err(crate::acp::error::Error::InvalidInput(
-                "No valid content blocks to send in prompt, skipping prompt call".to_string(),
-            ));
-        }
-        let prompt_id = uuid::Uuid::new_v4().to_string();
         let mut state = self.state.lock().await;
         let agent_info = state.agent_info.clone();
-        state.update_session_prompt_id(session_id.clone(), prompt_id.to_string());
-        drop(state);
         let can_send_images = agent_info.can_send_images();
         let can_send_audio = agent_info.can_send_audio();
         let can_send_embedded = agent_info.can_send_embedded_context();
@@ -353,7 +345,14 @@ impl Api {
                 _ => true,
             })
             .collect();
-
+        if content_blocks.is_empty() {
+            return Err(crate::acp::error::Error::InvalidInput(
+                "No valid content blocks to send in prompt, skipping prompt call".to_string(),
+            ));
+        }
+        let prompt_id = uuid::Uuid::new_v4().to_string();
+        state.update_session_prompt_id(session_id.clone(), prompt_id.to_string());
+        drop(state);
         let request = PromptRequest::new(session_id, content_blocks).message_id(prompt_id.clone());
         let connection = self
             .connection
