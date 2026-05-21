@@ -70,3 +70,22 @@ impl Default for PluginState {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn get_session_prompt_generates_and_caches_uuid_for_new_session() {
+        let mut state = PluginState::default();
+
+        let first_id = state.get_session_prompt("session-1");
+        let second_id = state.get_session_prompt("session-1");
+
+        assert_eq!(
+            first_id, second_id,
+            "Should return the same cached id on repeated calls"
+        );
+    }
+}

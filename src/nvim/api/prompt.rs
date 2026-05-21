@@ -7,7 +7,7 @@ use nvim_oxi::{
     conversion::{Error as ConversionError, FromObject},
     lua::{Error, Poppable, Pushable},
 };
-use tracing::{error, instrument, warn};
+use tracing::{error, instrument};
 
 use crate::api::Api;
 

@@ -16,7 +16,7 @@ use crate::{
     utilities::{autocommand, mock_agent::MockAgent},
 };
 
-fn create_func<A>(plugin: Dictionary, name: &str) -> Function<A, ()> {
+fn create_func<A, R>(plugin: Dictionary, name: &str) -> Function<A, R> {
     FromObject::from_object(plugin.get(name).unwrap().clone())
         .unwrap_or_else(|_| panic!("Failed to create function for {}", name))
 }
@@ -89,11 +89,13 @@ fn test_mock_agent_prompt() -> Result<(), nvim_oxi::Error> {
     let session_id = session.session_id;
 
     // Send prompt using the actual session ID
-    let prompt: Function<PromptArgs, ()> = create_func(dict.clone(), "prompt");
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> =
+        create_func(dict.clone(), "prompt");
     let content = PromptContent::Single(hermes::api::ContentBlockType::Text {
         text: "Hello, mock agent!".to_string(),
     });
-    prompt.call((session_id.to_string(), content))?;
+    let prompt_result = prompt.call((session_id.to_string(), content))?;
+    assert!(prompt_result.is_some(), "prompt should return a prompt_id");
 
     // Disconnect and cleanup
     let disconnect: Function<DisconnectArgs, ()> = create_func(dict.clone(), "disconnect");
