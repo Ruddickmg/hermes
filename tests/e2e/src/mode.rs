@@ -68,7 +68,11 @@ fn test_set_mode_no_modes_does_not_crash() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(result, Ok(()), "set_mode should return Ok when no modes are configured");
+    assert_eq!(
+        result,
+        Ok(()),
+        "set_mode should return Ok when no modes are configured"
+    );
 
     Ok(())
 }
