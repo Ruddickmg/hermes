@@ -6,7 +6,6 @@ use hermes::{
     nvim::requests::Requests,
     utilities::detect_project_storage_path,
 };
-use pretty_assertions::assert_eq;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -48,7 +47,7 @@ fn set_mode_returns_session_not_found_when_no_session_info() -> nvim_oxi::Result
 
     assert!(matches!(
         result,
-        Err(hermes::acp::error::Error::SessionNotFound(String))
+        Err(hermes::acp::error::Error::SessionNotFound(_))
     ));
 
     Ok(())
@@ -77,7 +76,7 @@ fn set_mode_returns_unsupported_when_session_has_no_mode_info() -> nvim_oxi::Res
 
     assert!(matches!(
         result,
-        Err(hermes::acp::error::Error::Unsupported(String))
+        Err(hermes::acp::error::Error::Unsupported(_))
     ));
 
     Ok(())

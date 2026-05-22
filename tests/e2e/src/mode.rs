@@ -188,9 +188,8 @@ fn test_set_mode_with_config_options() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(
-        result,
-        Ok(()),
+    assert!(
+        result.is_ok(),
         "set_mode with config options should succeed"
     );
 
