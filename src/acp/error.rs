@@ -14,16 +14,24 @@ pub enum Error {
     Connection(String),
     Permissions(String),
     NoListenerAttached(Commands),
+    SessionNotFound(String),
+    Unsupported(String),
     InvalidInput(String),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::Unsupported(feature) => write!(
+                f,
+                "Selecting or modifying \"{}\" is unsupported by the currently selected agent",
+                feature
+            ),
             Error::Connection(msg) => write!(f, "Connection error: {}", msg),
             Error::Permissions(msg) => write!(f, "Permissions error: {}", msg),
             Error::Internal(msg) => write!(f, "Internal error: {}", msg),
             Error::InvalidInput(input) => write!(f, "Invalid input provided: {}", input),
+            Error::SessionNotFound(input) => write!(f, "No session found with id: {}", input),
             Error::NoListenerAttached(command) => {
                 write!(f, "No listener attached for autocommand: {}", command)
             }

@@ -63,10 +63,12 @@ fn test_set_mode_no_modes_does_not_crash() -> Result<(), nvim_oxi::Error> {
     let session_id = session.session_id;
 
     // session_info has no modes entry, so set_mode does nothing and returns Ok
-    let _result = set_mode.call((session_id.to_string(), "test-mode".to_string()));
+    let result = set_mode.call((session_id.to_string(), "test-mode".to_string()));
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
+
+    assert_eq!(result, Ok(()), "set_mode should return Ok when no modes are configured");
 
     Ok(())
 }
@@ -121,7 +123,7 @@ fn test_set_mode_with_legacy_modes() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(result.is_ok(), "set_mode with legacy modes should succeed");
+    assert_eq!(result, Ok(()), "set_mode with legacy modes should succeed");
 
     Ok(())
 }
@@ -182,8 +184,9 @@ fn test_set_mode_with_config_options() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
+    assert_eq!(
+        result,
+        Ok(()),
         "set_mode with config options should succeed"
     );
 

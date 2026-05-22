@@ -13,11 +13,16 @@ impl Api {
         let legacy = state
             .session_info
             .get(&session_id)
-            .map(|info: &SessionDetails| info.mode_is_legacy())
-            .unwrap_or_default();
+            .map(|info: &SessionDetails| info.mode_is_legacy());
         drop(state);
 
-        if let Some(is_legacy) = legacy {
+        if legacy.is_none() {
+            return Err(Error::SessionNotFound(session_id));
+        }
+
+        let config_type = "mode".to_string();
+
+        if let Some(is_legacy) = legacy.unwrap_or_default() {
             let connection = self
                 .connection
                 .get_current_connection()
@@ -35,13 +40,15 @@ impl Api {
                     .set_config_option(
                         agent_client_protocol::schema::SetSessionConfigOptionRequest::new(
                             session_id,
-                            "mode".to_string(),
+                            config_type.clone(),
                             mode_id,
                         ),
                     )
                     .await?;
             }
+            Ok(())
+        } else {
+            Err(Error::Unsupported(config_type))
         }
-        Ok(())
     }
 }
