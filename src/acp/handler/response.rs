@@ -56,6 +56,10 @@ impl Handler {
     }
     #[instrument(level = "trace", skip(self))]
     pub async fn session_created(&self, session: NewSessionResponse) -> Result<(), Error> {
+        let mut state = self.state.lock().await;
+        // TODO: Pass by reference
+        state.set_session_info(session.clone());
+        drop(state);
         self.execute_autocommand(Commands::SessionCreated, session)
             .await
     }

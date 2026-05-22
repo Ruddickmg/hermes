@@ -1,3 +1,4 @@
+pub mod session_info;
 pub mod connection;
 pub mod error;
 pub mod handler;

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    acp::connection::Assistant,
+    acp::{connection::Assistant, session_info::SessionInfo},
     nvim::{configuration::ClientConfig, state::agent::AgentInfo},
 };
-use agent_client_protocol::schema::InitializeResponse;
+use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse};
 use tracing::{debug, instrument};
 
 pub mod agent;
@@ -14,6 +14,7 @@ pub struct PluginState {
     pub config: ClientConfig,
     pub prompt: HashMap<String, String>,
     pub agent_info: AgentInfo,
+    pub session_info: HashMap<String, SessionInfo>,
 }
 
 impl PluginState {
@@ -23,10 +24,18 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
+    pub fn set_session_info(&mut self, session: NewSessionResponse) -> &mut Self {
+        self.session_info
+            .insert(session.session_id.to_string(), SessionInfo::new(session));
+        self
+    }
+
+    #[instrument(level = "trace")]
     pub fn with_config(config: ClientConfig) -> Self {
         Self {
             config,
             prompt: HashMap::new(),
+            session_info: HashMap::new(),
             agent_info: AgentInfo::default(),
         }
     }
