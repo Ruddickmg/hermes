@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    acp::{connection::Assistant, session_info::SessionInfo},
+    acp::{connection::Assistant, session_info::SessionDetails},
     nvim::{configuration::ClientConfig, state::agent::AgentInfo},
 };
 use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse};
@@ -14,7 +14,7 @@ pub struct PluginState {
     pub config: ClientConfig,
     pub prompt: HashMap<String, String>,
     pub agent_info: AgentInfo,
-    pub session_info: HashMap<String, SessionInfo>,
+    pub session_info: HashMap<String, SessionDetails>,
 }
 
 impl PluginState {
@@ -26,7 +26,7 @@ impl PluginState {
     #[instrument(level = "trace")]
     pub fn set_session_info(&mut self, session: NewSessionResponse) -> &mut Self {
         self.session_info
-            .insert(session.session_id.to_string(), SessionInfo::new(session));
+            .insert(session.session_id.to_string(), SessionDetails::new(session));
         self
     }
 

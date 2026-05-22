@@ -13,7 +13,7 @@ impl Api {
         let legacy = state
             .session_info
             .get(&session_id)
-            .map(|info: SessionDetails| info.mode_is_legacy())
+            .map(|info: &SessionDetails| info.mode_is_legacy())
             .unwrap_or_default();
         drop(state);
 
