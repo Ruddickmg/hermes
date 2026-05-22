@@ -1,8 +1,11 @@
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent},
+    utilities::{autocommand, mock_agent::MockAgent, mock_config::generate_session_id},
 };
-use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse};
+use agent_client_protocol::schema::{
+    InitializeResponse, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
+    SessionConfigSelectOption, SessionMode, SessionModeState,
+};
 use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, SetModeArgs},
     nvim::{autocommands::Commands, hermes},
@@ -23,10 +26,9 @@ fn test_setup_returns_set_mode_function() -> Result<(), nvim_oxi::Error> {
 }
 
 // Mock agent doesn't support session modes (returns None for modes),
-// so this test needs to be skipped unless we configure a custom response.
-// For now, we test that set_mode call doesn't crash even when modes aren't supported.
+// so set_mode should do nothing and return Ok when session_info has no modes entry.
 #[nvim_oxi::test]
-fn test_set_mode_success() -> Result<(), nvim_oxi::Error> {
+fn test_set_mode_no_modes_does_not_crash() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> =
         FromObject::from_object(dict.get("connect").unwrap().clone())?;
@@ -60,17 +62,130 @@ fn test_set_mode_success() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id;
 
-    // Mock agent doesn't advertise modes, so we just test that set_mode doesn't crash
-    // when called with a session (even if it returns an error)
+    // session_info has no modes entry, so set_mode does nothing and returns Ok
     let _result = set_mode.call((session_id.to_string(), "test-mode".to_string()));
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    // Should either succeed or return an error (not crash)
-    // The mock agent's NewSessionResponse doesn't include modes, so set_mode will likely error
-    // But it shouldn't panic
-    // Test passes if we reach here without panicking
+    Ok(())
+}
+
+// Configure mock agent to return legacy session.modes.
+// set_mode should call connection.set_mode(...) which the mock agent handles.
+#[nvim_oxi::test]
+fn test_set_mode_with_legacy_modes() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let set_mode: Function<SetModeArgs, ()> =
+        FromObject::from_object(dict.get("set_mode").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+
+    // Configure mock agent with legacy modes
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        let mode = SessionMode::new("chat", "Chat");
+        let modes = SessionModeState::new("chat", vec![mode]);
+        config.new_session_response = NewSessionResponse::new(generate_session_id()).modes(modes);
+        config.set_session_mode_response =
+            Some(agent_client_protocol::schema::SetSessionModeResponse::new());
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    let mut options = Dictionary::new();
+    options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id;
+
+    let result = set_mode.call((session_id.to_string(), "chat".to_string()));
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert!(result.is_ok(), "set_mode with legacy modes should succeed");
+
+    Ok(())
+}
+
+// Configure mock agent to return new config_options with Mode category.
+// set_mode should call connection.set_config_option(...) which the mock agent handles.
+#[nvim_oxi::test]
+fn test_set_mode_with_config_options() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let set_mode: Function<SetModeArgs, ()> =
+        FromObject::from_object(dict.get("set_mode").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+
+    // Configure mock agent with new config options path
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        let option = SessionConfigOption::select(
+            "mode",
+            "Mode",
+            "chat",
+            vec![SessionConfigSelectOption::new("chat", "Chat")],
+        )
+        .category(SessionConfigOptionCategory::Mode);
+        config.new_session_response =
+            NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
+        config.set_session_config_option_response =
+            Some(agent_client_protocol::schema::SetSessionConfigOptionResponse::new(vec![]));
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    let mut options = Dictionary::new();
+    options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id;
+
+    let result = set_mode.call((session_id.to_string(), "chat".to_string()));
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert!(
+        result.is_ok(),
+        "set_mode with config options should succeed"
+    );
 
     Ok(())
 }

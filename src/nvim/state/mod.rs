@@ -83,6 +83,10 @@ impl Default for PluginState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use agent_client_protocol::schema::{
+        NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
+        SessionConfigSelectOption, SessionMode, SessionModeState,
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -96,5 +100,50 @@ mod tests {
             first_id, second_id,
             "Should return the same cached id on repeated calls"
         );
+    }
+
+    #[test]
+    fn set_session_info_stores_legacy_mode_details() {
+        let mut state = PluginState::default();
+
+        let mode = SessionMode::new("chat", "Chat");
+        let modes = SessionModeState::new("chat", vec![mode]);
+        let session = NewSessionResponse::new("test-session").modes(modes);
+
+        state.set_session_info(session);
+
+        let details = state.session_info.get("test-session").unwrap();
+        assert_eq!(details.mode_is_legacy(), Some(true));
+    }
+
+    #[test]
+    fn set_session_info_stores_new_mode_details() {
+        let mut state = PluginState::default();
+
+        let option = SessionConfigOption::select(
+            "mode",
+            "Mode",
+            "chat",
+            vec![SessionConfigSelectOption::new("chat", "Chat")],
+        )
+        .category(SessionConfigOptionCategory::Mode);
+
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+
+        state.set_session_info(session);
+
+        let details = state.session_info.get("test-session").unwrap();
+        assert_eq!(details.mode_is_legacy(), Some(false));
+    }
+
+    #[test]
+    fn set_session_info_stores_none_when_no_modes() {
+        let mut state = PluginState::default();
+
+        let session = NewSessionResponse::new("test-session");
+        state.set_session_info(session);
+
+        let details = state.session_info.get("test-session").unwrap();
+        assert_eq!(details.mode_is_legacy(), None);
     }
 }
