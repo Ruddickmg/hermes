@@ -3,7 +3,10 @@ use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
     Error,
     schema::{
-        ContentBlock, ContentChunk, SessionNotification, SessionUpdate, TextContent, UsageUpdate,
+        ContentBlock, ContentChunk, LoadSessionResponse, SessionConfigOption,
+        SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
+        SessionNotification, SessionUpdate, SetSessionConfigOptionResponse, TextContent,
+        UsageUpdate,
     },
 };
 use async_lock::Mutex;
@@ -565,6 +568,158 @@ fn get_prompt_id_returns_same_value_on_repeated_calls_without_user_message() -> 
     assert_eq!(
         first_id, second_id,
         "Repeated calls should return the same cached id"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_loaded_stores_legacy_mode_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let mode = SessionMode::new("chat", "Chat");
+    let modes = SessionModeState::new("chat", vec![mode]);
+    let response = LoadSessionResponse::default().modes(modes);
+
+    smol::block_on(handler.session_loaded("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.mode_is_legacy(), Some(true));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_loaded_stores_config_options_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "mode",
+        "Mode",
+        "chat",
+        vec![SessionConfigSelectOption::new("chat", "Chat")],
+    )
+    .category(SessionConfigOptionCategory::Mode);
+    let response = LoadSessionResponse::default().config_options(vec![option]);
+
+    smol::block_on(handler.session_loaded("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.mode_is_legacy(), Some(false));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_loaded_stores_none_when_empty() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let response = LoadSessionResponse::default();
+
+    smol::block_on(handler.session_loaded("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.mode_is_legacy(), None);
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn config_option_set_with_mode_category_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "mode",
+        "Mode",
+        "chat",
+        vec![SessionConfigSelectOption::new("chat", "Chat")],
+    )
+    .category(SessionConfigOptionCategory::Mode);
+    let response = SetSessionConfigOptionResponse::new(vec![option]);
+
+    let result = smol::block_on(handler.config_option_set(response));
+
+    assert!(
+        result.is_ok(),
+        "config_option_set with Mode category should succeed"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn config_option_set_with_model_category_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "model",
+        "Model",
+        "gpt4",
+        vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+    )
+    .category(SessionConfigOptionCategory::Model);
+    let response = SetSessionConfigOptionResponse::new(vec![option]);
+
+    let result = smol::block_on(handler.config_option_set(response));
+
+    assert!(
+        result.is_ok(),
+        "config_option_set with Model category should succeed"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn config_option_set_empty_options_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let response = SetSessionConfigOptionResponse::new(vec![]);
+
+    let result = smol::block_on(handler.config_option_set(response));
+
+    assert!(
+        result.is_ok(),
+        "config_option_set with empty options should succeed"
     );
 
     Ok(())

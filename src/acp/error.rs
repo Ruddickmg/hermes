@@ -14,16 +14,24 @@ pub enum Error {
     Connection(String),
     Permissions(String),
     NoListenerAttached(Commands),
+    SessionNotFound(String),
+    Unsupported(String),
     InvalidInput(String),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::Unsupported(feature) => write!(
+                f,
+                "Selecting or modifying \"{}\" is unsupported by the currently selected agent",
+                feature
+            ),
             Error::Connection(msg) => write!(f, "Connection error: {}", msg),
             Error::Permissions(msg) => write!(f, "Permissions error: {}", msg),
             Error::Internal(msg) => write!(f, "Internal error: {}", msg),
             Error::InvalidInput(input) => write!(f, "Invalid input provided: {}", input),
+            Error::SessionNotFound(input) => write!(f, "No session found with id: {}", input),
             Error::NoListenerAttached(command) => {
                 write!(f, "No listener attached for autocommand: {}", command)
             }
@@ -245,6 +253,59 @@ mod tests {
         };
         let error: Error = conv_err.into();
         assert!(matches!(error, Error::InvalidInput(_)));
+    }
+
+    #[test]
+    fn test_error_display_session_not_found() {
+        let err = Error::SessionNotFound("session-123".to_string());
+        assert_eq!(format!("{}", err), "No session found with id: session-123");
+    }
+
+    #[test]
+    fn test_error_display_unsupported() {
+        let err = Error::Unsupported("mode".to_string());
+        assert_eq!(
+            format!("{}", err),
+            "Selecting or modifying \"mode\" is unsupported by the currently selected agent"
+        );
+    }
+
+    #[test]
+    fn test_from_error_to_acp_error_session_not_found() {
+        let err = Error::SessionNotFound("missing".to_string());
+        let acp_err: AcpError = err.into();
+        let _ = acp_err.to_string();
+    }
+
+    #[test]
+    fn test_from_error_to_acp_error_unsupported() {
+        let err = Error::Unsupported("model".to_string());
+        let acp_err: AcpError = err.into();
+        let _ = acp_err.to_string();
+    }
+
+    #[test]
+    fn test_from_error_to_lua_error_session_not_found() {
+        let err = Error::SessionNotFound("test-session".to_string());
+        let lua_err: lua::Error = err.into();
+        match lua_err {
+            lua::Error::RuntimeError(msg) => {
+                assert!(msg.contains("test-session"));
+            }
+            _ => panic!("Expected RuntimeError"),
+        }
+    }
+
+    #[test]
+    fn test_from_error_to_lua_error_unsupported() {
+        let err = Error::Unsupported("feature".to_string());
+        let lua_err: lua::Error = err.into();
+        match lua_err {
+            lua::Error::RuntimeError(msg) => {
+                assert!(msg.contains("feature"));
+            }
+            _ => panic!("Expected RuntimeError"),
+        }
     }
 
     #[test]

@@ -44,15 +44,18 @@ async fn dispatch(
         }
         UserRequest::SetMode(request) => {
             let response = cx.send_request(request).block_task().await?;
-            client.mode_set(response).await?;
+            client.session_mode_set(response).await?;
         }
         UserRequest::CreateSession(request) => {
             let response = cx.send_request(request).block_task().await?;
             client.session_created(response).await?;
         }
         UserRequest::LoadSession(request) => {
+            let session_id = request.session_id.clone();
             let response = cx.send_request(request).block_task().await?;
-            client.session_loaded(response).await?;
+            client
+                .session_loaded(session_id.to_string(), response)
+                .await?;
         }
         UserRequest::ListSessions(request) => {
             let response = cx.send_request(request).block_task().await?;

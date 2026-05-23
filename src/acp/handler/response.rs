@@ -1,8 +1,8 @@
 use agent_client_protocol::schema::{
     AuthenticateResponse, ExtResponse, ForkSessionResponse, InitializeResponse,
     ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PromptResponse,
-    ResumeSessionResponse, SetSessionConfigOptionResponse, SetSessionModeResponse,
-    SetSessionModelResponse,
+    ResumeSessionResponse, SessionConfigOptionCategory, SetSessionConfigOptionResponse,
+    SetSessionModeResponse, SetSessionModelResponse,
 };
 use tracing::instrument;
 
@@ -56,6 +56,10 @@ impl Handler {
     }
     #[instrument(level = "trace", skip(self))]
     pub async fn session_created(&self, session: NewSessionResponse) -> Result<(), Error> {
+        let mut state = self.state.lock().await;
+        // TODO: Pass by reference
+        state.set_session_info(session.clone());
+        drop(state);
         self.execute_autocommand(Commands::SessionCreated, session)
             .await
     }
@@ -76,18 +80,50 @@ impl Handler {
         &self,
         response: SetSessionConfigOptionResponse,
     ) -> Result<(), Error> {
+        let futures = response
+            .config_options
+            .iter()
+            .filter_map(|c| c.category.clone())
+            .map(async move |category| match category {
+                SessionConfigOptionCategory::Mode => {
+                    self.session_mode_set(SetSessionModeResponse::default())
+                        .await
+                }
+                SessionConfigOptionCategory::Model => {
+                    self.session_model_set(SetSessionModelResponse::default())
+                        .await
+                }
+                _ => Ok(()),
+            })
+            .collect::<Vec<_>>();
+
+        futures::future::try_join_all(futures).await?;
+
         self.execute_autocommand(Commands::ConfigurationUpdated, response)
             .await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn mode_set(&self, response: SetSessionModeResponse) -> Result<(), Error> {
+    pub async fn session_mode_set(&self, response: SetSessionModeResponse) -> Result<(), Error> {
         self.execute_autocommand(Commands::ModeUpdated, response)
             .await
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn session_loaded(&self, response: LoadSessionResponse) -> Result<(), Error> {
+    pub async fn session_loaded(
+        &self,
+        session_id: String,
+        response: LoadSessionResponse,
+    ) -> Result<(), Error> {
+        let details = response.clone();
+        let mut state = self.state.lock().await;
+        let session = NewSessionResponse::new(session_id)
+            .modes(details.modes)
+            .models(details.models)
+            .config_options(details.config_options);
+        // TODO: Pass by reference
+        state.set_session_info(session);
+        drop(state);
         self.execute_autocommand(Commands::SessionLoaded, response)
             .await
     }
