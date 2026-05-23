@@ -209,6 +209,18 @@ describe("hermes.init (main API)", function()
 		it("exports respond from Rust", function()
 			assert.is_function(native.respond)
 		end)
+
+		it("exports set_model from Rust", function()
+			assert.is_function(native.set_model)
+		end)
+
+		it("exports modes from Rust", function()
+			assert.is_function(native.modes)
+		end)
+
+		it("exports models from Rust", function()
+			assert.is_function(native.models)
+		end)
 	end)
 
 	describe("API function signatures", function()
@@ -235,6 +247,20 @@ describe("hermes.init (main API)", function()
 		-- connection. This is related to FFI boundary issues when thread handles are dropped.
 		-- The tests above are sufficient to verify the basic API structure and that the
 		-- binary can be loaded and basic operations work.
+
+		it("set_model accepts session_id and model name as arguments", function()
+			assert.has_no.errors(function()
+				hermes.set_model("test-session-id", "gpt4")
+			end)
+		end)
+
+		it("modes returns nil when session does not exist", function()
+			assert.is_nil(hermes.modes("nonexistent-session"))
+		end)
+
+		it("models returns nil when session does not exist", function()
+			assert.is_nil(hermes.models("nonexistent-session"))
+		end)
 	end)
 
 	describe("state getters", function()
