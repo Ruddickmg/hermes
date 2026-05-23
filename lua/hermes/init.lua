@@ -591,10 +591,19 @@ end
 
 ---Set session mode
 ---@param session_id string Session ID
----@param mode_id string Mode ID
-function M.set_mode(session_id, mode_id)
+---@param mode string Mode ID/Name
+function M.set_mode(session_id, mode)
 	execute_async(function()
-		M._load_native_sync().set_mode(session_id, mode_id)
+		M._load_native_sync().set_mode(session_id, mode)
+	end)
+end
+
+---Set session model
+---@param session_id string Session ID
+---@param model string Model ID/Name
+function M.set_model(session_id, model)
+	execute_async(function()
+		M._load_native_sync().set_model(session_id, model)
 	end)
 end
 

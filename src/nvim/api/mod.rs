@@ -11,6 +11,7 @@ pub mod modes;
 pub mod prompt;
 pub mod respond;
 pub mod set_mode;
+pub mod set_model;
 pub mod setup;
 
 use std::sync::Arc;
@@ -32,6 +33,7 @@ use nvim_oxi::{
 pub use prompt::*;
 pub use respond::*;
 pub use set_mode::*;
+pub use set_model::*;
 pub use setup::*;
 use tracing::{debug, error};
 
@@ -149,6 +151,12 @@ impl Hermes {
         })
     }
 
+    fn set_model_method(&self) -> Object {
+        self.api_method(|api: Rc<RefCell<Api>>, args: SetModelArgs| async move {
+            api.try_borrow()?.set_model(args).await
+        })
+    }
+
     fn setup_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, args: SetupArgs| async move {
             api.try_borrow()?.setup(args).await
@@ -181,6 +189,7 @@ impl From<Hermes> for Dictionary {
             ("models", hermes.models_method()),
             ("authenticate", hermes.authenticate_method()),
             ("set_mode", hermes.set_mode_method()),
+            ("set_model", hermes.set_model_method()),
             ("setup", hermes.setup_method()),
             ("prompt", hermes.prompt_method()),
             ("respond", hermes.respond_method()),
