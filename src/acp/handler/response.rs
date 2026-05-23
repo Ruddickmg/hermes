@@ -80,21 +80,25 @@ impl Handler {
         &self,
         response: SetSessionConfigOptionResponse,
     ) -> Result<(), Error> {
-        for option in response.config_options.iter() {
-            if let Some(category) = option.category.clone() {
-                match category {
-                    SessionConfigOptionCategory::Mode => {
-                        self.session_mode_set(SetSessionModeResponse::default())
-                            .await?;
-                    }
-                    SessionConfigOptionCategory::Model => {
-                        self.session_model_set(SetSessionModelResponse::default())
-                            .await?;
-                    }
-                    _ => (),
+        let futures = response
+            .config_options
+            .iter()
+            .filter_map(|c| c.category.clone())
+            .map(async move |category| match category {
+                SessionConfigOptionCategory::Mode => {
+                    self.session_mode_set(SetSessionModeResponse::default())
+                        .await
                 }
-            }
-        }
+                SessionConfigOptionCategory::Model => {
+                    self.session_model_set(SetSessionModelResponse::default())
+                        .await
+                }
+                _ => Ok(()),
+            })
+            .collect::<Vec<_>>();
+
+        futures::future::try_join_all(futures).await?;
+
         self.execute_autocommand(Commands::ConfigurationUpdated, response)
             .await
     }
