@@ -394,12 +394,12 @@ describe("hermes.init (main API)", function()
 			hermes._set_loading_error(nil)
 		end)
 
-		it("_handle_ready_state returns true", function()
+		it("_handle_ready_state returns nil", function()
 			local test_fn = function() end
 			
 			local result = hermes._handle_ready_state(test_fn)
 			
-			assert.is_true(result)
+			assert.is_nil(result)
 		end)
 
 		it("_handle_ready_state executes function immediately", function()
@@ -413,10 +413,10 @@ describe("hermes.init (main API)", function()
 			assert.is_true(executed)
 		end)
 
-		it("_handle_loading_state returns false", function()
+		it("_handle_loading_state returns nil", function()
 			local result = hermes._handle_loading_state()
 			
-			assert.is_false(result)
+			assert.is_nil(result)
 		end)
 
 		it("_handle_loading_state warns when argument is not a function", function()
@@ -434,7 +434,7 @@ describe("hermes.init (main API)", function()
 
 			vim.notify = original_notify
 
-			assert.is_false(result)
+			assert.is_nil(result)
 			assert.is_not_nil(notify_calls[1].msg:find("Invalid function"), "Should warn about invalid function")
 		end)
 
@@ -456,10 +456,10 @@ describe("hermes.init (main API)", function()
 			assert.is_not_nil(notify_calls[1].msg:find("queued"), "Should show queue notification")
 		end)
 
-		it("_handle_failed_state returns false", function()
+		it("_handle_failed_state returns nil", function()
 			local result = hermes._handle_failed_state()
 			
-			assert.is_false(result)
+			assert.is_nil(result)
 		end)
 
 		it("_handle_failed_state shows error message", function()
