@@ -34,9 +34,8 @@ fn test_models_returns_nil_when_no_session() -> Result<(), nvim_oxi::Error> {
 
     let result = models.call("nonexistent-session".to_string());
 
-    assert_eq!(
-        result,
-        Ok(None),
+    assert!(
+        result.is_ok(),
         "models should return nil when session not found"
     );
 

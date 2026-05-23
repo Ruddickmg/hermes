@@ -6,8 +6,8 @@ use agent_client_protocol::schema::{
     PermissionOptionId, PermissionOptionKind, ProtocolVersion, ReadTextFileRequest,
     ReleaseTerminalRequest, RequestPermissionRequest, SessionId, SessionInfo,
     SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
-    TerminalOutputRequest, ToolCallId,
-    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
+    TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
+    WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;

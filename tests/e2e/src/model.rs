@@ -68,9 +68,8 @@ fn test_set_model_no_models_does_not_crash() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(
-        result,
-        Ok(()),
+    assert!(
+        result.is_ok(),
         "set_model should return Ok when no models are configured"
     );
 
@@ -127,9 +126,8 @@ fn test_set_model_with_legacy_models() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(
-        result,
-        Ok(()),
+    assert!(
+        result.is_ok(),
         "set_model with legacy models should succeed"
     );
 
@@ -192,9 +190,8 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(
-        result,
-        Ok(()),
+    assert!(
+        result.is_ok(),
         "set_model with config options should succeed"
     );
 

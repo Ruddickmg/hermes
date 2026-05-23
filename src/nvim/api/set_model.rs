@@ -31,11 +31,9 @@ impl Api {
 
             if is_legacy {
                 connection
-                    .set_session_model(
-                        agent_client_protocol::schema::SetSessionModelRequest::new(
-                            session_id, model_id,
-                        ),
-                    )
+                    .set_session_model(agent_client_protocol::schema::SetSessionModelRequest::new(
+                        session_id, model_id,
+                    ))
                     .await?;
             } else {
                 connection

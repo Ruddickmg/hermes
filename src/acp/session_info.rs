@@ -472,6 +472,6 @@ mod tests {
     fn parse_models_neither_present_returns_none() {
         let session = NewSessionResponse::new("test-session");
         let details = SessionDetails::new(&session);
-        assert_eq!(details.model_is_legacy(), None);
+        assert!(details.model_is_legacy().is_none());
     }
 }

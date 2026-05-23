@@ -21,8 +21,8 @@ use agent_client_protocol::{
         SessionForkCapabilities, SessionListCapabilities, SessionNotification,
         SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
         SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
-        SetSessionModelRequest, SetSessionModelResponse, StopReason,
-        TerminalOutputRequest, TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
+        SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
+        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
         WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
     },
 };
