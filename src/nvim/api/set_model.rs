@@ -13,16 +13,13 @@ impl Api {
         let legacy = state
             .session_info
             .get(&session_id)
-            .map(|info: &SessionDetails| info.model_is_legacy());
+            .ok_or_else(|| Error::SessionNotFound(session_id.clone()))?
+            .model_is_legacy();
         drop(state);
-
-        if legacy.is_none() {
-            return Err(Error::SessionNotFound(session_id));
-        }
 
         let config_type = "model".to_string();
 
-        if let Some(is_legacy) = legacy.unwrap_or_default() {
+        if let Some(is_legacy) = legacy {
             let connection = self
                 .connection
                 .get_current_connection()
