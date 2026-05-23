@@ -12,8 +12,8 @@ use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},
 };
-use pretty_assertions::assert_eq;
 use nvim_oxi::{Array, Dictionary, Function, Object, conversion::FromObject};
+use pretty_assertions::assert_eq;
 
 #[nvim_oxi::test]
 fn test_setup_returns_models_function() -> Result<(), nvim_oxi::Error> {
