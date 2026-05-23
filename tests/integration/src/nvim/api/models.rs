@@ -91,12 +91,13 @@ fn models_returns_legacy_models() -> nvim_oxi::Result<()> {
 
     let result = block_on(api.models("test-session".to_string()));
 
-    let mut expected = Array::new();
-    let mut dict = Dictionary::new();
-    dict.insert("value", "gpt4");
-    dict.insert("name", "GPT-4");
-    expected.push(Object::from(dict));
-    assert_eq!(result.unwrap(), expected);
+    let array = result.expect("models should succeed for legacy session");
+    assert_eq!(array.len(), 1, "Should return one model");
+
+    let dict: nvim_oxi::Dictionary =
+        array.get(0).expect("Array should have one element").clone().try_into().expect("Should be a dictionary");
+    let name: nvim_oxi::String = dict.get("name").cloned().and_then(|o| o.try_into().ok()).expect("Should have name");
+    assert_eq!(nvim_oxi::String::from("GPT-4"), name);
 
     Ok(())
 }
@@ -125,12 +126,13 @@ fn models_returns_config_options() -> nvim_oxi::Result<()> {
 
     let result = block_on(api.models("test-session".to_string()));
 
-    let mut expected = Array::new();
-    let mut dict = Dictionary::new();
-    dict.insert("value", "gpt4");
-    dict.insert("name", "GPT-4");
-    expected.push(Object::from(dict));
-    assert_eq!(result.unwrap(), expected);
+    let array = result.expect("models should succeed for config options session");
+    assert_eq!(array.len(), 1, "Should return one model");
+
+    let dict: nvim_oxi::Dictionary =
+        array.get(0).expect("Array should have one element").clone().try_into().expect("Should be a dictionary");
+    let name: nvim_oxi::String = dict.get("name").cloned().and_then(|o| o.try_into().ok()).expect("Should have name");
+    assert_eq!(nvim_oxi::String::from("GPT-4"), name);
 
     Ok(())
 }
