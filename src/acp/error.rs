@@ -256,6 +256,59 @@ mod tests {
     }
 
     #[test]
+    fn test_error_display_session_not_found() {
+        let err = Error::SessionNotFound("session-123".to_string());
+        assert_eq!(format!("{}", err), "No session found with id: session-123");
+    }
+
+    #[test]
+    fn test_error_display_unsupported() {
+        let err = Error::Unsupported("mode".to_string());
+        assert_eq!(
+            format!("{}", err),
+            "Selecting or modifying \"mode\" is unsupported by the currently selected agent"
+        );
+    }
+
+    #[test]
+    fn test_from_error_to_acp_error_session_not_found() {
+        let err = Error::SessionNotFound("missing".to_string());
+        let acp_err: AcpError = err.into();
+        let _ = acp_err.to_string();
+    }
+
+    #[test]
+    fn test_from_error_to_acp_error_unsupported() {
+        let err = Error::Unsupported("model".to_string());
+        let acp_err: AcpError = err.into();
+        let _ = acp_err.to_string();
+    }
+
+    #[test]
+    fn test_from_error_to_lua_error_session_not_found() {
+        let err = Error::SessionNotFound("test-session".to_string());
+        let lua_err: lua::Error = err.into();
+        match lua_err {
+            lua::Error::RuntimeError(msg) => {
+                assert!(msg.contains("test-session"));
+            }
+            _ => panic!("Expected RuntimeError"),
+        }
+    }
+
+    #[test]
+    fn test_from_error_to_lua_error_unsupported() {
+        let err = Error::Unsupported("feature".to_string());
+        let lua_err: lua::Error = err.into();
+        match lua_err {
+            lua::Error::RuntimeError(msg) => {
+                assert!(msg.contains("feature"));
+            }
+            _ => panic!("Expected RuntimeError"),
+        }
+    }
+
+    #[test]
     fn test_from_error_to_acp_error_internal_variant() {
         // Test the Internal error case specifically for the into_internal_error path
         let err = Error::Connection("connection lost".to_string());

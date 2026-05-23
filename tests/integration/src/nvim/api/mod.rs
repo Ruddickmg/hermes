@@ -5,6 +5,7 @@
 //!
 //! See request/handler.rs for examples of actual integration tests.
 
+pub mod modes;
 pub mod set_mode;
 
 use async_lock::Mutex;
