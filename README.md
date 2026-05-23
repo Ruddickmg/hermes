@@ -583,12 +583,10 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "SessionCreated",
   callback = function(args)
-    local modes = args.data.modes
-    -- modes is optional for an agent, some may not have different modes to select
+    local sessionId = args.data.sessionId
+    local modes = hermes.modes(sessionId)
     if modes ~= nil then
-      local selectedModeId = table.remove(modes.availableModes).id -- select mode id somehow
-      local sessionId = args.data.sessionId
-
+      local selectedModeId = table.remove(modes).value -- select mode id somehow
       hermes.set_mode(sessionId, selectedModeId)
     end
   end,
@@ -596,6 +594,41 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [ModeUpdated](#modeupdated) autocommand upon completion.
+
+### Modes
+
+Get the selectable modes for a session.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+local modes = hermes.modes(sessionId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    local modes = hermes.modes(sessionId)
+    if modes ~= nil then
+      for _, mode in ipairs(modes) do
+        print("Mode: " .. mode.name .. " (value: " .. mode.value .. ")")
+      end
+    end
+  end,
+})
+```
+
+> **Returns:** An array of mode objects, each containing:
+> - `value` (string): The mode identifier
+> - `name` (string): Human-readable mode label
+> - `description` (string, optional): Mode description
+> - `group` (string, optional): Group name for grouped options
+>
+> Returns `nil` if the session doesn't exist or the agent doesn't support mode selection.
 
 ### Respond
 
