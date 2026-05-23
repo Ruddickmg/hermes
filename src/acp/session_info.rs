@@ -3,7 +3,7 @@ use agent_client_protocol::schema::{
 };
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct ModeOption {
+pub struct HermesOption {
     pub value: String,
     pub name: String,
     pub description: Option<String>,
@@ -12,7 +12,7 @@ pub struct ModeOption {
 
 #[derive(Debug, Default, Clone)]
 pub struct Selection {
-    options: Vec<ModeOption>,
+    options: Vec<HermesOption>,
     current: String,
     legacy: bool,
 }
@@ -25,9 +25,9 @@ pub struct SessionDetails {
 }
 
 impl SessionDetails {
-    pub fn new(session: NewSessionResponse) -> Self {
+    pub fn new(session: &NewSessionResponse) -> Self {
         Self {
-            modes: Self::parse_modes(session.clone()),
+            modes: Self::parse_modes(session),
             models: Self::parse_models(session),
         }
     }
@@ -36,7 +36,7 @@ impl SessionDetails {
         self.modes.as_ref().map(|mode| mode.legacy)
     }
 
-    pub fn mode_options(&self) -> Option<&Vec<ModeOption>> {
+    pub fn mode_options(&self) -> Option<&Vec<HermesOption>> {
         self.modes.as_ref().map(|mode| &mode.options)
     }
 
@@ -44,46 +44,46 @@ impl SessionDetails {
         self.modes.as_ref().map(|mode| mode.current.as_str())
     }
 
-    fn parse_models(_session: NewSessionResponse) -> Option<Selection> {
-        None
-    }
-
-    fn parse_modes(session: NewSessionResponse) -> Option<Selection> {
+    fn parse_options(
+        session: &NewSessionResponse,
+        category: SessionConfigOptionCategory,
+    ) -> Option<Selection> {
         let mut current = String::new();
-        let options: Vec<ModeOption> = session
+        let options: Vec<HermesOption> = session
             .config_options
+            .as_ref()
             .map(|options| {
                 options
-                    .into_iter()
+                    .iter()
                     .filter_map(|opt| {
-                        if let SessionConfigKind::Select(select) = opt.kind
-                            && opt.category == Some(SessionConfigOptionCategory::Mode)
+                        if let SessionConfigKind::Select(select) = &opt.kind
+                            && opt.category.as_ref() == Some(&category)
                         {
-                            current = select.current_value.0.as_ref().to_string();
-                            match select.options {
+                            current = select.current_value.to_string();
+                            match &select.options {
                                 SessionConfigSelectOptions::Grouped(groups) => Some(
                                     groups
-                                        .into_iter()
+                                        .iter()
                                         .flat_map(|group| {
-                                            group.options.into_iter().map(move |opt| ModeOption {
-                                                value: opt.value.0.as_ref().to_string(),
-                                                name: opt.name,
-                                                description: opt.description,
+                                            group.options.iter().map(move |opt| HermesOption {
+                                                value: opt.value.to_string(),
+                                                name: opt.name.to_string(),
+                                                description: opt.description.clone(),
                                                 group: Some(group.name.to_string()),
                                             })
                                         })
-                                        .collect::<Vec<ModeOption>>(),
+                                        .collect::<Vec<HermesOption>>(),
                                 ),
                                 SessionConfigSelectOptions::Ungrouped(ungrouped) => Some(
                                     ungrouped
-                                        .into_iter()
-                                        .map(|opt| ModeOption {
-                                            value: opt.value.0.as_ref().to_string(),
-                                            name: opt.name,
-                                            description: opt.description,
+                                        .iter()
+                                        .map(|opt| HermesOption {
+                                            value: opt.value.to_string(),
+                                            name: opt.name.to_string(),
+                                            description: opt.description.clone(),
                                             group: None,
                                         })
-                                        .collect::<Vec<ModeOption>>(),
+                                        .collect::<Vec<HermesOption>>(),
                                 ),
                                 _ => None,
                             }
@@ -92,7 +92,7 @@ impl SessionDetails {
                         }
                     })
                     .flatten()
-                    .collect::<Vec<ModeOption>>()
+                    .collect::<Vec<HermesOption>>()
             })
             .unwrap_or_default();
 
@@ -102,24 +102,47 @@ impl SessionDetails {
                 current,
                 legacy: false,
             })
-        } else if let Some(modes) = session.modes {
-            Some(Selection {
-                options: modes
-                    .available_modes
-                    .into_iter()
-                    .map(|mode| ModeOption {
-                        value: mode.id.0.as_ref().to_string(),
-                        name: mode.name,
-                        description: mode.description,
-                        group: None,
-                    })
-                    .collect(),
-                current: modes.current_mode_id.0.as_ref().to_string(),
-                legacy: true,
-            })
         } else {
             None
         }
+    }
+
+    fn parse_models(session: &NewSessionResponse) -> Option<Selection> {
+        Self::parse_options(session, SessionConfigOptionCategory::Model).or_else(|| {
+            session.models.as_ref().map(|models| Selection {
+                options: models
+                    .available_models
+                    .iter()
+                    .map(|model| HermesOption {
+                        value: model.model_id.to_string(),
+                        name: model.name.to_string(),
+                        description: model.description.clone(),
+                        group: None,
+                    })
+                    .collect(),
+                current: models.current_model_id.to_string(),
+                legacy: true,
+            })
+        })
+    }
+
+    fn parse_modes(session: &NewSessionResponse) -> Option<Selection> {
+        Self::parse_options(session, SessionConfigOptionCategory::Mode).or_else(|| {
+            session.modes.as_ref().map(|modes| Selection {
+                options: modes
+                    .available_modes
+                    .iter()
+                    .map(|mode| HermesOption {
+                        value: mode.id.to_string(),
+                        name: mode.name.to_string(),
+                        description: mode.description.clone(),
+                        group: None,
+                    })
+                    .collect(),
+                current: modes.current_mode_id.to_string(),
+                legacy: true,
+            })
+        })
     }
 }
 
@@ -147,7 +170,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), Some(false));
     }
 
@@ -166,7 +189,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options.len(), 2);
         assert_eq!(options[0].value, "chat");
@@ -189,7 +212,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_current(), Some("chat"));
     }
 
@@ -200,7 +223,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").modes(modes);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), Some(true));
     }
 
@@ -211,7 +234,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").modes(modes);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options.len(), 1);
         assert_eq!(options[0].value, "chat");
@@ -222,7 +245,7 @@ mod tests {
     #[test]
     fn parse_modes_neither_present_returns_none() {
         let session = NewSessionResponse::new("test-session");
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), None);
         assert_eq!(details.mode_options(), None);
         assert_eq!(details.mode_current(), None);
@@ -245,7 +268,7 @@ mod tests {
             .config_options(vec![option])
             .modes(modes);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), Some(false));
     }
 
@@ -266,7 +289,7 @@ mod tests {
             .config_options(vec![option])
             .modes(modes);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), Some(true));
     }
 
@@ -299,7 +322,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options.len(), 3);
     }
@@ -322,7 +345,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options.len(), 1);
         assert_eq!(options[0].value, "chat");
@@ -348,7 +371,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         assert_eq!(details.mode_current(), Some("code"));
         assert_eq!(details.mode_is_legacy(), Some(false));
     }
@@ -365,7 +388,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options[0].group, None);
     }
@@ -377,7 +400,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").modes(modes);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options[0].group, None);
     }
@@ -400,7 +423,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        let details = SessionDetails::new(session);
+        let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options[0].description, Some("Chat mode".to_string()));
     }

@@ -24,7 +24,7 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
-    pub fn set_session_info(&mut self, session: NewSessionResponse) -> &mut Self {
+    pub fn set_session_info(&mut self, session: &NewSessionResponse) -> &mut Self {
         self.session_info
             .insert(session.session_id.to_string(), SessionDetails::new(session));
         self
