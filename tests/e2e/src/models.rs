@@ -12,6 +12,7 @@ use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},
 };
+use pretty_assertions::assert_eq;
 use nvim_oxi::{Array, Dictionary, Function, Object, conversion::FromObject};
 
 #[nvim_oxi::test]
@@ -34,8 +35,9 @@ fn test_models_returns_nil_when_no_session() -> Result<(), nvim_oxi::Error> {
 
     let result = models.call("nonexistent-session".to_string());
 
-    assert!(
-        result.is_ok(),
+    assert_eq!(
+        result,
+        Ok(None),
         "models should return nil when session not found"
     );
 
