@@ -6,6 +6,7 @@ pub mod error_handling;
 pub mod file_system;
 pub mod mock_agent_tests;
 pub mod mode;
+pub mod models;
 pub mod modes;
 pub mod opencode;
 pub mod prompt;

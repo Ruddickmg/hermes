@@ -110,7 +110,7 @@ mod tests {
         let modes = SessionModeState::new("chat", vec![mode]);
         let session = NewSessionResponse::new("test-session").modes(modes);
 
-        state.set_session_info(session);
+        state.set_session_info(&session);
 
         let details = state.session_info.get("test-session").unwrap();
         assert_eq!(details.mode_is_legacy(), Some(true));
@@ -130,7 +130,7 @@ mod tests {
 
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
-        state.set_session_info(session);
+        state.set_session_info(&session);
 
         let details = state.session_info.get("test-session").unwrap();
         assert_eq!(details.mode_is_legacy(), Some(false));
@@ -141,7 +141,7 @@ mod tests {
         let mut state = PluginState::default();
 
         let session = NewSessionResponse::new("test-session");
-        state.set_session_info(session);
+        state.set_session_info(&session);
 
         let details = state.session_info.get("test-session").unwrap();
         assert_eq!(details.mode_is_legacy(), None);

@@ -6,6 +6,7 @@ pub mod disconnect;
 pub mod list_sessions;
 pub mod load_session;
 pub mod mcp_servers;
+pub mod models;
 pub mod modes;
 pub mod prompt;
 pub mod respond;
@@ -22,6 +23,7 @@ pub use create_session::*;
 pub use disconnect::*;
 pub use list_sessions::*;
 pub use load_session::*;
+pub use models::*;
 pub use modes::*;
 use nvim_oxi::{
     Dictionary, Function, Object,
@@ -135,6 +137,12 @@ impl Hermes {
         })
     }
 
+    fn models_method(&self) -> Object {
+        self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
+            api.try_borrow()?.models(session_id).await
+        })
+    }
+
     fn set_mode_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, args: SetModeArgs| async move {
             api.try_borrow()?.set_mode(args).await
@@ -170,6 +178,7 @@ impl From<Hermes> for Dictionary {
             ("list_sessions", hermes.list_sessions_method()),
             ("load_session", hermes.load_session_method()),
             ("modes", hermes.modes_method()),
+            ("models", hermes.models_method()),
             ("authenticate", hermes.authenticate_method()),
             ("set_mode", hermes.set_mode_method()),
             ("setup", hermes.setup_method()),

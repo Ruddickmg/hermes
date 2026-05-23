@@ -66,7 +66,7 @@ fn set_mode_returns_unsupported_when_session_has_no_mode_info() -> nvim_oxi::Res
     {
         let mut state = block_on(plugin_state.lock());
         let session = agent_client_protocol::schema::NewSessionResponse::new("test-session");
-        state.set_session_info(session);
+        state.set_session_info(&session);
     }
 
     let result = block_on(api.set_mode(SetModeArgs::from((

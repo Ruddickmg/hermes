@@ -44,6 +44,18 @@ impl SessionDetails {
         self.modes.as_ref().map(|mode| mode.current.as_str())
     }
 
+    pub fn model_is_legacy(&self) -> Option<bool> {
+        self.models.as_ref().map(|model| model.legacy)
+    }
+
+    pub fn model_options(&self) -> Option<&Vec<HermesOption>> {
+        self.models.as_ref().map(|model| &model.options)
+    }
+
+    pub fn model_current(&self) -> Option<&str> {
+        self.models.as_ref().map(|model| model.current.as_str())
+    }
+
     fn parse_options(
         session: &NewSessionResponse,
         category: SessionConfigOptionCategory,
@@ -150,8 +162,9 @@ impl SessionDetails {
 mod tests {
     use super::*;
     use agent_client_protocol::schema::{
-        NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
+        ModelInfo, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
         SessionConfigSelectGroup, SessionConfigSelectOption, SessionMode, SessionModeState,
+        SessionModelState,
     };
     use pretty_assertions::assert_eq;
 
@@ -426,5 +439,39 @@ mod tests {
         let details = SessionDetails::new(&session);
         let options = details.mode_options().unwrap();
         assert_eq!(options[0].description, Some("Chat mode".to_string()));
+    }
+
+    #[test]
+    fn parse_models_new_config_path_returns_non_legacy() {
+        let option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+
+        let details = SessionDetails::new(&session);
+        assert_eq!(details.model_is_legacy(), Some(false));
+    }
+
+    #[test]
+    fn parse_models_legacy_fallback_returns_legacy() {
+        let model = ModelInfo::new("gpt4", "GPT-4");
+        let models = SessionModelState::new("gpt4", vec![model]);
+
+        let session = NewSessionResponse::new("test-session").models(models);
+
+        let details = SessionDetails::new(&session);
+        assert_eq!(details.model_is_legacy(), Some(true));
+    }
+
+    #[test]
+    fn parse_models_neither_present_returns_none() {
+        let session = NewSessionResponse::new("test-session");
+        let details = SessionDetails::new(&session);
+        assert_eq!(details.model_is_legacy(), None);
     }
 }
