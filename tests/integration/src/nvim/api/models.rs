@@ -4,6 +4,7 @@ use hermes::{
     Handler, PluginState, api::Api, nvim::requests::Requests,
     utilities::detect_project_storage_path,
 };
+use nvim_oxi::{Array, Dictionary, Object};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -90,9 +91,12 @@ fn models_returns_legacy_models() -> nvim_oxi::Result<()> {
 
     let result = block_on(api.models("test-session".to_string()));
 
-    assert!(result.is_ok(), "models should succeed for legacy session");
-    let array = result.unwrap();
-    assert_eq!(array.len(), 1, "Should return one model");
+    let mut expected = Array::new();
+    let mut dict = Dictionary::new();
+    dict.insert("value", "gpt4");
+    dict.insert("name", "GPT-4");
+    expected.push(Object::from(dict));
+    assert_eq!(result.unwrap(), expected);
 
     Ok(())
 }
@@ -121,12 +125,12 @@ fn models_returns_config_options() -> nvim_oxi::Result<()> {
 
     let result = block_on(api.models("test-session".to_string()));
 
-    assert!(
-        result.is_ok(),
-        "models should succeed for config options session"
-    );
-    let array = result.unwrap();
-    assert_eq!(array.len(), 1, "Should return one model");
+    let mut expected = Array::new();
+    let mut dict = Dictionary::new();
+    dict.insert("value", "gpt4");
+    dict.insert("name", "GPT-4");
+    expected.push(Object::from(dict));
+    assert_eq!(result.unwrap(), expected);
 
     Ok(())
 }

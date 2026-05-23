@@ -12,7 +12,7 @@ use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},
 };
-use nvim_oxi::{Array, Dictionary, Function, conversion::FromObject};
+use nvim_oxi::{Array, Dictionary, Function, Object, conversion::FromObject};
 
 #[nvim_oxi::test]
 fn test_setup_returns_models_function() -> Result<(), nvim_oxi::Error> {
@@ -88,14 +88,12 @@ fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "models should succeed for legacy models session"
-    );
-    let maybe_array = result.unwrap();
-    assert!(maybe_array.is_some(), "models should return array, not nil");
-    let array = maybe_array.unwrap();
-    assert_eq!(array.len(), 1, "Should return one model");
+    let mut expected = Array::new();
+    let mut dict = Dictionary::new();
+    dict.insert("value", "gpt4");
+    dict.insert("name", "GPT-4");
+    expected.push(Object::from(dict));
+    assert_eq!(result.unwrap(), Some(expected));
 
     Ok(())
 }
@@ -151,14 +149,12 @@ fn test_models_returns_config_options() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "models should succeed for config options session"
-    );
-    let maybe_array = result.unwrap();
-    assert!(maybe_array.is_some(), "models should return array, not nil");
-    let array = maybe_array.unwrap();
-    assert_eq!(array.len(), 1, "Should return one model");
+    let mut expected = Array::new();
+    let mut dict = Dictionary::new();
+    dict.insert("value", "gpt4");
+    dict.insert("name", "GPT-4");
+    expected.push(Object::from(dict));
+    assert_eq!(result.unwrap(), Some(expected));
 
     Ok(())
 }
