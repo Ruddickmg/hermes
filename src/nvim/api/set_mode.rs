@@ -1,5 +1,5 @@
 use crate::{
-    acp::{Result, error::Error},
+    acp::{Result, error::Error, session_info::SessionDetails},
     api::Api,
 };
 
@@ -9,15 +9,46 @@ pub type SetModeArgs = (String, String);
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn set_mode(&self, (session_id, mode_id): SetModeArgs) -> Result<()> {
-        let request =
-            agent_client_protocol::schema::SetSessionModeRequest::new(session_id, mode_id);
+        let state = self.state.lock().await;
+        let legacy = state
+            .session_info
+            .get(&session_id)
+            .map(|info: &SessionDetails| info.mode_is_legacy());
+        drop(state);
 
-        let connection = self
-            .connection
-            .get_current_connection()
-            .await
-            .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
+        if legacy.is_none() {
+            return Err(Error::SessionNotFound(session_id));
+        }
 
-        connection.set_mode(request).await
+        let config_type = "mode".to_string();
+
+        if let Some(is_legacy) = legacy.unwrap_or_default() {
+            let connection = self
+                .connection
+                .get_current_connection()
+                .await
+                .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
+
+            if is_legacy {
+                connection
+                    .set_mode(agent_client_protocol::schema::SetSessionModeRequest::new(
+                        session_id, mode_id,
+                    ))
+                    .await?;
+            } else {
+                connection
+                    .set_config_option(
+                        agent_client_protocol::schema::SetSessionConfigOptionRequest::new(
+                            session_id,
+                            config_type.clone(),
+                            mode_id,
+                        ),
+                    )
+                    .await?;
+            }
+            Ok(())
+        } else {
+            Err(Error::Unsupported(config_type))
+        }
     }
 }
