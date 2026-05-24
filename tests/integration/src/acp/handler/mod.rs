@@ -3,7 +3,7 @@ use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
     Error,
     schema::{
-        ContentBlock, ContentChunk, LoadSessionResponse, SessionConfigOption,
+        ContentBlock, ContentChunk, LoadSessionResponse, NewSessionResponse, SessionConfigOption,
         SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
         SessionNotification, SessionUpdate, SetSessionConfigOptionResponse, TextContent,
         UsageUpdate,
@@ -655,6 +655,19 @@ fn config_option_set_with_mode_category_succeeds() -> nvim_oxi::Result<()> {
     )
     .expect("Handler creation should succeed");
 
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "mode",
+            "Mode",
+            "chat",
+            vec![SessionConfigSelectOption::new("chat", "Chat")],
+        )
+        .category(SessionConfigOptionCategory::Mode),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
     let option = SessionConfigOption::select(
         "mode",
         "Mode",
@@ -664,7 +677,7 @@ fn config_option_set_with_mode_category_succeeds() -> nvim_oxi::Result<()> {
     .category(SessionConfigOptionCategory::Mode);
     let response = SetSessionConfigOptionResponse::new(vec![option]);
 
-    let result = smol::block_on(handler.config_option_set(response));
+    let result = smol::block_on(handler.config_option_set("test-session", "chat", response));
 
     assert!(
         result.is_ok(),
@@ -684,6 +697,19 @@ fn config_option_set_with_model_category_succeeds() -> nvim_oxi::Result<()> {
     )
     .expect("Handler creation should succeed");
 
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
     let option = SessionConfigOption::select(
         "model",
         "Model",
@@ -693,7 +719,7 @@ fn config_option_set_with_model_category_succeeds() -> nvim_oxi::Result<()> {
     .category(SessionConfigOptionCategory::Model);
     let response = SetSessionConfigOptionResponse::new(vec![option]);
 
-    let result = smol::block_on(handler.config_option_set(response));
+    let result = smol::block_on(handler.config_option_set("test-session", "gpt4", response));
 
     assert!(
         result.is_ok(),
@@ -715,7 +741,7 @@ fn config_option_set_empty_options_succeeds() -> nvim_oxi::Result<()> {
 
     let response = SetSessionConfigOptionResponse::new(vec![]);
 
-    let result = smol::block_on(handler.config_option_set(response));
+    let result = smol::block_on(handler.config_option_set("test-session", "", response));
 
     assert!(
         result.is_ok(),

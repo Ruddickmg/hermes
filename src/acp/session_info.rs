@@ -25,13 +25,6 @@ pub struct SessionDetails {
     thought_levels: Option<Selection>,
 }
 
-#[derive(Serialize, Debug, Clone)]
-pub struct UpdatedOption {
-    pub current: HermesOption,
-    pub previous: Option<HermesOption>,
-    pub updated_at: String,
-}
-
 impl SessionDetails {
     pub fn new(session: &NewSessionResponse) -> Self {
         Self {
@@ -75,6 +68,30 @@ impl SessionDetails {
 
     pub fn current_model(&self) -> Option<&HermesOption> {
         self.models.as_ref().map(|model| &model.current)
+    }
+
+    pub fn set_current_model(&mut self, new_current: HermesOption) {
+        if let Some(models) = &mut self.models {
+            models.current = new_current;
+        }
+    }
+
+    pub fn get_model(&self, value: &str) -> Option<&HermesOption> {
+        self.models
+            .as_ref()
+            .and_then(|model| model.options.iter().find(|option| option.value == value))
+    }
+
+    pub fn set_current_thought_level(&mut self, new_current: HermesOption) {
+        if let Some(thought_levels) = &mut self.thought_levels {
+            thought_levels.current = new_current;
+        }
+    }
+
+    pub fn get_thought_level(&self, value: &str) -> Option<&HermesOption> {
+        self.thought_levels
+            .as_ref()
+            .and_then(|tl| tl.options.iter().find(|option| option.value == value))
     }
 
     pub fn thought_level_options(&self) -> Option<&Vec<HermesOption>> {
@@ -286,7 +303,10 @@ mod tests {
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
         let details = SessionDetails::new(&session);
-        assert_eq!(details.current_mode(), Some("chat"));
+        assert_eq!(
+            details.current_mode().map(|m| m.value.as_str()),
+            Some("chat")
+        );
     }
 
     #[test]
@@ -445,7 +465,10 @@ mod tests {
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
         let details = SessionDetails::new(&session);
-        assert_eq!(details.current_mode(), Some("code"));
+        assert_eq!(
+            details.current_mode().map(|m| m.value.as_str()),
+            Some("code")
+        );
         assert_eq!(details.mode_is_legacy(), Some(false));
     }
 

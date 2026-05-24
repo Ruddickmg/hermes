@@ -78,8 +78,12 @@ async fn dispatch(
             client.session_resumed(response).await?;
         }
         UserRequest::SetSessionModel(request) => {
+            let session_id = request.session_id.to_string();
+            let model = request.model_id.to_string();
             let response = cx.send_request(request).block_task().await?;
-            client.session_model_set(response).await?;
+            client
+                .session_model_set(&session_id, &model, response)
+                .await?;
         }
         UserRequest::Close => return Err(Error::InvalidInput(format!("{:?}", msg))),
     }

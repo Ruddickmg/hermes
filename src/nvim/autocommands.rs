@@ -33,6 +33,7 @@ pub enum Commands {
     SessionForked,
     SessionResumed,
     SessionModelUpdated,
+    ThoughtLevelUpdated,
     UsageUpdate,
 
     // User message commands (format: User{ContentType}Message)
@@ -88,6 +89,7 @@ impl TryFrom<&str> for Commands {
             "SessionForked" => Ok(Commands::SessionForked),
             "SessionResumed" => Ok(Commands::SessionResumed),
             "SessionModelUpdated" => Ok(Commands::SessionModelUpdated),
+            "ThoughtLevelUpdated" => Ok(Commands::ThoughtLevelUpdated),
             "UsageUpdate" => Ok(Commands::UsageUpdate),
 
             // User message commands
@@ -371,6 +373,14 @@ mod tests {
     }
 
     #[test]
+    fn test_commands_thought_level_updated() {
+        assert_eq!(
+            Commands::try_from("ThoughtLevelUpdated").unwrap(),
+            Commands::ThoughtLevelUpdated
+        );
+    }
+
+    #[test]
     fn test_commands_usage_update() {
         assert_eq!(
             Commands::try_from("UsageUpdate").unwrap(),
@@ -489,6 +499,10 @@ mod tests {
         assert_eq!(
             format!("{}", Commands::AgentTextThought),
             "AgentTextThought"
+        );
+        assert_eq!(
+            format!("{}", Commands::ThoughtLevelUpdated),
+            "ThoughtLevelUpdated"
         );
     }
 }
