@@ -221,6 +221,14 @@ describe("hermes.init (main API)", function()
 		it("exports models from Rust", function()
 			assert.is_function(native.models)
 		end)
+
+		it("exports thought_levels from Rust", function()
+			assert.is_function(native.thought_levels)
+		end)
+
+		it("exports set_thought_level from Rust", function()
+			assert.is_function(native.set_thought_level)
+		end)
 	end)
 
 	describe("API function signatures", function()
@@ -260,6 +268,16 @@ describe("hermes.init (main API)", function()
 
 		it("models returns nil when session does not exist", function()
 			assert.is_nil(hermes.models("nonexistent-session"))
+		end)
+
+		it("thought_levels returns nil when session does not exist", function()
+			assert.is_nil(hermes.thought_levels("nonexistent-session"))
+		end)
+
+		it("set_thought_level accepts session_id and level as arguments", function()
+			assert.has_no.errors(function()
+				hermes.set_thought_level("test-session-id", "low")
+			end)
 		end)
 	end)
 

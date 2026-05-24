@@ -20,8 +20,8 @@ pub struct Selection {
 #[derive(Debug, Default, Clone)]
 pub struct SessionDetails {
     modes: Option<Selection>,
-    #[allow(dead_code)]
     models: Option<Selection>,
+    thought_levels: Option<Selection>,
 }
 
 impl SessionDetails {
@@ -29,6 +29,7 @@ impl SessionDetails {
         Self {
             modes: Self::parse_modes(session),
             models: Self::parse_models(session),
+            thought_levels: Self::parse_thought_levels(session),
         }
     }
 
@@ -40,7 +41,7 @@ impl SessionDetails {
         self.modes.as_ref().map(|mode| &mode.options)
     }
 
-    pub fn mode_current(&self) -> Option<&str> {
+    pub fn current_mode(&self) -> Option<&str> {
         self.modes.as_ref().map(|mode| mode.current.as_str())
     }
 
@@ -52,8 +53,16 @@ impl SessionDetails {
         self.models.as_ref().map(|model| &model.options)
     }
 
-    pub fn model_current(&self) -> Option<&str> {
+    pub fn current_model(&self) -> Option<&str> {
         self.models.as_ref().map(|model| model.current.as_str())
+    }
+
+    pub fn thought_level_options(&self) -> Option<&Vec<HermesOption>> {
+        self.thought_levels.as_ref().map(|model| &model.options)
+    }
+
+    pub fn current_thought_level(&self) -> Option<&str> {
+        self.thought_levels.as_ref().map(|model| model.current.as_str())
     }
 
     fn parse_options(
@@ -117,6 +126,10 @@ impl SessionDetails {
         } else {
             None
         }
+    }
+
+    fn parse_thought_levels(session: &NewSessionResponse) -> Option<Selection> {
+        Self::parse_options(session, SessionConfigOptionCategory::ThoughtLevel)
     }
 
     fn parse_models(session: &NewSessionResponse) -> Option<Selection> {
@@ -226,7 +239,7 @@ mod tests {
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
         let details = SessionDetails::new(&session);
-        assert_eq!(details.mode_current(), Some("chat"));
+        assert_eq!(details.current_mode(), Some("chat"));
     }
 
     #[test]
@@ -261,7 +274,7 @@ mod tests {
         let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), None);
         assert_eq!(details.mode_options(), None);
-        assert_eq!(details.mode_current(), None);
+        assert_eq!(details.current_mode(), None);
     }
 
     #[test]
@@ -385,7 +398,7 @@ mod tests {
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
         let details = SessionDetails::new(&session);
-        assert_eq!(details.mode_current(), Some("code"));
+        assert_eq!(details.current_mode(), Some("code"));
         assert_eq!(details.mode_is_legacy(), Some(false));
     }
 

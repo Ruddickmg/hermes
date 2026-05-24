@@ -9,6 +9,8 @@ pub mod mode;
 pub mod model;
 pub mod models;
 pub mod modes;
+pub mod thought_level;
+pub mod thought_levels;
 pub mod opencode;
 pub mod prompt;
 pub mod response;

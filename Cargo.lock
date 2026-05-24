@@ -9,7 +9,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af62fb84df2af0f933d8f5fd78b843fa5eb0ec5a48fa1b528c41951d0bbe36c"
 dependencies = [
  "agent-client-protocol-derive",
- "agent-client-protocol-schema",
+ "agent-client-protocol-schema 0.12.0",
  "anyhow",
  "futures",
  "futures-concurrency",
@@ -27,12 +27,36 @@ dependencies = [
 ]
 
 [[package]]
-name = "agent-client-protocol-derive"
-version = "0.11.0"
+name = "agent-client-protocol"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce42c2d3c048c12897eef2e577dfff1e3355c632c9f1625cc953b9df48b44631"
+checksum = "4361ba6627e51de955b10f3c77fb9eb959c85191a236c1c2c84e32f4ff240faf"
 dependencies = [
- "proc-macro2",
+ "agent-client-protocol-derive",
+ "agent-client-protocol-schema 0.13.2",
+ "async-process",
+ "blocking",
+ "futures",
+ "futures-concurrency",
+ "jsonrpcmsg",
+ "rmcp",
+ "rustc-hash",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "shell-words",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "agent-client-protocol-derive"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cabdc9d845d08ec7ed2d0c9de1ae4a1b198301407d55855261572761be90ec9f"
+dependencies = [
  "quote",
  "syn",
 ]
@@ -42,6 +66,22 @@ name = "agent-client-protocol-schema"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49bae57dad1c28a362fbdcf7bab0583316a02b45a70792109fced55780a3b63c"
+dependencies = [
+ "anyhow",
+ "derive_more",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "strum",
+ "tracing",
+]
+
+[[package]]
+name = "agent-client-protocol-schema"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b957d8391ac3933e2a940446171c508d2b8ffc386d8fa7d0b9c936a2575b463e"
 dependencies = [
  "anyhow",
  "derive_more",
@@ -997,7 +1037,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 name = "hermes"
 version = "0.0.0-development"
 dependencies = [
- "agent-client-protocol",
+ "agent-client-protocol 0.12.1",
  "async-channel",
  "async-io",
  "async-lock",
@@ -1031,7 +1071,7 @@ dependencies = [
 name = "hermes-e2e"
 version = "0.1.0"
 dependencies = [
- "agent-client-protocol",
+ "agent-client-protocol 0.11.1",
  "async-channel",
  "async-io",
  "async-net",
@@ -1053,7 +1093,7 @@ dependencies = [
 name = "hermes-integration"
 version = "0.1.0"
 dependencies = [
- "agent-client-protocol",
+ "agent-client-protocol 0.11.1",
  "assert_fs",
  "async-channel",
  "async-io",
@@ -2090,6 +2130,12 @@ checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
 ]
+
+[[package]]
+name = "shell-words"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
 name = "shlex"
