@@ -8,10 +8,7 @@ pub type SetThoughtLevelArgs = (String, String);
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn set_thought_level(
-        &self,
-        (session_id, level): SetThoughtLevelArgs,
-    ) -> Result<()> {
+    pub async fn set_thought_level(&self, (session_id, level): SetThoughtLevelArgs) -> Result<()> {
         let state = self.state.lock().await;
         let has_thought_levels = state
             .session_info

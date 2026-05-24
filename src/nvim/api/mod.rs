@@ -168,9 +168,11 @@ impl Hermes {
     }
 
     fn set_thought_level_method(&self) -> Object {
-        self.api_method(|api: Rc<RefCell<Api>>, args: SetThoughtLevelArgs| async move {
-            api.try_borrow()?.set_thought_level(args).await
-        })
+        self.api_method(
+            |api: Rc<RefCell<Api>>, args: SetThoughtLevelArgs| async move {
+                api.try_borrow()?.set_thought_level(args).await
+            },
+        )
     }
 
     fn setup_method(&self) -> Object {

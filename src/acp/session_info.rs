@@ -62,7 +62,9 @@ impl SessionDetails {
     }
 
     pub fn current_thought_level(&self) -> Option<&str> {
-        self.thought_levels.as_ref().map(|model| model.current.as_str())
+        self.thought_levels
+            .as_ref()
+            .map(|model| model.current.as_str())
     }
 
     fn parse_options(

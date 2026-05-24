@@ -52,8 +52,8 @@ fn thought_levels_returns_session_not_found_when_no_session_info() -> nvim_oxi::
 }
 
 #[nvim_oxi::test]
-fn thought_levels_returns_unsupported_when_session_has_no_thought_level_info(
-) -> nvim_oxi::Result<()> {
+fn thought_levels_returns_unsupported_when_session_has_no_thought_level_info()
+-> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
@@ -91,19 +91,11 @@ fn thought_levels_returns_config_options() -> nvim_oxi::Result<()> {
             "Thought Level",
             "low",
             vec![
-                agent_client_protocol::schema::SessionConfigSelectOption::new(
-                    "low",
-                    "Low",
-                ),
-                agent_client_protocol::schema::SessionConfigSelectOption::new(
-                    "medium",
-                    "Medium",
-                ),
+                agent_client_protocol::schema::SessionConfigSelectOption::new("low", "Low"),
+                agent_client_protocol::schema::SessionConfigSelectOption::new("medium", "Medium"),
             ],
         )
-        .category(
-            agent_client_protocol::schema::SessionConfigOptionCategory::ThoughtLevel,
-        );
+        .category(agent_client_protocol::schema::SessionConfigOptionCategory::ThoughtLevel);
         let session = agent_client_protocol::schema::NewSessionResponse::new("test-session")
             .config_options(vec![option]);
         state.set_session_info(&session);
@@ -147,8 +139,8 @@ fn set_thought_level_returns_session_not_found_when_no_session_info() -> nvim_ox
 }
 
 #[nvim_oxi::test]
-fn set_thought_level_returns_unsupported_when_session_has_no_thought_level_info(
-) -> nvim_oxi::Result<()> {
+fn set_thought_level_returns_unsupported_when_session_has_no_thought_level_info()
+-> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
