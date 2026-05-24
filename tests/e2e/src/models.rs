@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use crate::{
     TIMEOUT_IN_SECONDS,
@@ -44,6 +44,32 @@ fn test_models_returns_nil_when_no_session() -> Result<(), nvim_oxi::Error> {
     Ok(())
 }
 
+fn dict_to_hashmap(dict: Dictionary) -> HashMap<String, String> {
+    dict.into_iter().fold(HashMap::new(), |mut acc, (k, v)| {
+        let s: nvim_oxi::String = v.try_into().unwrap();
+        acc.insert(k.to_string(), s.to_string());
+        acc
+    })
+}
+
+fn hashmap_model(value: &str, name: &str) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    map.insert("value".to_string(), value.to_string());
+    map.insert("name".to_string(), name.to_string());
+    map
+}
+
+fn collect_models(result: Option<Array>) -> Vec<HashMap<String, String>> {
+    result
+        .unwrap()
+        .into_iter()
+        .map(|obj| {
+            let dict: Dictionary = obj.try_into().expect("Object should be a dictionary");
+            dict_to_hashmap(dict)
+        })
+        .collect()
+}
+
 #[nvim_oxi::test]
 fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
@@ -84,17 +110,12 @@ fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = models.call(session_id);
+    let result = models.call(session_id)?;
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    let mut expected = Array::new();
-    let mut dict = Dictionary::new();
-    dict.insert("value", "gpt4");
-    dict.insert("name", "GPT-4");
-    expected.push(Object::from(dict));
-    assert_eq!(result.unwrap(), Some(expected));
+    assert_eq!(collect_models(result), vec![hashmap_model("gpt4", "GPT-4")]);
 
     Ok(())
 }
@@ -145,17 +166,12 @@ fn test_models_returns_config_options() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = models.call(session_id);
+    let result = models.call(session_id)?;
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    let mut expected = Array::new();
-    let mut dict = Dictionary::new();
-    dict.insert("value", "gpt4");
-    dict.insert("name", "GPT-4");
-    expected.push(Object::from(dict));
-    assert_eq!(result.unwrap(), Some(expected));
+    assert_eq!(collect_models(result), vec![hashmap_model("gpt4", "GPT-4")]);
 
     Ok(())
 }
