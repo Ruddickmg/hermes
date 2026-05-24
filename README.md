@@ -1703,7 +1703,7 @@ Available formats:
 -- functionality
 - [ ] [Configure session: set mode (fallback to SetSessionModeRequest), model (fallback to SetSessionModelRequest), etc](https://agentclientprotocol.com/protocol/session-config-options)
     - [x] Modes
-    - [ ] Models
+    - [x] Models
     - [ ] Thought level
 - [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
 - [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)

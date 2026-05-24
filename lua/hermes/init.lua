@@ -134,6 +134,18 @@
 ---@field mimeType string MIME type (e.g., "audio/wav", "audio/mpeg")
 
 ---@alias PromptContent TextContent|LinkContent|EmbeddedContent|ImageContent|AudioContent|table
+
+---@class ModeOption
+---@field value string Option ID
+---@field name string Human-readable name
+---@field description? string Optional description
+---@field group? string Optional group name
+
+---@class ModelOption
+---@field value string Option ID
+---@field name string Human-readable name
+---@field description? string Optional description
+---@field group? string Optional group name
 -- luacov: enable
 
 local M = {}
@@ -220,8 +232,7 @@ end
 
 -- Handle READY state: execute function immediately
 local function handle_ready_state(fn)
-	fn()
-	return true
+	return fn()
 end
 
 -- Handle loading states: queue the request and return
@@ -233,7 +244,6 @@ local function handle_loading_state(fn)
 	else
 		logging.notify("Invalid function provided to execute_async", vim.log.levels.WARN)
 	end
-	return false
 end
 
 -- Handle FAILED state: show error, clear queue, and return
@@ -246,7 +256,6 @@ local function handle_failed_state()
 	end
 
 	logging.notify("Failed to load. Run :Hermes status for details or :Hermes log for errors.", vim.log.levels.ERROR)
-	return false
 end
 
 -- Handle successful load completion (sync state update)
@@ -591,10 +600,37 @@ end
 
 ---Set session mode
 ---@param session_id string Session ID
----@param mode_id string Mode ID
-function M.set_mode(session_id, mode_id)
+---@param mode string Mode ID/Name
+function M.set_mode(session_id, mode)
 	execute_async(function()
-		M._load_native_sync().set_mode(session_id, mode_id)
+		M._load_native_sync().set_mode(session_id, mode)
+	end)
+end
+
+---Set session model
+---@param session_id string Session ID
+---@param model string Model ID/Name
+function M.set_model(session_id, model)
+	execute_async(function()
+		M._load_native_sync().set_model(session_id, model)
+	end)
+end
+
+---Get available modes for a session
+---@param session_id string Session ID
+---@return ModeOption[]|nil Array of mode options, or nil if session has no mode support
+function M.modes(session_id)
+	return execute_async(function()
+		return M._load_native_sync().modes(session_id)
+	end)
+end
+
+---Get available models for a session
+---@param session_id string Session ID
+---@return ModelOption[]|nil Array of model options, or nil if session has no model support
+function M.models(session_id)
+	return execute_async(function()
+		return M._load_native_sync().models(session_id)
 	end)
 end
 

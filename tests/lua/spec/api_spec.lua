@@ -480,6 +480,55 @@ describe("Hermes API Endpoints (E2E)", function()
 			-- Single assertion at the end
 			assert.is_true(ok, "set_mode() should not crash: " .. tostring(err))
 		end)
+
+		it("set_model endpoint callable with opencode", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			-- First connect
+			local ok, err = pcall(function()
+				hermes.connect("opencode")
+			end)
+			if not ok then
+				error("connect() should not crash: " .. tostring(err))
+			end
+
+			vim.wait(500)
+
+			-- Call set_model
+			ok, err = pcall(function()
+				hermes.set_model("test-session-id", "gpt4")
+			end)
+
+			-- Single assertion at the end
+			assert.is_true(ok, "set_model() should not crash: " .. tostring(err))
+		end)
+
+		it("modes endpoint callable with opencode", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			assert.is_nil(hermes.modes("test-session-id"))
+		end)
+
+		it("models endpoint callable with opencode", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			assert.is_nil(hermes.models("test-session-id"))
+		end)
 	end)
 
 	describe("with copilot agent (for permission requests)", function()

@@ -209,6 +209,18 @@ describe("hermes.init (main API)", function()
 		it("exports respond from Rust", function()
 			assert.is_function(native.respond)
 		end)
+
+		it("exports set_model from Rust", function()
+			assert.is_function(native.set_model)
+		end)
+
+		it("exports modes from Rust", function()
+			assert.is_function(native.modes)
+		end)
+
+		it("exports models from Rust", function()
+			assert.is_function(native.models)
+		end)
 	end)
 
 	describe("API function signatures", function()
@@ -235,6 +247,20 @@ describe("hermes.init (main API)", function()
 		-- connection. This is related to FFI boundary issues when thread handles are dropped.
 		-- The tests above are sufficient to verify the basic API structure and that the
 		-- binary can be loaded and basic operations work.
+
+		it("set_model accepts session_id and model name as arguments", function()
+			assert.has_no.errors(function()
+				hermes.set_model("test-session-id", "gpt4")
+			end)
+		end)
+
+		it("modes returns nil when session does not exist", function()
+			assert.is_nil(hermes.modes("nonexistent-session"))
+		end)
+
+		it("models returns nil when session does not exist", function()
+			assert.is_nil(hermes.models("nonexistent-session"))
+		end)
 	end)
 
 	describe("state getters", function()
@@ -394,12 +420,12 @@ describe("hermes.init (main API)", function()
 			hermes._set_loading_error(nil)
 		end)
 
-		it("_handle_ready_state returns true", function()
+		it("_handle_ready_state returns nil", function()
 			local test_fn = function() end
 			
 			local result = hermes._handle_ready_state(test_fn)
 			
-			assert.is_true(result)
+			assert.is_nil(result)
 		end)
 
 		it("_handle_ready_state executes function immediately", function()
@@ -413,10 +439,10 @@ describe("hermes.init (main API)", function()
 			assert.is_true(executed)
 		end)
 
-		it("_handle_loading_state returns false", function()
+		it("_handle_loading_state returns nil", function()
 			local result = hermes._handle_loading_state()
 			
-			assert.is_false(result)
+			assert.is_nil(result)
 		end)
 
 		it("_handle_loading_state warns when argument is not a function", function()
@@ -434,7 +460,7 @@ describe("hermes.init (main API)", function()
 
 			vim.notify = original_notify
 
-			assert.is_false(result)
+			assert.is_nil(result)
 			assert.is_not_nil(notify_calls[1].msg:find("Invalid function"), "Should warn about invalid function")
 		end)
 
@@ -456,10 +482,10 @@ describe("hermes.init (main API)", function()
 			assert.is_not_nil(notify_calls[1].msg:find("queued"), "Should show queue notification")
 		end)
 
-		it("_handle_failed_state returns false", function()
+		it("_handle_failed_state returns nil", function()
 			local result = hermes._handle_failed_state()
 			
-			assert.is_false(result)
+			assert.is_nil(result)
 		end)
 
 		it("_handle_failed_state shows error message", function()

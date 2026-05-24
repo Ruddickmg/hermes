@@ -5,8 +5,10 @@
 //!
 //! See request/handler.rs for examples of actual integration tests.
 
+pub mod models;
 pub mod modes;
 pub mod set_mode;
+pub mod set_model;
 
 use async_lock::Mutex;
 use std::rc::Rc;

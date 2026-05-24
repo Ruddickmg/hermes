@@ -61,7 +61,7 @@ fn modes_returns_unsupported_when_session_has_no_mode_info() -> nvim_oxi::Result
     {
         let mut state = block_on(plugin_state.lock());
         let session = agent_client_protocol::schema::NewSessionResponse::new("test-session");
-        state.set_session_info(session);
+        state.set_session_info(&session);
     }
 
     let result = block_on(api.modes("test-session".to_string()));
@@ -88,7 +88,7 @@ fn modes_returns_legacy_modes() -> nvim_oxi::Result<()> {
         let modes = agent_client_protocol::schema::SessionModeState::new("chat", vec![mode]);
         let session =
             agent_client_protocol::schema::NewSessionResponse::new("test-session").modes(modes);
-        state.set_session_info(session);
+        state.set_session_info(&session);
     }
 
     let result = block_on(api.modes("test-session".to_string()));
@@ -119,7 +119,7 @@ fn modes_returns_config_options() -> nvim_oxi::Result<()> {
         .category(agent_client_protocol::schema::SessionConfigOptionCategory::Mode);
         let session = agent_client_protocol::schema::NewSessionResponse::new("test-session")
             .config_options(vec![option]);
-        state.set_session_info(session);
+        state.set_session_info(&session);
     }
 
     let result = block_on(api.modes("test-session".to_string()));
@@ -159,7 +159,7 @@ fn modes_returns_grouped_options_with_group() -> nvim_oxi::Result<()> {
         .category(agent_client_protocol::schema::SessionConfigOptionCategory::Mode);
         let session = agent_client_protocol::schema::NewSessionResponse::new("test-session")
             .config_options(vec![option]);
-        state.set_session_info(session);
+        state.set_session_info(&session);
     }
 
     let result = block_on(api.modes("test-session".to_string()));

@@ -20,8 +20,9 @@ use agent_client_protocol::{
         RequestPermissionOutcome, RequestPermissionRequest, SessionCapabilities,
         SessionForkCapabilities, SessionListCapabilities, SessionNotification,
         SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
-        SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse, StopReason,
-        TerminalOutputRequest, TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
+        SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
+        SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
+        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
         WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
     },
 };
@@ -510,6 +511,33 @@ fn build_mock_agent_builder(
                         })
                         .await
                         .map_err(|_| internal_error("set_session_config_option timed out"))
+                        .and_then(|r| r);
+                        responder.respond_with_result(result)
+                    }
+                }
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let config = config.clone();
+                move |_req: SetSessionModelRequest,
+                      responder: Responder<SetSessionModelResponse>,
+                      _cx: ConnectionTo<acp::Client>| {
+                    let config = config.clone();
+                    async move {
+                        let dur = config.lock().unwrap().timeout;
+                        let result = timeout(dur, async {
+                            let config = config.lock().unwrap();
+                            Ok::<_, acp::Error>(
+                                config
+                                    .set_session_model_response
+                                    .clone()
+                                    .unwrap_or_else(SetSessionModelResponse::new),
+                            )
+                        })
+                        .await
+                        .map_err(|_| internal_error("set_session_model timed out"))
                         .and_then(|r| r);
                         responder.respond_with_result(result)
                     }
