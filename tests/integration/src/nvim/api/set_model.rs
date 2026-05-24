@@ -2,7 +2,7 @@ use crate::helpers::mock_runtime;
 use async_lock::Mutex;
 use hermes::{
     Handler, PluginState,
-    api::{Api, SetModeArgs},
+    api::{Api, SetModelArgs},
     nvim::requests::Requests,
     utilities::detect_project_storage_path,
 };
@@ -31,18 +31,18 @@ where
     futures::executor::block_on(fut)
 }
 
-/// Test: set_mode returns SessionNotFound when session_info has no entry for the session_id.
+/// Test: set_model returns SessionNotFound when session_info has no entry for the session_id.
 #[nvim_oxi::test]
-fn set_mode_returns_session_not_found_when_no_session_info() -> nvim_oxi::Result<()> {
+fn set_model_returns_session_not_found_when_no_session_info() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
             .unwrap();
     let api = create_test_api(plugin_state, logger);
 
-    let result = block_on(api.set_mode(SetModeArgs::from((
+    let result = block_on(api.set_model(SetModelArgs::from((
         "nonexistent-session".to_string(),
-        "chat".to_string(),
+        "gpt4".to_string(),
     ))));
 
     assert!(matches!(
@@ -53,25 +53,25 @@ fn set_mode_returns_session_not_found_when_no_session_info() -> nvim_oxi::Result
     Ok(())
 }
 
-/// Test: set_mode returns Unsupported when session exists but has no mode info.
+/// Test: set_model returns Unsupported when session exists but has no model info.
 #[nvim_oxi::test]
-fn set_mode_returns_unsupported_when_session_has_no_mode_info() -> nvim_oxi::Result<()> {
+fn set_model_returns_unsupported_when_session_has_no_model_info() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
             .unwrap();
     let api = create_test_api(plugin_state.clone(), logger);
 
-    // Populate session_info with a session that has no modes
+    // Populate session_info with a session that has no models
     {
         let mut state = block_on(plugin_state.lock());
         let session = agent_client_protocol::schema::NewSessionResponse::new("test-session");
         state.set_session_info(&session);
     }
 
-    let result = block_on(api.set_mode(SetModeArgs::from((
+    let result = block_on(api.set_model(SetModelArgs::from((
         "test-session".to_string(),
-        "chat".to_string(),
+        "gpt4".to_string(),
     ))));
 
     assert!(matches!(

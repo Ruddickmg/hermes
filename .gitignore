@@ -39,8 +39,8 @@ tests/lua/xdg/
 tests/lua/bin/xdg/
 
 # Lua test cache and logs
-*.luacov.report
-*.luacov.stats
+*.luacov.report*
+*.luacov.stats*
 tests/lua/**/*.log
 
 # Temporary test files

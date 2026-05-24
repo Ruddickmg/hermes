@@ -561,6 +561,7 @@ mod tests {
 - **Assertions:**
   - Use `assert_eq!` to verify exact values.
   - Avoid `assert!` with boolean checks (e.g., `is_some()`) when the value itself can be verified.
+  - **Exception:** For empty values (`Ok(())`, `None`, `vec![]`, empty strings), `is_ok()`, `is_none()`, and `is_empty()` are acceptable since the exact empty value adds no information.
 - **Scope:** Each test should verify a single behavior or unit. Use only **one assertion** per test unless absolutely necessary.
   - `.expect()` calls and setup code don't count as assertions
   - If a test needs multiple assertions, split it into multiple tests with descriptive names

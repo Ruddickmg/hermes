@@ -5,8 +5,9 @@ use agent_client_protocol::schema::{
     ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PermissionOption,
     PermissionOptionId, PermissionOptionKind, ProtocolVersion, ReadTextFileRequest,
     ReleaseTerminalRequest, RequestPermissionRequest, SessionId, SessionInfo,
-    SetSessionConfigOptionResponse, SetSessionModeResponse, TerminalOutputRequest, ToolCallId,
-    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
+    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
+    TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
+    WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,6 +29,8 @@ pub struct MockConfig {
     pub set_session_mode_response: Option<SetSessionModeResponse>,
     /// Optional override for set_session_config_option response
     pub set_session_config_option_response: Option<SetSessionConfigOptionResponse>,
+    /// Optional override for set_session_model response
+    pub set_session_model_response: Option<SetSessionModelResponse>,
     /// Optional override for ext_method response
     pub ext_response: Option<ExtResponse>,
     /// Session tracking (used for default behavior of load_session and list_sessions)
@@ -59,6 +62,7 @@ impl Default for MockConfig {
             list_sessions_response: None,
             set_session_mode_response: None,
             set_session_config_option_response: None,
+            set_session_model_response: None,
             ext_response: None,
             sessions: HashMap::new(),
             timeout: Duration::from_secs(30),
