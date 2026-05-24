@@ -31,6 +31,16 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
+    pub fn get_session_info(&self, session_id: &str) -> Option<&SessionDetails> {
+        self.session_info.get(session_id)
+    }
+
+    #[instrument(level = "trace")]
+    pub fn get_session_info_mut(&mut self, session_id: &str) -> Option<&mut SessionDetails> {
+        self.session_info.get_mut(session_id)
+    }
+
+    #[instrument(level = "trace")]
     pub fn with_config(config: ClientConfig) -> Self {
         Self {
             config,

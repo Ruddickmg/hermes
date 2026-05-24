@@ -9,6 +9,7 @@ use tracing::instrument;
 use crate::Handler;
 use crate::acp::connection::Assistant;
 use crate::acp::error::Error;
+use crate::acp::session_info::UpdatedOption;
 use crate::nvim::autocommands::Commands;
 
 impl Handler {
@@ -77,6 +78,8 @@ impl Handler {
     #[instrument(level = "trace", skip(self))]
     pub async fn config_option_set(
         &self,
+        session_id: &str,
+        updated: &str,
         response: SetSessionConfigOptionResponse,
     ) -> Result<(), Error> {
         let futures = response
@@ -85,13 +88,14 @@ impl Handler {
             .filter_map(|c| c.category.clone())
             .map(async move |category| match category {
                 SessionConfigOptionCategory::Mode => {
-                    self.session_mode_set(SetSessionModeResponse::default())
+                    self.session_mode_set(session_id, updated, SetSessionModeResponse::default())
                         .await
                 }
                 SessionConfigOptionCategory::Model => {
                     self.session_model_set(SetSessionModelResponse::default())
                         .await
                 }
+                SessionConfigOptionCategory::ThoughtLevel => Ok(()),
                 _ => Ok(()),
             })
             .collect::<Vec<_>>();
@@ -102,10 +106,36 @@ impl Handler {
             .await
     }
 
-    #[instrument(level = "trace", skip(self))]
-    pub async fn session_mode_set(&self, response: SetSessionModeResponse) -> Result<(), Error> {
-        self.execute_autocommand(Commands::ModeUpdated, response)
-            .await
+    pub async fn session_mode_set(
+        &self,
+        session_id: &str,
+        updated_to: &str,
+        _response: SetSessionModeResponse,
+    ) -> Result<(), Error> {
+        let mut state = self.state.lock().await;
+        let session_info = state.get_session_info_mut(session_id);
+        if let Some(session) = session_info {
+            let updated = session.get_mode(updated_to).cloned();
+
+            if let Some(current) = updated {
+                session.set_current_mode(current.clone());
+                drop(state);
+                self.execute_autocommand(
+                    Commands::ModeUpdated,
+                    current,
+                )
+                .await
+            } else {
+                drop(state);
+                Err(Error::Internal(format!(
+                    "Mode failed to update for session: {:?}",
+                    session_id
+                )))
+            }
+        } else {
+            drop(state);
+            Err(Error::SessionNotFound(session_id.to_string()))
+        }
     }
 
     #[instrument(level = "trace", skip(self))]

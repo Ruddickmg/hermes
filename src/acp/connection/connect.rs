@@ -39,12 +39,20 @@ async fn dispatch(
             client.authenticated(response).await?;
         }
         UserRequest::SetConfigOption(request) => {
+            let session_id = request.session_id.to_string();
+            let option = request.value.to_string();
             let response = cx.send_request(request).block_task().await?;
-            client.config_option_set(response).await?;
+            client
+                .config_option_set(&session_id, &option, response)
+                .await?;
         }
         UserRequest::SetMode(request) => {
+            let session_id = request.session_id.to_string();
+            let mode = request.mode_id.to_string();
             let response = cx.send_request(request).block_task().await?;
-            client.session_mode_set(response).await?;
+            client
+                .session_mode_set(&session_id, &mode, response)
+                .await?;
         }
         UserRequest::CreateSession(request) => {
             let response = cx.send_request(request).block_task().await?;
