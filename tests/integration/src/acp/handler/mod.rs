@@ -5,8 +5,8 @@ use agent_client_protocol::{
     schema::{
         ContentBlock, ContentChunk, LoadSessionResponse, NewSessionResponse, SessionConfigOption,
         SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
-        SessionNotification, SessionUpdate, SetSessionConfigOptionResponse, TextContent,
-        UsageUpdate,
+        SessionNotification, SessionUpdate, SetSessionConfigOptionResponse,
+        SetSessionModeResponse, SetSessionModelResponse, TextContent, UsageUpdate,
     },
 };
 use async_lock::Mutex;
@@ -746,6 +746,241 @@ fn config_option_set_empty_options_succeeds() -> nvim_oxi::Result<()> {
     assert!(
         result.is_ok(),
         "config_option_set with empty options should succeed"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn config_option_set_with_other_category_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "custom", "Custom", "val",
+        vec![SessionConfigSelectOption::new("val", "Value")],
+    )
+    .category(SessionConfigOptionCategory::Other("custom".into()));
+    let response = SetSessionConfigOptionResponse::new(vec![option]);
+
+    let result = smol::block_on(handler.config_option_set("test-session", "val", response));
+
+    assert!(
+        result.is_ok(),
+        "config_option_set with Other category should succeed via wildcard arm"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_mode_set_mode_not_found() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "mode", "Mode", "chat",
+            vec![SessionConfigSelectOption::new("chat", "Chat")],
+        )
+        .category(SessionConfigOptionCategory::Mode),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let result = smol::block_on(handler.session_mode_set(
+        "test-session",
+        "nonexistent",
+        SetSessionModeResponse::default(),
+    ));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Should return Internal error when mode not in selection"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_mode_set_session_not_found() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let result = smol::block_on(handler.session_mode_set(
+        "nonexistent-session",
+        "chat",
+        SetSessionModeResponse::default(),
+    ));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::SessionNotFound(_))),
+        "Should return SessionNotFound for nonexistent session"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_model_set_model_not_found() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "model", "Model", "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let result = smol::block_on(handler.session_model_set(
+        "test-session",
+        "nonexistent",
+        SetSessionModelResponse::default(),
+    ));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Should return Internal error when model not in selection"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_model_set_session_not_found() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let result = smol::block_on(handler.session_model_set(
+        "nonexistent-session",
+        "gpt4",
+        SetSessionModelResponse::default(),
+    ));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::SessionNotFound(_))),
+        "Should return SessionNotFound for nonexistent session"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_thought_level_set_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "thought_level", "Thought Level", "low",
+            vec![
+                SessionConfigSelectOption::new("low", "Low"),
+                SessionConfigSelectOption::new("high", "High"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ThoughtLevel),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let result = smol::block_on(handler.session_thought_level_set("test-session", "low"));
+
+    assert!(
+        result.is_ok(),
+        "session_thought_level_set should succeed when thought level exists"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_thought_level_set_not_found() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "thought_level", "Thought Level", "low",
+            vec![
+                SessionConfigSelectOption::new("low", "Low"),
+                SessionConfigSelectOption::new("high", "High"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ThoughtLevel),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let result = smol::block_on(handler.session_thought_level_set("test-session", "nonexistent"));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Should return Internal error when thought level not in selection"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_thought_level_set_session_not_found() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let result = smol::block_on(
+        handler.session_thought_level_set("nonexistent-session", "low"),
+    );
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::SessionNotFound(_))),
+        "Should return SessionNotFound for nonexistent session"
     );
 
     Ok(())
