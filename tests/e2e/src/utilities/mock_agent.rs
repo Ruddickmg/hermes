@@ -20,10 +20,10 @@ use agent_client_protocol::{
         ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
         RequestPermissionOutcome, RequestPermissionRequest, SessionCapabilities,
         SessionCloseCapabilities, SessionForkCapabilities, SessionListCapabilities,
-        SessionNotification, SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
-        SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
-        SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
-        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
+        SessionNotification, SessionResumeCapabilities, SessionUpdate,
+        SetSessionConfigOptionRequest, SetSessionConfigOptionResponse, SetSessionModeRequest,
+        SetSessionModeResponse, SetSessionModelRequest, SetSessionModelResponse, StopReason,
+        TerminalOutputRequest, TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
         WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
     },
 };
@@ -585,10 +585,7 @@ fn build_mock_agent_builder(
                         let result = timeout(dur, async {
                             let config = config.lock().unwrap();
                             Ok::<_, acp::Error>(
-                                config
-                                    .close_session_response
-                                    .clone()
-                                    .unwrap_or_default(),
+                                config.close_session_response.clone().unwrap_or_default(),
                             )
                         })
                         .await
