@@ -567,7 +567,7 @@ vim.api.nvim_create_autocmd("User", {
 })
 ```
 
-> **Triggers:** [SessionClosed]() autocommand upon completion
+> **Triggers:** [SessionClosed](#sessionclosed) autocommand upon completion
 
 ### Cancel (**Optional**)
 
@@ -1771,6 +1771,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
     "group": "string (optional)"
   }
 }</code></pre></td>
+    </tr>
+    <tr id="sessionclosed">
+      <td><code>SessionClosed</code></td>
+      <td>Active session closed</td>
+      <td>⚡ <a href="#close-session-optional">close_session()</a></td>
+      <td><pre><code class="language-json">{}</code></pre></td>
     </tr>
     <tr>
       <td><code>ToolCall</code></td>
