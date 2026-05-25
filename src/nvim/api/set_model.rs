@@ -1,5 +1,5 @@
 use crate::{
-    acp::{Result, error::Error, session_info::SessionDetails},
+    acp::{Result, error::Error},
     api::Api,
 };
 

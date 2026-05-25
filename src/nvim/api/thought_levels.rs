@@ -5,11 +5,11 @@ use crate::{
 };
 
 /// Single positional argument: session_id
-pub type ModesArgs = String;
+pub type ThoughtLevelsArgs = String;
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn modes(&self, session_id: String) -> Result<()> {
+    pub async fn thought_levels(&self, session_id: String) -> Result<()> {
         let state = self.state.lock().await;
         let details = state
             .session_info
@@ -18,12 +18,12 @@ impl Api {
             .clone();
         drop(state);
 
-        if let Some(mode_details) = details.modes {
+        if let Some(tl_details) = details.thought_levels {
             self.response_handler
-                .execute_autocommand(Commands::Modes, mode_details)
+                .execute_autocommand(Commands::ThoughtLevels, tl_details)
                 .await
         } else {
-            Err(Error::Unsupported("mode".to_string()))
+            Err(Error::Unsupported("thought_level".to_string()))
         }
     }
 }

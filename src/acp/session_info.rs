@@ -1,8 +1,9 @@
 use agent_client_protocol::schema::{
     NewSessionResponse, SessionConfigKind, SessionConfigOptionCategory, SessionConfigSelectOptions,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 pub struct HermesOption {
     pub value: String,
     pub name: String,
@@ -10,18 +11,19 @@ pub struct HermesOption {
     pub group: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Selection {
-    options: Vec<HermesOption>,
-    current: String,
+    pub options: Vec<HermesOption>,
+    pub current: HermesOption,
+    #[serde(skip)]
     legacy: bool,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct SessionDetails {
-    modes: Option<Selection>,
-    #[allow(dead_code)]
-    models: Option<Selection>,
+    pub modes: Option<Selection>,
+    pub models: Option<Selection>,
+    pub thought_levels: Option<Selection>,
 }
 
 impl SessionDetails {
@@ -29,6 +31,7 @@ impl SessionDetails {
         Self {
             modes: Self::parse_modes(session),
             models: Self::parse_models(session),
+            thought_levels: Self::parse_thought_levels(session),
         }
     }
 
@@ -40,8 +43,20 @@ impl SessionDetails {
         self.modes.as_ref().map(|mode| &mode.options)
     }
 
-    pub fn mode_current(&self) -> Option<&str> {
-        self.modes.as_ref().map(|mode| mode.current.as_str())
+    pub fn current_mode(&self) -> Option<&HermesOption> {
+        self.modes.as_ref().map(|mode| &mode.current)
+    }
+
+    pub fn set_current_mode(&mut self, new_current: HermesOption) {
+        if let Some(modes) = &mut self.modes {
+            modes.current = new_current;
+        }
+    }
+
+    pub fn get_mode(&self, value: &str) -> Option<&HermesOption> {
+        self.modes
+            .as_ref()
+            .and_then(|mode| mode.options.iter().find(|option| option.value == value))
     }
 
     pub fn model_is_legacy(&self) -> Option<bool> {
@@ -52,15 +67,47 @@ impl SessionDetails {
         self.models.as_ref().map(|model| &model.options)
     }
 
-    pub fn model_current(&self) -> Option<&str> {
-        self.models.as_ref().map(|model| model.current.as_str())
+    pub fn current_model(&self) -> Option<&HermesOption> {
+        self.models.as_ref().map(|model| &model.current)
+    }
+
+    pub fn set_current_model(&mut self, new_current: HermesOption) {
+        if let Some(models) = &mut self.models {
+            models.current = new_current;
+        }
+    }
+
+    pub fn get_model(&self, value: &str) -> Option<&HermesOption> {
+        self.models
+            .as_ref()
+            .and_then(|model| model.options.iter().find(|option| option.value == value))
+    }
+
+    pub fn set_current_thought_level(&mut self, new_current: HermesOption) {
+        if let Some(thought_levels) = &mut self.thought_levels {
+            thought_levels.current = new_current;
+        }
+    }
+
+    pub fn get_thought_level(&self, value: &str) -> Option<&HermesOption> {
+        self.thought_levels
+            .as_ref()
+            .and_then(|tl| tl.options.iter().find(|option| option.value == value))
+    }
+
+    pub fn thought_level_options(&self) -> Option<&Vec<HermesOption>> {
+        self.thought_levels.as_ref().map(|model| &model.options)
+    }
+
+    pub fn current_thought_level(&self) -> Option<&HermesOption> {
+        self.thought_levels.as_ref().map(|model| &model.current)
     }
 
     fn parse_options(
         session: &NewSessionResponse,
         category: SessionConfigOptionCategory,
     ) -> Option<Selection> {
-        let mut current = String::new();
+        let mut current_option = String::new();
         let options: Vec<HermesOption> = session
             .config_options
             .as_ref()
@@ -71,7 +118,7 @@ impl SessionDetails {
                         if let SessionConfigKind::Select(select) = &opt.kind
                             && opt.category.as_ref() == Some(&category)
                         {
-                            current = select.current_value.to_string();
+                            current_option = select.current_value.to_string();
                             match &select.options {
                                 SessionConfigSelectOptions::Grouped(groups) => Some(
                                     groups
@@ -109,9 +156,22 @@ impl SessionDetails {
             .unwrap_or_default();
 
         if !options.is_empty() {
+            let current = options
+                .iter()
+                .find(|option| option.value == current_option)
+                .cloned()
+                .unwrap_or_else(|| {
+                    tracing::warn!(
+                        "Current value '{}' not found in options for category {:?}, defaulting to first option",
+                        current_option,
+                        category
+                    );
+                    options[0].clone()
+                });
+
             Some(Selection {
-                options,
                 current,
+                options,
                 legacy: false,
             })
         } else {
@@ -119,20 +179,31 @@ impl SessionDetails {
         }
     }
 
+    fn parse_thought_levels(session: &NewSessionResponse) -> Option<Selection> {
+        Self::parse_options(session, SessionConfigOptionCategory::ThoughtLevel)
+    }
+
     fn parse_models(session: &NewSessionResponse) -> Option<Selection> {
         Self::parse_options(session, SessionConfigOptionCategory::Model).or_else(|| {
+            let mut current: HermesOption = HermesOption::default();
             session.models.as_ref().map(|models| Selection {
                 options: models
                     .available_models
                     .iter()
-                    .map(|model| HermesOption {
-                        value: model.model_id.to_string(),
-                        name: model.name.to_string(),
-                        description: model.description.clone(),
-                        group: None,
+                    .map(|model| {
+                        let option = HermesOption {
+                            value: model.model_id.to_string(),
+                            name: model.name.to_string(),
+                            description: model.description.clone(),
+                            group: None,
+                        };
+                        if option.value == models.current_model_id.to_string() {
+                            current = option.clone();
+                        }
+                        option
                     })
                     .collect(),
-                current: models.current_model_id.to_string(),
+                current,
                 legacy: true,
             })
         })
@@ -140,18 +211,25 @@ impl SessionDetails {
 
     fn parse_modes(session: &NewSessionResponse) -> Option<Selection> {
         Self::parse_options(session, SessionConfigOptionCategory::Mode).or_else(|| {
+            let mut current = HermesOption::default();
             session.modes.as_ref().map(|modes| Selection {
                 options: modes
                     .available_modes
                     .iter()
-                    .map(|mode| HermesOption {
-                        value: mode.id.to_string(),
-                        name: mode.name.to_string(),
-                        description: mode.description.clone(),
-                        group: None,
+                    .map(|mode| {
+                        let option = HermesOption {
+                            value: mode.id.to_string(),
+                            name: mode.name.to_string(),
+                            description: mode.description.clone(),
+                            group: None,
+                        };
+                        if option.value == modes.current_mode_id.to_string() {
+                            current = option.clone();
+                        }
+                        option
                     })
                     .collect(),
-                current: modes.current_mode_id.to_string(),
+                current,
                 legacy: true,
             })
         })
@@ -226,7 +304,10 @@ mod tests {
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
         let details = SessionDetails::new(&session);
-        assert_eq!(details.mode_current(), Some("chat"));
+        assert_eq!(
+            details.current_mode().map(|m| m.value.as_str()),
+            Some("chat")
+        );
     }
 
     #[test]
@@ -261,7 +342,7 @@ mod tests {
         let details = SessionDetails::new(&session);
         assert_eq!(details.mode_is_legacy(), None);
         assert_eq!(details.mode_options(), None);
-        assert_eq!(details.mode_current(), None);
+        assert_eq!(details.current_mode(), None);
     }
 
     #[test]
@@ -385,7 +466,10 @@ mod tests {
         let session = NewSessionResponse::new("test-session").config_options(vec![option]);
 
         let details = SessionDetails::new(&session);
-        assert_eq!(details.mode_current(), Some("code"));
+        assert_eq!(
+            details.current_mode().map(|m| m.value.as_str()),
+            Some("code")
+        );
         assert_eq!(details.mode_is_legacy(), Some(false));
     }
 

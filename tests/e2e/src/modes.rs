@@ -9,10 +9,11 @@ use agent_client_protocol::schema::{
     SessionConfigSelectOption, SessionMode, SessionModeState,
 };
 use hermes::{
+    acp::session_info::{HermesOption, Selection},
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},
 };
-use nvim_oxi::{Array, Dictionary, Function, conversion::FromObject};
+use nvim_oxi::{Dictionary, Function, conversion::FromObject};
 
 #[nvim_oxi::test]
 fn test_setup_returns_modes_function() -> Result<(), nvim_oxi::Error> {
@@ -29,7 +30,7 @@ fn test_setup_returns_modes_function() -> Result<(), nvim_oxi::Error> {
 #[nvim_oxi::test]
 fn test_modes_returns_nil_when_no_session() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
-    let modes: Function<String, Option<Array>> =
+    let modes: Function<String, Option<()>> =
         FromObject::from_object(dict.get("modes").unwrap().clone())?;
 
     let result = modes.call("nonexistent-session".to_string());
@@ -52,13 +53,14 @@ fn test_modes_returns_legacy_modes() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let modes: Function<String, Option<Array>> =
+    let modes: Function<String, Option<()>> =
         FromObject::from_object(dict.get("modes").unwrap().clone())?;
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_modes = autocommand::listen_for_autocommand::<Selection>(Commands::Modes);
 
     let (agent, conn_rx) = MockAgent::new();
     {
@@ -88,14 +90,16 @@ fn test_modes_returns_legacy_modes() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "modes should succeed for legacy modes session"
+    let selection = wait_for_modes(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    assert_eq!(
+        selection.options,
+        vec![HermesOption {
+            value: "chat".into(),
+            name: "Chat".into(),
+            description: None,
+            group: None,
+        }]
     );
-    let maybe_array = result.unwrap();
-    assert!(maybe_array.is_some(), "modes should return array, not nil");
-    let array = maybe_array.unwrap();
-    assert_eq!(array.len(), 1, "Should return one mode");
 
     Ok(())
 }
@@ -109,13 +113,14 @@ fn test_modes_returns_config_options() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let modes: Function<String, Option<Array>> =
+    let modes: Function<String, Option<()>> =
         FromObject::from_object(dict.get("modes").unwrap().clone())?;
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_modes = autocommand::listen_for_autocommand::<Selection>(Commands::Modes);
 
     let (agent, conn_rx) = MockAgent::new();
     {
@@ -151,14 +156,16 @@ fn test_modes_returns_config_options() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "modes should succeed for config options session"
+    let selection = wait_for_modes(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    assert_eq!(
+        selection.options,
+        vec![HermesOption {
+            value: "chat".into(),
+            name: "Chat".into(),
+            description: None,
+            group: None,
+        }]
     );
-    let maybe_array = result.unwrap();
-    assert!(maybe_array.is_some(), "modes should return array, not nil");
-    let array = maybe_array.unwrap();
-    assert_eq!(array.len(), 1, "Should return one mode");
 
     Ok(())
 }
@@ -172,13 +179,14 @@ fn test_modes_returns_grouped_options() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let modes: Function<String, Option<Array>> =
+    let modes: Function<String, Option<()>> =
         FromObject::from_object(dict.get("modes").unwrap().clone())?;
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_modes = autocommand::listen_for_autocommand::<Selection>(Commands::Modes);
 
     let (agent, conn_rx) = MockAgent::new();
     {
@@ -220,24 +228,16 @@ fn test_modes_returns_grouped_options() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "modes should succeed for grouped options session"
+    let selection = wait_for_modes(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    assert_eq!(
+        selection.options,
+        vec![HermesOption {
+            value: "chat".into(),
+            name: "Chat".into(),
+            description: None,
+            group: Some("My Group".into()),
+        }]
     );
-    let maybe_array = result.unwrap();
-    assert!(maybe_array.is_some(), "modes should return array, not nil");
-    let array = maybe_array.unwrap();
-    assert_eq!(array.len(), 1, "Should return one mode");
-
-    let obj = array.get(0).expect("Array should have one element");
-    let mode_dict: Dictionary = obj.clone().try_into().expect("Should be a dictionary");
-    let group_value: nvim_oxi::String = mode_dict
-        .get("group")
-        .expect("Should have group key")
-        .clone()
-        .try_into()
-        .expect("Should be a string");
-    assert_eq!(group_value.to_string(), "My Group");
 
     Ok(())
 }

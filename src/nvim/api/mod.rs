@@ -12,7 +12,9 @@ pub mod prompt;
 pub mod respond;
 pub mod set_mode;
 pub mod set_model;
+pub mod set_thought_level;
 pub mod setup;
+pub mod thought_levels;
 
 use std::sync::Arc;
 use std::{cell::RefCell, rc::Rc};
@@ -34,7 +36,9 @@ pub use prompt::*;
 pub use respond::*;
 pub use set_mode::*;
 pub use set_model::*;
+pub use set_thought_level::*;
 pub use setup::*;
+pub use thought_levels::*;
 use tracing::{debug, error};
 
 use crate::utilities::{Logger, NvimRuntime};
@@ -157,6 +161,20 @@ impl Hermes {
         })
     }
 
+    fn thought_levels_method(&self) -> Object {
+        self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
+            api.try_borrow()?.thought_levels(session_id).await
+        })
+    }
+
+    fn set_thought_level_method(&self) -> Object {
+        self.api_method(
+            |api: Rc<RefCell<Api>>, args: SetThoughtLevelArgs| async move {
+                api.try_borrow()?.set_thought_level(args).await
+            },
+        )
+    }
+
     fn setup_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, args: SetupArgs| async move {
             api.try_borrow()?.setup(args).await
@@ -190,6 +208,8 @@ impl From<Hermes> for Dictionary {
             ("authenticate", hermes.authenticate_method()),
             ("set_mode", hermes.set_mode_method()),
             ("set_model", hermes.set_model_method()),
+            ("thought_levels", hermes.thought_levels_method()),
+            ("set_thought_level", hermes.set_thought_level_method()),
             ("setup", hermes.setup_method()),
             ("prompt", hermes.prompt_method()),
             ("respond", hermes.respond_method()),

@@ -7,6 +7,7 @@ use agent_client_protocol::schema::{
     SessionConfigSelectOption,
 };
 use hermes::{
+    acp::session_info::HermesOption,
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, SetModelArgs},
     nvim::{autocommands::Commands, hermes},
 };
@@ -152,6 +153,8 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_model_updated =
+        autocommand::listen_for_autocommand::<HermesOption>(Commands::SessionModelUpdated);
 
     // Configure mock agent with new config options path
     let (agent, conn_rx) = MockAgent::new();
@@ -166,8 +169,18 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
         .category(SessionConfigOptionCategory::Model);
         config.new_session_response =
             NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
-        config.set_session_config_option_response =
-            Some(agent_client_protocol::schema::SetSessionConfigOptionResponse::new(vec![]));
+        let response_option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+        config.set_session_config_option_response = Some(
+            agent_client_protocol::schema::SetSessionConfigOptionResponse::new(vec![
+                response_option,
+            ]),
+        );
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
@@ -185,14 +198,21 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id;
 
-    let result = set_model.call((session_id.to_string(), "gpt4".to_string()));
+    set_model.call((session_id.to_string(), "gpt4".to_string()))?;
+
+    let model_updated = wait_for_model_updated(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "set_model with config options should succeed"
+    assert_eq!(
+        model_updated,
+        HermesOption {
+            value: "gpt4".into(),
+            name: "GPT-4".into(),
+            description: None,
+            group: None,
+        }
     );
 
     Ok(())

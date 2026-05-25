@@ -77,6 +77,8 @@ impl Handler {
     #[instrument(level = "trace", skip(self))]
     pub async fn config_option_set(
         &self,
+        session_id: &str,
+        updated: &str,
         response: SetSessionConfigOptionResponse,
     ) -> Result<(), Error> {
         let futures = response
@@ -85,12 +87,15 @@ impl Handler {
             .filter_map(|c| c.category.clone())
             .map(async move |category| match category {
                 SessionConfigOptionCategory::Mode => {
-                    self.session_mode_set(SetSessionModeResponse::default())
+                    self.session_mode_set(session_id, updated, SetSessionModeResponse::default())
                         .await
                 }
                 SessionConfigOptionCategory::Model => {
-                    self.session_model_set(SetSessionModelResponse::default())
+                    self.session_model_set(session_id, updated, SetSessionModelResponse::default())
                         .await
+                }
+                SessionConfigOptionCategory::ThoughtLevel => {
+                    self.session_thought_level_set(session_id, updated).await
                 }
                 _ => Ok(()),
             })
@@ -102,10 +107,90 @@ impl Handler {
             .await
     }
 
-    #[instrument(level = "trace", skip(self))]
-    pub async fn session_mode_set(&self, response: SetSessionModeResponse) -> Result<(), Error> {
-        self.execute_autocommand(Commands::ModeUpdated, response)
-            .await
+    pub async fn session_mode_set(
+        &self,
+        session_id: &str,
+        updated_to: &str,
+        _response: SetSessionModeResponse,
+    ) -> Result<(), Error> {
+        let mut state = self.state.lock().await;
+        let session_info = state.get_session_info_mut(session_id);
+        if let Some(session) = session_info {
+            let updated = session.get_mode(updated_to).cloned();
+
+            if let Some(current) = updated {
+                session.set_current_mode(current.clone());
+                drop(state);
+                self.execute_autocommand(Commands::ModeUpdated, current)
+                    .await
+            } else {
+                drop(state);
+                Err(Error::Internal(format!(
+                    "Mode '{}' not found for session: {}",
+                    updated_to, session_id
+                )))
+            }
+        } else {
+            drop(state);
+            Err(Error::SessionNotFound(session_id.to_string()))
+        }
+    }
+
+    pub async fn session_model_set(
+        &self,
+        session_id: &str,
+        updated_to: &str,
+        _response: SetSessionModelResponse,
+    ) -> Result<(), Error> {
+        let mut state = self.state.lock().await;
+        let session_info = state.get_session_info_mut(session_id);
+        if let Some(session) = session_info {
+            let updated = session.get_model(updated_to).cloned();
+
+            if let Some(current) = updated {
+                session.set_current_model(current.clone());
+                drop(state);
+                self.execute_autocommand(Commands::SessionModelUpdated, current)
+                    .await
+            } else {
+                drop(state);
+                Err(Error::Internal(format!(
+                    "Model '{}' not found for session: {}",
+                    updated_to, session_id
+                )))
+            }
+        } else {
+            drop(state);
+            Err(Error::SessionNotFound(session_id.to_string()))
+        }
+    }
+
+    pub async fn session_thought_level_set(
+        &self,
+        session_id: &str,
+        updated_to: &str,
+    ) -> Result<(), Error> {
+        let mut state = self.state.lock().await;
+        let session_info = state.get_session_info_mut(session_id);
+        if let Some(session) = session_info {
+            let updated = session.get_thought_level(updated_to).cloned();
+
+            if let Some(current) = updated {
+                session.set_current_thought_level(current.clone());
+                drop(state);
+                self.execute_autocommand(Commands::ThoughtLevelUpdated, current)
+                    .await
+            } else {
+                drop(state);
+                Err(Error::Internal(format!(
+                    "Thought level '{}' not found for session: {}",
+                    updated_to, session_id
+                )))
+            }
+        } else {
+            drop(state);
+            Err(Error::SessionNotFound(session_id.to_string()))
+        }
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -146,12 +231,6 @@ impl Handler {
     #[instrument(level = "trace", skip(self))]
     pub async fn session_resumed(&self, response: ResumeSessionResponse) -> Result<(), Error> {
         self.execute_autocommand(Commands::SessionResumed, response)
-            .await
-    }
-
-    #[instrument(level = "trace", skip(self))]
-    pub async fn session_model_set(&self, response: SetSessionModelResponse) -> Result<(), Error> {
-        self.execute_autocommand(Commands::SessionModelUpdated, response)
             .await
     }
 }
