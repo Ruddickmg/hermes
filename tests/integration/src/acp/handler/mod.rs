@@ -5,8 +5,8 @@ use agent_client_protocol::{
     schema::{
         ContentBlock, ContentChunk, LoadSessionResponse, NewSessionResponse, SessionConfigOption,
         SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
-        SessionNotification, SessionUpdate, SetSessionConfigOptionResponse,
-        SetSessionModeResponse, SetSessionModelResponse, TextContent, UsageUpdate,
+        SessionNotification, SessionUpdate, SetSessionConfigOptionResponse, SetSessionModeResponse,
+        SetSessionModelResponse, TextContent, UsageUpdate,
     },
 };
 use async_lock::Mutex;
@@ -762,7 +762,9 @@ fn config_option_set_with_other_category_succeeds() -> nvim_oxi::Result<()> {
     .expect("Handler creation should succeed");
 
     let option = SessionConfigOption::select(
-        "custom", "Custom", "val",
+        "custom",
+        "Custom",
+        "val",
         vec![SessionConfigSelectOption::new("val", "Value")],
     )
     .category(SessionConfigOptionCategory::Other("custom".into()));
@@ -790,7 +792,9 @@ fn session_mode_set_mode_not_found() -> nvim_oxi::Result<()> {
 
     let session = NewSessionResponse::new("test-session").config_options(vec![
         SessionConfigOption::select(
-            "mode", "Mode", "chat",
+            "mode",
+            "Mode",
+            "chat",
             vec![SessionConfigSelectOption::new("chat", "Chat")],
         )
         .category(SessionConfigOptionCategory::Mode),
@@ -849,7 +853,9 @@ fn session_model_set_model_not_found() -> nvim_oxi::Result<()> {
 
     let session = NewSessionResponse::new("test-session").config_options(vec![
         SessionConfigOption::select(
-            "model", "Model", "gpt4",
+            "model",
+            "Model",
+            "gpt4",
             vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
         )
         .category(SessionConfigOptionCategory::Model),
@@ -908,7 +914,9 @@ fn session_thought_level_set_succeeds() -> nvim_oxi::Result<()> {
 
     let session = NewSessionResponse::new("test-session").config_options(vec![
         SessionConfigOption::select(
-            "thought_level", "Thought Level", "low",
+            "thought_level",
+            "Thought Level",
+            "low",
             vec![
                 SessionConfigSelectOption::new("low", "Low"),
                 SessionConfigSelectOption::new("high", "High"),
@@ -942,7 +950,9 @@ fn session_thought_level_set_not_found() -> nvim_oxi::Result<()> {
 
     let session = NewSessionResponse::new("test-session").config_options(vec![
         SessionConfigOption::select(
-            "thought_level", "Thought Level", "low",
+            "thought_level",
+            "Thought Level",
+            "low",
             vec![
                 SessionConfigSelectOption::new("low", "Low"),
                 SessionConfigSelectOption::new("high", "High"),
@@ -974,9 +984,7 @@ fn session_thought_level_set_session_not_found() -> nvim_oxi::Result<()> {
     )
     .expect("Handler creation should succeed");
 
-    let result = smol::block_on(
-        handler.session_thought_level_set("nonexistent-session", "low"),
-    );
+    let result = smol::block_on(handler.session_thought_level_set("nonexistent-session", "low"));
 
     assert!(
         matches!(result, Err(hermes::acp::error::Error::SessionNotFound(_))),
