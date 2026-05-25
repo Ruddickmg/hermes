@@ -2066,6 +2066,7 @@ Available formats:
 - [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
 - [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
 - [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
+- [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
@@ -2077,7 +2078,6 @@ Available formats:
   - [ ] model
     - [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
   - [ ] authentication
-    - [ ] [logout](https://agentclientprotocol.com/rfds/logout-method)
     - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
   - [ ] session
     - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)

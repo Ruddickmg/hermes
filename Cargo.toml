@@ -19,7 +19,6 @@ agent-client-protocol = { version = "0.12", features = [
 
   # "unstable_auth_methods",
   # "unstable_boolean_config",
-  # "unstable_logout",
   # "unstable_mcp_over_acp",
   # "unstable_session_additional_directories",
   # "unstable_session_delete"
