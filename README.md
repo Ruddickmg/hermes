@@ -581,14 +581,11 @@ hermes.set_mode(sessionId, modeId)
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
-  pattern = "SessionCreated",
+  pattern = "Modes",
   callback = function(args)
-    local sessionId = args.data.sessionId
-    local modes = hermes.modes(sessionId)
-    if modes ~= nil then
-      local selectedModeId = table.remove(modes).value -- select mode id somehow
-      hermes.set_mode(sessionId, selectedModeId)
-    end
+    local sessionId = args.data.session.sessionId
+    local selectedModeId = args.data.current.value -- select mode id somehow
+    hermes.set_mode(sessionId, selectedModeId)
   end,
 })
 ```
@@ -599,11 +596,13 @@ vim.api.nvim_create_autocmd("User", {
 
 Get the selectable modes for a session.
 
+Fires a `Modes` User autocommand with the selection data instead of returning it.
+
 ```lua
 local hermes = require("hermes")
 
 -- call signature
-local modes = hermes.modes(sessionId)
+hermes.modes(sessionId)
 
 -- example
 vim.api.nvim_create_autocmd("User", {
@@ -612,23 +611,151 @@ vim.api.nvim_create_autocmd("User", {
   callback = function(args)
     local sessionId = args.data.sessionId
 
-    local modes = hermes.modes(sessionId)
-    if modes ~= nil then
-      for _, mode in ipairs(modes) do
-        print("Mode: " .. mode.name .. " (value: " .. mode.value .. ")")
-      end
+    hermes.modes(sessionId)
+  end,
+})
+
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "Modes",
+  callback = function(args)
+    local options = args.data.options
+    for _, option in ipairs(options) do
+      print("Mode: " .. option.name .. " (value: " .. option.value .. ")")
     end
   end,
 })
 ```
 
-> **Returns:** An array of mode objects, each containing:
-> - `value` (string): The mode identifier
-> - `name` (string): Human-readable mode label
-> - `description` (string, optional): Mode description
-> - `group` (string, optional): Group name for grouped options
->
-> Returns `nil` if the session doesn't exist or the agent doesn't support mode selection.
+> **Triggers:** [Modes](#modes-1) autocommand with a `Selection` payload containing:
+> - `options` (array): Available mode options
+> - `current` (object): The currently selected mode
+
+### Set model (**Optional**)
+
+Set what model the agent is using.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+hermes.set_model(sessionId, modelId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "Models",
+  callback = function(args)
+    local sessionId = args.data.session.sessionId
+    local selectedModelId = args.data.current.value -- select model id somehow
+    hermes.set_model(sessionId, selectedModelId)
+  end,
+})
+```
+
+> **Triggers:** [SessionModelUpdated](#sessionmodelupdated) autocommand upon completion.
+
+### Models
+
+Get the selectable models for a session.
+
+Fires a `Models` User autocommand with the selection data instead of returning it.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+hermes.models(sessionId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.models(sessionId)
+  end,
+})
+
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "Models",
+  callback = function(args)
+    local options = args.data.options
+    for _, option in ipairs(options) do
+      print("Model: " .. option.name .. " (value: " .. option.value .. ")")
+    end
+  end,
+})
+```
+
+> **Triggers:** [Models](#models-1) autocommand with a `Selection` payload containing:
+> - `options` (array): Available model options
+> - `current` (object): The currently selected model
+
+### Set thought_level (**Optional**)
+
+Set the thought level for a session.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+hermes.set_thought_level(sessionId, thoughtLevelId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "ThoughtLevels",
+  callback = function(args)
+    local sessionId = args.data.session.sessionId
+    local selectedThoughtLevelId = args.data.current.value -- select thought level id somehow
+    hermes.set_thought_level(sessionId, selectedThoughtLevelId)
+  end,
+})
+```
+
+> **Triggers:** [ThoughtLevelUpdated](#thoughtlevelupdated) autocommand upon completion.
+
+### ThoughtLevels
+
+Get the selectable thought levels for a session.
+
+Fires a `ThoughtLevels` User autocommand with the selection data instead of returning it.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+hermes.thought_levels(sessionId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.thought_levels(sessionId)
+  end,
+})
+
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "ThoughtLevels",
+  callback = function(args)
+    local options = args.data.options
+    for _, option in ipairs(options) do
+      print("Thought Level: " .. option.name .. " (value: " .. option.value .. ")")
+    end
+  end,
+})
+```
+
+> **Triggers:** [ThoughtLevels](#thoughtlevels) autocommand with a `Selection` payload containing:
+> - `options` (array): Available thought level options
+> - `current` (object): The currently selected thought level
 
 ### Respond
 
@@ -1172,6 +1299,52 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>Session mode changed</td>
       <td>⚡ <a href="#set-mode-optional">set_mode()</a></td>
       <td><pre><code class="language-json">{
+  "value": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "group": "string (optional)"
+}</code></pre></td>
+    </tr>
+    <tr id="models-1">
+      <td><code>Models</code></td>
+      <td>Available models retrieved</td>
+      <td>⚡ <a href="#models">models()</a></td>
+      <td><pre><code class="language-json">{
+  "options": [
+    {
+      "value": "string",
+      "name": "string",
+      "description": "string (optional)",
+      "group": "string (optional)"
+    }
+  ],
+  "current": {
+    "value": "string",
+    "name": "string",
+    "description": "string (optional)",
+    "group": "string (optional)"
+  }
+}</code></pre></td>
+    </tr>
+    <tr id="modes-1">
+      <td><code>Modes</code></td>
+      <td>Available modes retrieved</td>
+      <td>⚡ <a href="#modes">modes()</a></td>
+      <td><pre><code class="language-json">{
+  "options": [
+    {
+      "value": "string",
+      "name": "string",
+      "description": "string (optional)",
+      "group": "string (optional)"
+    }
+  ],
+  "current": {
+    "value": "string",
+    "name": "string",
+    "description": "string (optional)",
+    "group": "string (optional)"
+  }
 }</code></pre></td>
     </tr>
     <tr id="permissionrequest">
@@ -1368,8 +1541,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
     <tr id="sessionmodelupdated">
       <td><code>SessionModelUpdated</code></td>
       <td>Session model updated</td>
-      <td>⚡ <a href="#load-session-optional">set_session_model()</a></td>
+      <td>⚡ <a href="#set-model-optional">set_model()</a></td>
       <td><pre><code class="language-json">{
+  "value": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "group": "string (optional)"
 }</code></pre></td>
     </tr>
     <tr id="sessionresumed">
@@ -1481,6 +1658,38 @@ Below is a list of all autocommands and their associated data (passed to the cal
   "requestId": "uuid string",
   "sessionId": "string",
   "terminalId": "string"
+}</code></pre></td>
+    </tr>
+    <tr id="thoughtlevelupdated">
+      <td><code>ThoughtLevelUpdated</code></td>
+      <td>Session thought level updated</td>
+      <td>⚡ <a href="#set-thought-level-optional">set_thought_level()</a></td>
+      <td><pre><code class="language-json">{
+  "value": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "group": "string (optional)"
+}</code></pre></td>
+    </tr>
+    <tr id="thoughtlevels">
+      <td><code>ThoughtLevels</code></td>
+      <td>Available thought levels retrieved</td>
+      <td>⚡ <a href="#thoughtlevels">thought_levels()</a></td>
+      <td><pre><code class="language-json">{
+  "options": [
+    {
+      "value": "string",
+      "name": "string",
+      "description": "string (optional)",
+      "group": "string (optional)"
+    }
+  ],
+  "current": {
+    "value": "string",
+    "name": "string",
+    "description": "string (optional)",
+    "group": "string (optional)"
+  }
 }</code></pre></td>
     </tr>
     <tr>
