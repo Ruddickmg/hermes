@@ -519,6 +519,11 @@ mod tests {
     }
 
     #[test]
+    fn test_commands_modes() {
+        assert_eq!(Commands::try_from("Modes").unwrap(), Commands::Modes);
+    }
+
+    #[test]
     fn test_commands_models() {
         assert_eq!(Commands::try_from("Models").unwrap(), Commands::Models);
     }

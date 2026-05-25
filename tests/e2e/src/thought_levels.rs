@@ -121,3 +121,90 @@ fn test_thought_levels_returns_config_options() -> Result<(), nvim_oxi::Error> {
 
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn test_thought_level_updated_fires_after_set() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let set_thought_level: Function<(String, String), ()> =
+        FromObject::from_object(dict.get("set_thought_level").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_thought_level_updated =
+        autocommand::listen_for_autocommand::<HermesOption>(Commands::ThoughtLevelUpdated);
+
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        let option = SessionConfigOption::select(
+            "thought_level",
+            "Thought Level",
+            "low",
+            vec![
+                SessionConfigSelectOption::new("low", "Low"),
+                SessionConfigSelectOption::new("medium", "Medium"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ThoughtLevel);
+        config.new_session_response =
+            NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
+        let response_option = SessionConfigOption::select(
+            "thought_level",
+            "Thought Level",
+            "medium",
+            vec![
+                SessionConfigSelectOption::new("low", "Low"),
+                SessionConfigSelectOption::new("medium", "Medium"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ThoughtLevel);
+        config.set_session_config_option_response = Some(
+            agent_client_protocol::schema::SetSessionConfigOptionResponse::new(vec![
+                response_option,
+            ]),
+        );
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    let mut options = Dictionary::new();
+    options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id.to_string();
+
+    set_thought_level.call((session_id, "medium".to_string()))?;
+
+    let thought_level_updated =
+        wait_for_thought_level_updated(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert_eq!(
+        thought_level_updated,
+        HermesOption {
+            value: "medium".into(),
+            name: "Medium".into(),
+            description: None,
+            group: None,
+        }
+    );
+
+    Ok(())
+}
