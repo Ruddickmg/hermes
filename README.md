@@ -544,6 +544,31 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionsListed](#sessionslisted) autocommand upon completion
 
+### Close Session (**Optional**)
+
+Close active session and free all resources associated with it
+
+```lua
+local hermes = require("hermes")
+local sessionId = "session-id-from-create-session-response"
+
+-- call signature
+hermes.close_session(sessionId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.close_session(sessionId)
+  end,
+})
+```
+
+> **Triggers:** [SessionClosed]() autocommand upon completion
+
 ### Cancel (**Optional**)
 
 Cancel the current operation of the agent (e.g., stop generating text, stop a tool call in progress, etc)
@@ -2065,14 +2090,13 @@ Available formats:
 - [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
 - [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
 - [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
-- [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
+- [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
   - [x] Via tcp socket
   - [ ] Via unix socket
-- [ ] Add autocommand that triggers on all events
 - [ ] Support "unstable"/proposed ACP methods
   - [x] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
   - [ ] model
@@ -2084,7 +2108,7 @@ Available formats:
     - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
     - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
     - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
-  - [ ] [Auth methods](https://agentclientprotocol.com/rfds/mcp-over-acp)
+  - [ ] [ACP over MCP](https://agentclientprotocol.com/rfds/mcp-over-acp)
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
@@ -2112,6 +2136,7 @@ Available formats:
   - [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text
 
 -- architecture
+- [ ] Figure out how to remove tokio dependencies (imported by the ACP SDK)
 - [ ] ACP outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `UserRequest` dispatches. Trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
 - [ ] Connection threading model: currently one OS thread per connection driving its own `smol::LocalExecutor`. Explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
 - [ ] MockAgent (e2e tests): the migration to `Agent.builder()` may still leave the `AgentToConnection` channel hop in place for some sub-request flows. Audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.

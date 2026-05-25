@@ -33,11 +33,18 @@ impl Handler {
                 "mcpCapabilities": {
                     "http": info.agent_capabilities.mcp_capabilities.http,
                     "sse": info.agent_capabilities.mcp_capabilities.sse,
+                    "acp": info.agent_capabilities.mcp_capabilities.acp,
                 },
                 "sessionCapabilities": {
                     "list": info.agent_capabilities.session_capabilities.list,
                     "fork": info.agent_capabilities.session_capabilities.fork,
                     "resume": info.agent_capabilities.session_capabilities.resume,
+                    "close": info.agent_capabilities.session_capabilities.close,
+                    "additional_directories": info.agent_capabilities.session_capabilities.additional_directories,
+                    "delete": info.agent_capabilities.session_capabilities.delete,
+                },
+                "auth": {
+                    "logout": info.agent_capabilities.auth.logout
                 },
             },
             "authMethods": info.auth_methods.iter().map(|m| serde_json::json!({
