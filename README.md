@@ -581,11 +581,9 @@ hermes.set_mode(sessionId, modeId)
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
-  pattern = "Modes",
+  pattern = "ModeUpdated",
   callback = function(args)
-    local sessionId = args.data.session.sessionId
-    local selectedModeId = args.data.current.value -- select mode id somehow
-    hermes.set_mode(sessionId, selectedModeId)
+    print("Mode changed to: " .. args.data.name)
   end,
 })
 ```
@@ -644,11 +642,9 @@ hermes.set_model(sessionId, modelId)
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
-  pattern = "Models",
+  pattern = "SessionModelUpdated",
   callback = function(args)
-    local sessionId = args.data.session.sessionId
-    local selectedModelId = args.data.current.value -- select model id somehow
-    hermes.set_model(sessionId, selectedModelId)
+    print("Model changed to: " .. args.data.name)
   end,
 })
 ```
@@ -707,11 +703,9 @@ hermes.set_thought_level(sessionId, thoughtLevelId)
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
-  pattern = "ThoughtLevels",
+  pattern = "ThoughtLevelUpdated",
   callback = function(args)
-    local sessionId = args.data.session.sessionId
-    local selectedThoughtLevelId = args.data.current.value -- select thought level id somehow
-    hermes.set_thought_level(sessionId, selectedThoughtLevelId)
+    print("Thought level changed to: " .. args.data.name)
   end,
 })
 ```
