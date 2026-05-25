@@ -1,10 +1,10 @@
 //! Configuration for MockAgent
 
 use agent_client_protocol::schema::{
-    AuthenticateResponse, CreateTerminalRequest, ExtResponse, InitializeResponse,
-    ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PermissionOption,
-    PermissionOptionId, PermissionOptionKind, ProtocolVersion, ReadTextFileRequest,
-    ReleaseTerminalRequest, RequestPermissionRequest, SessionId, SessionInfo,
+    AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest, ExtResponse,
+    InitializeResponse, ListSessionsResponse, LoadSessionResponse, NewSessionResponse,
+    PermissionOption, PermissionOptionId, PermissionOptionKind, ProtocolVersion,
+    ReadTextFileRequest, ReleaseTerminalRequest, RequestPermissionRequest, SessionId, SessionInfo,
     SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
     TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
     WaitForTerminalExitRequest, WriteTextFileRequest,
@@ -49,6 +49,8 @@ pub struct MockConfig {
     pub write_file_request: Option<WriteTextFileRequest>,
     /// Release terminal request to send during prompt (None = skip)
     pub release_terminal_request: Option<ReleaseTerminalRequest>,
+    /// Close session response to return when a CloseSessionRequest is received
+    pub close_session_response: Option<CloseSessionResponse>,
 }
 
 impl Default for MockConfig {
@@ -72,6 +74,7 @@ impl Default for MockConfig {
             read_file_request: None,
             write_file_request: None,
             release_terminal_request: None,
+            close_session_response: None,
         }
     }
 }
@@ -186,6 +189,12 @@ impl MockConfig {
     /// Set a release terminal request to send during prompt
     pub fn set_release_terminal_request(mut self, request: ReleaseTerminalRequest) -> Self {
         self.release_terminal_request = Some(request);
+        self
+    }
+
+    /// Set a close session response to return on CloseSessionRequest
+    pub fn set_close_session_response(mut self, response: CloseSessionResponse) -> Self {
+        self.close_session_response = Some(response);
         self
     }
 

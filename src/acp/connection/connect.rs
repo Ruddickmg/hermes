@@ -85,6 +85,10 @@ async fn dispatch(
                 .session_model_set(&session_id, &model, response)
                 .await?;
         }
+        UserRequest::CloseSession(request) => {
+            let response = cx.send_request(request).block_task().await?;
+            client.session_closed(response).await?;
+        }
         UserRequest::Close => return Err(Error::InvalidInput(format!("{:?}", msg))),
     }
     Ok(())

@@ -1,5 +1,6 @@
 pub mod authenticate;
 pub mod cancel;
+pub mod close_session;
 pub mod connect;
 pub mod create_session;
 pub mod disconnect;
@@ -21,6 +22,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::requests::Requests;
 use async_lock::Mutex;
+pub use close_session::*;
 pub use connect::*;
 pub use create_session::*;
 pub use disconnect::*;
@@ -94,6 +96,12 @@ impl Hermes {
     fn cancel_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
             api.try_borrow()?.cancel(session_id).await
+        })
+    }
+
+    fn close_session_method(&self) -> Object {
+        self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
+            api.try_borrow()?.close_session(session_id).await
         })
     }
 
@@ -198,6 +206,7 @@ impl From<Hermes> for Dictionary {
     fn from(hermes: Hermes) -> Dictionary {
         Dictionary::from_iter([
             ("cancel", hermes.cancel_method()),
+            ("close_session", hermes.close_session_method()),
             ("connect", hermes.connect_method()),
             ("create_session", hermes.create_session_method()),
             ("disconnect", hermes.disconnect_method()),

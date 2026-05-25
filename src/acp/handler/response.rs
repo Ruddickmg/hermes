@@ -1,8 +1,8 @@
 use agent_client_protocol::schema::{
-    AuthenticateResponse, ExtResponse, ForkSessionResponse, InitializeResponse,
-    ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PromptResponse,
-    ResumeSessionResponse, SessionConfigOptionCategory, SetSessionConfigOptionResponse,
-    SetSessionModeResponse, SetSessionModelResponse,
+    AuthenticateResponse, CloseSessionResponse, ExtResponse, ForkSessionResponse,
+    InitializeResponse, ListSessionsResponse, LoadSessionResponse, NewSessionResponse,
+    PromptResponse, ResumeSessionResponse, SessionConfigOptionCategory,
+    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
 };
 use tracing::instrument;
 
@@ -238,6 +238,12 @@ impl Handler {
     #[instrument(level = "trace", skip(self))]
     pub async fn session_resumed(&self, response: ResumeSessionResponse) -> Result<(), Error> {
         self.execute_autocommand(Commands::SessionResumed, response)
+            .await
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn session_closed(&self, response: CloseSessionResponse) -> Result<(), Error> {
+        self.execute_autocommand(Commands::SessionClosed, response)
             .await
     }
 }
