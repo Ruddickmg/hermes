@@ -563,7 +563,6 @@ vim.api.nvim_create_autocmd("User", {
     local sessionId = args.data.sessionId
 
     hermes.cancel(sessionId)
-    
   end,
 })
 ```
@@ -745,7 +744,6 @@ vim.api.nvim_create_autocmd("User", {
     local requestId = args.data.requestId
 
     hermes.respond(requestId, selectedOptionId)
-    
   end,
 })
 ```
@@ -999,7 +997,7 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "AgentTextMessage",
   callback = function(args)
-    print("Received some text from our assistant: " .. args.data.text)
+    print("Received some text from our assistant: " .. args.data.update.content.text)
   end,
 })
 ```
@@ -1023,10 +1021,16 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "data": "base64 string",
-  "mimeType": "string",
-  "uri": "string (optional)",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "agent_message_chunk",
+    "content": {
+      "type": "image",
+      "data": "base64 string",
+      "mimeType": "string",
+      "uri": "string (optional)",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1036,10 +1040,16 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "data": "base64 string",
-  "mimeType": "string",
-  "uri": "string (optional)",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "agent_thought_chunk",
+    "content": {
+      "type": "image",
+      "data": "base64 string",
+      "mimeType": "string",
+      "uri": "string (optional)",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1049,13 +1059,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "name": "string",
-  "uri": "string",
-  "description": "string (optional)",
-  "mimeType": "string (optional)",
-  "size": "number (optional)",
-  "title": "string (optional)",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "agent_message_chunk",
+    "content": {
+      "type": "resource_link",
+      "name": "string",
+      "uri": "string",
+      "description": "string (optional)",
+      "mimeType": "string (optional)",
+      "size": "number (optional)",
+      "title": "string (optional)",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1065,13 +1081,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "name": "string",
-  "uri": "string",
-  "description": "string (optional)",
-  "mimeType": "string (optional)",
-  "size": "number (optional)",
-  "title": "string (optional)",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "agent_thought_chunk",
+    "content": {
+      "type": "resource_link",
+      "name": "string",
+      "uri": "string",
+      "description": "string (optional)",
+      "mimeType": "string (optional)",
+      "size": "number (optional)",
+      "title": "string (optional)",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1081,13 +1103,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "resource": {
-    "text": "string (if text resource)",
-    "blob": "string (if blob resource)",
-    "uri": "string",
-    "mimeType": "string (optional)"
-  },
-  "annotations": { "audience": [], "lastModified": "string" }
+  "update": {
+    "sessionUpdate": "agent_message_chunk",
+    "content": {
+      "type": "resource",
+      "resource": {
+        "text": "string (if text resource)",
+        "blob": "string (if blob resource)",
+        "uri": "string",
+        "mimeType": "string (optional)"
+      },
+      "annotations": { "audience": [], "lastModified": "string" }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1097,13 +1125,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "resource": {
-    "text": "string (if text resource)",
-    "blob": "string (if blob resource)",
-    "uri": "string",
-    "mimeType": "string (optional)"
-  },
-  "annotations": { "audience": [], "lastModified": "string" }
+  "update": {
+    "sessionUpdate": "agent_thought_chunk",
+    "content": {
+      "type": "resource",
+      "resource": {
+        "text": "string (if text resource)",
+        "blob": "string (if blob resource)",
+        "uri": "string",
+        "mimeType": "string (optional)"
+      },
+      "annotations": { "audience": [], "lastModified": "string" }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1113,8 +1147,14 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "text": "string",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "agent_message_chunk",
+    "content": {
+      "type": "text",
+      "text": "string",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1124,8 +1164,14 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "text": "string",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "agent_thought_chunk",
+    "content": {
+      "type": "text",
+      "text": "string",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr id="authenticated">
@@ -1142,13 +1188,16 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "commands": [
-    {
-      "id": "string",
-      "name": "string",
-      "description": "string (optional)"
-    }
-  ]
+  "update": {
+    "sessionUpdate": "available_commands_update",
+    "availableCommands": [
+      {
+        "id": "string",
+        "name": "string",
+        "description": "string (optional)"
+      }
+    ]
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1158,28 +1207,31 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "options": [
-    {
-      "id": "string",
-      "name": "string",
-      "description": "string (optional)",
-      "category": "string (optional)",
-      "kind": {
-        "currentValue": "string",
-        "options": [
-          { "type": "ungrouped", "value": "string", "name": "string", "description": "string (optional)" },
-          {
-            "type": "grouped",
-            "group": "string",
-            "name": "string",
-            "options": [
-              { "value": "string", "name": "string", "description": "string (optional)" }
-            ]
-          }
-        ]
+  "update": {
+    "sessionUpdate": "config_option_update",
+    "configOptions": [
+      {
+        "id": "string",
+        "name": "string",
+        "description": "string (optional)",
+        "category": "string (optional)",
+        "kind": {
+          "currentValue": "string",
+          "options": [
+            { "type": "ungrouped", "value": "string", "name": "string", "description": "string (optional)" },
+            {
+              "type": "grouped",
+              "group": "string",
+              "name": "string",
+              "options": [
+                { "value": "string", "name": "string", "description": "string (optional)" }
+              ]
+            }
+          ]
+        }
       }
-    }
-  ]
+    ]
+  }
 }</code></pre></td>
     </tr>
     <tr id="configurationupdated">
@@ -1255,7 +1307,10 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "id": "string"
+  "update": {
+    "sessionUpdate": "current_mode_update",
+    "currentModeId": "string"
+  }
 }</code></pre></td>
     </tr>
     <tr id="modeupdated">
@@ -1358,9 +1413,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "entries": [
-    { "content": "string", "priority": "High | Medium | Low" }
-  ]
+  "update": {
+    "sessionUpdate": "plan",
+    "entries": [
+      { "content": "string", "priority": "High | Medium | Low", "status": "Pending | InProgress | Completed | Cancelled" }
+    ]
+  }
 }</code></pre></td>
     </tr>
     <tr id="prompted">
@@ -1663,39 +1721,42 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "id": "string",
-  "title": "string",
-  "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other",
-  "status": "Pending | InProgress | Completed | Cancelled | Error",
-  "content": [
-    {
-      "type": "text | image | resource | resourcelink | terminal | diff",
-      "text": "string (if text type)",
-      "data": "base64 string (if image type)",
-      "mimeType": "string (if image type)",
-      "uri": "string (if image/resource/resourcelink type)",
-      "resource": {
-        "text": "string (if text resource)",
-        "blob": "string (if blob resource)",
-        "uri": "string",
-        "mimeType": "string (optional)"
-      },
-      "name": "string (if resourcelink type)",
-      "description": "string (optional, if resourcelink type)",
-      "terminalId": "string (if terminal type)",
-      "path": "string (if diff type)",
-      "newText": "string (if diff type)",
-      "oldText": "string (optional, if diff type)"
-    }
-  ],
-  "locations": [
-    {
-      "path": "string",
-      "line": "number (optional)"
-    }
-  ],
-  "rawInput": "JSON value (optional)",
-  "rawOutput": "JSON value (optional)"
+  "update": {
+    "sessionUpdate": "tool_call",
+    "toolCallId": "string",
+    "title": "string",
+    "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other",
+    "status": "Pending | InProgress | Completed | Cancelled | Error",
+    "content": [
+      {
+        "type": "text | image | resource | resourcelink | terminal | diff",
+        "text": "string (if text type)",
+        "data": "base64 string (if image type)",
+        "mimeType": "string (if image type)",
+        "uri": "string (if image/resource/resourcelink type)",
+        "resource": {
+          "text": "string (if text resource)",
+          "blob": "string (if blob resource)",
+          "uri": "string",
+          "mimeType": "string (optional)"
+        },
+        "name": "string (if resourcelink type)",
+        "description": "string (optional, if resourcelink type)",
+        "terminalId": "string (if terminal type)",
+        "path": "string (if diff type)",
+        "newText": "string (if diff type)",
+        "oldText": "string (optional, if diff type)"
+      }
+    ],
+    "locations": [
+      {
+        "path": "string",
+        "line": "number (optional)"
+      }
+    ],
+    "rawInput": "JSON value (optional)",
+    "rawOutput": "JSON value (optional)"
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1705,8 +1766,9 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "toolCallId": "string",
-  "fields": {
+  "update": {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "string",
     "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other (optional)",
     "status": "Pending | InProgress | Completed | Cancelled | Error (optional)",
     "title": "string (optional)",
@@ -1749,11 +1811,14 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "used": "number (tokens used)",
-  "size": "number (max context size)",
-  "cost": {
-    "amount": "number",
-    "currency": "string (e.g., 'USD')"
+  "update": {
+    "sessionUpdate": "usage_update",
+    "used": "number (tokens used)",
+    "size": "number (max context size)",
+    "cost": {
+      "amount": "number",
+      "currency": "string (e.g., 'USD')"
+    }
   }
 }</code></pre></td>
     </tr>
@@ -1764,10 +1829,16 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "data": "base64 string",
-  "mimeType": "string",
-  "uri": "string (optional)",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "user_message_chunk",
+    "content": {
+      "type": "image",
+      "data": "base64 string",
+      "mimeType": "string",
+      "uri": "string (optional)",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1777,13 +1848,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "name": "string",
-  "uri": "string",
-  "description": "string (optional)",
-  "mimeType": "string (optional)",
-  "size": "number (optional)",
-  "title": "string (optional)",
-  "annotations": { "audience": [], "priority": 1 }
+  "update": {
+    "sessionUpdate": "user_message_chunk",
+    "content": {
+      "type": "resource_link",
+      "name": "string",
+      "uri": "string",
+      "description": "string (optional)",
+      "mimeType": "string (optional)",
+      "size": "number (optional)",
+      "title": "string (optional)",
+      "annotations": { "audience": [], "priority": 1 }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1793,13 +1870,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "resource": {
-    "text": "string (if text resource)",
-    "blob": "string (if blob resource)",
-    "uri": "string",
-    "mimeType": "string (optional)"
-  },
-  "annotations": { "audience": [], "lastModified": "string" }
+  "update": {
+    "sessionUpdate": "user_message_chunk",
+    "content": {
+      "type": "resource",
+      "resource": {
+        "text": "string (if text resource)",
+        "blob": "string (if blob resource)",
+        "uri": "string",
+        "mimeType": "string (optional)"
+      },
+      "annotations": { "audience": [], "lastModified": "string" }
+    }
+  }
 }</code></pre></td>
     </tr>
     <tr>
@@ -1809,11 +1892,17 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "sessionId": "string",
   "promptId": "uuid string",
-  "text": "string",
-  "annotations": {
-    "audience": ["Role1", "Role2"],
-    "lastModified": "ISO8601 string",
-    "priority": "number"
+  "update": {
+    "sessionUpdate": "user_message_chunk",
+    "content": {
+      "type": "text",
+      "text": "string",
+      "annotations": {
+        "audience": ["Role1", "Role2"],
+        "lastModified": "ISO8601 string",
+        "priority": "number"
+      }
+    }
   }
 }</code></pre></td>
     </tr>
