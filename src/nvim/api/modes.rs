@@ -1,15 +1,15 @@
 use crate::{
     acp::{Result, error::Error},
     api::Api,
+    nvim::autocommands::Commands,
 };
-use nvim_oxi::{Array, Dictionary, Object};
 
 /// Single positional argument: session_id
 pub type ModesArgs = String;
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn modes(&self, session_id: String) -> Result<Array> {
+    pub async fn modes(&self, session_id: String) -> Result<()> {
         let state = self.state.lock().await;
         let details = state
             .session_info
@@ -18,21 +18,12 @@ impl Api {
             .clone();
         drop(state);
 
-        let options = details
-            .mode_options()
-            .ok_or_else(|| Error::Unsupported("mode".to_string()))?;
-
-        Ok(Array::from_iter(options.iter().map(|opt| {
-            let mut dict = Dictionary::new();
-            dict.insert("value", opt.value.clone());
-            dict.insert("name", opt.name.clone());
-            if let Some(description) = opt.description.clone() {
-                dict.insert("description", description);
-            }
-            if let Some(group) = opt.group.clone() {
-                dict.insert("group", group);
-            }
-            Object::from(dict)
-        })))
+        if let Some(mode_details) = details.modes {
+            self.response_handler
+                .execute_autocommand(Commands::Modes, mode_details)
+                .await
+        } else {
+            Err(Error::Unsupported("mode".to_string()))
+        }
     }
 }

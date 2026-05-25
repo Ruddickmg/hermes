@@ -53,6 +53,11 @@ pub enum Commands {
     AgentResourceLinkThought,
     AgentImageThought,
     AgentTextThought,
+
+    // Configuration options
+    Models,
+    Modes,
+    ThoughtLevels,
 }
 
 impl TryFrom<&str> for Commands {
@@ -109,6 +114,11 @@ impl TryFrom<&str> for Commands {
             "AgentResourceLinkThought" => Ok(Commands::AgentResourceLinkThought),
             "AgentImageThought" => Ok(Commands::AgentImageThought),
             "AgentTextThought" => Ok(Commands::AgentTextThought),
+
+            // Configuration options
+            "Models" => Ok(Commands::Models),
+            "Modes" => Ok(Commands::Modes),
+            "ThoughtLevels" => Ok(Commands::ThoughtLevels),
 
             _ => Err(Error::InvalidInput(format!("Unknown command: {}", value))),
         }
@@ -503,6 +513,21 @@ mod tests {
         assert_eq!(
             format!("{}", Commands::ThoughtLevelUpdated),
             "ThoughtLevelUpdated"
+        );
+        assert_eq!(format!("{}", Commands::Models), "Models");
+        assert_eq!(format!("{}", Commands::ThoughtLevels), "ThoughtLevels");
+    }
+
+    #[test]
+    fn test_commands_models() {
+        assert_eq!(Commands::try_from("Models").unwrap(), Commands::Models);
+    }
+
+    #[test]
+    fn test_commands_thought_levels() {
+        assert_eq!(
+            Commands::try_from("ThoughtLevels").unwrap(),
+            Commands::ThoughtLevels
         );
     }
 }

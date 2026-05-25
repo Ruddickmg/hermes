@@ -1,9 +1,9 @@
 use agent_client_protocol::schema::{
     NewSessionResponse, SessionConfigKind, SessionConfigOptionCategory, SessionConfigSelectOptions,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Debug, Default, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 pub struct HermesOption {
     pub value: String,
     pub name: String,
@@ -11,18 +11,19 @@ pub struct HermesOption {
     pub group: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Selection {
-    options: Vec<HermesOption>,
-    current: HermesOption,
+    pub options: Vec<HermesOption>,
+    pub current: HermesOption,
+    #[serde(skip)]
     legacy: bool,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct SessionDetails {
-    modes: Option<Selection>,
-    models: Option<Selection>,
-    thought_levels: Option<Selection>,
+    pub modes: Option<Selection>,
+    pub models: Option<Selection>,
+    pub thought_levels: Option<Selection>,
 }
 
 impl SessionDetails {

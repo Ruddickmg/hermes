@@ -633,7 +633,6 @@ end
 
 ---Get available modes for a session
 ---@param session_id string Session ID
----@return ModeOption[]|nil Array of mode options, or nil if session has no mode support
 function M.modes(session_id)
 	return execute_async(function()
 		return M._load_native_sync().modes(session_id)
@@ -642,7 +641,6 @@ end
 
 ---Get available models for a session
 ---@param session_id string Session ID
----@return ModelOption[]|nil Array of model options, or nil if session has no model support
 function M.models(session_id)
 	return execute_async(function()
 		return M._load_native_sync().models(session_id)
@@ -651,7 +649,6 @@ end
 
 ---Get available thought levels for a session
 ---@param session_id string Session ID
----@return ThoughtLevelOption[]|nil Array of thought level options, or nil if session has no thought level support
 function M.thought_levels(session_id)
 	return execute_async(function()
 		return M._load_native_sync().thought_levels(session_id)

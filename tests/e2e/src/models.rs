@@ -1,19 +1,19 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use crate::{
     TIMEOUT_IN_SECONDS,
     utilities::{autocommand, mock_agent::MockAgent, mock_config::generate_session_id},
 };
 use agent_client_protocol::schema::{
-    InitializeResponse, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
-    SessionConfigSelectOption,
+    InitializeResponse, ModelInfo, NewSessionResponse, SessionConfigOption,
+    SessionConfigOptionCategory, SessionConfigSelectOption, SessionModelState,
 };
 use hermes::{
+    acp::session_info::{HermesOption, Selection},
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
     nvim::{autocommands::Commands, hermes},
 };
-use nvim_oxi::{Array, Dictionary, Function, Object, conversion::FromObject};
-use pretty_assertions::assert_eq;
+use nvim_oxi::{Dictionary, Function, conversion::FromObject};
 
 #[nvim_oxi::test]
 fn test_setup_returns_models_function() -> Result<(), nvim_oxi::Error> {
@@ -30,7 +30,7 @@ fn test_setup_returns_models_function() -> Result<(), nvim_oxi::Error> {
 #[nvim_oxi::test]
 fn test_models_returns_nil_when_no_session() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
-    let models: Function<String, Option<Array>> =
+    let models: Function<String, Option<()>> =
         FromObject::from_object(dict.get("models").unwrap().clone())?;
 
     let result = models.call("nonexistent-session".to_string());
@@ -44,32 +44,6 @@ fn test_models_returns_nil_when_no_session() -> Result<(), nvim_oxi::Error> {
     Ok(())
 }
 
-fn dict_to_hashmap(dict: Dictionary) -> HashMap<String, String> {
-    dict.into_iter().fold(HashMap::new(), |mut acc, (k, v)| {
-        let s: nvim_oxi::String = v.try_into().unwrap();
-        acc.insert(k.to_string(), s.to_string());
-        acc
-    })
-}
-
-fn hashmap_model(value: &str, name: &str) -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    map.insert("value".to_string(), value.to_string());
-    map.insert("name".to_string(), name.to_string());
-    map
-}
-
-fn collect_models(result: Option<Array>) -> Vec<HashMap<String, String>> {
-    result
-        .unwrap()
-        .into_iter()
-        .map(|obj| {
-            let dict: Dictionary = obj.try_into().expect("Object should be a dictionary");
-            dict_to_hashmap(dict)
-        })
-        .collect()
-}
-
 #[nvim_oxi::test]
 fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
@@ -79,19 +53,20 @@ fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let models: Function<String, Option<Array>> =
+    let models: Function<String, Option<()>> =
         FromObject::from_object(dict.get("models").unwrap().clone())?;
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_models = autocommand::listen_for_autocommand::<Selection>(Commands::Models);
 
     let (agent, conn_rx) = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let model = agent_client_protocol::schema::ModelInfo::new("gpt4", "GPT-4");
-        let models = agent_client_protocol::schema::SessionModelState::new("gpt4", vec![model]);
+        let models = SessionModelState::new("gpt4", vec![model]);
         config.new_session_response = NewSessionResponse::new(generate_session_id()).models(models);
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
@@ -110,12 +85,21 @@ fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = models.call(session_id)?;
+    let result = models.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(collect_models(result), vec![hashmap_model("gpt4", "GPT-4")]);
+    let selection = wait_for_models(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    assert_eq!(
+        selection.options,
+        vec![HermesOption {
+            value: "gpt4".into(),
+            name: "GPT-4".into(),
+            description: None,
+            group: None,
+        }]
+    );
 
     Ok(())
 }
@@ -129,13 +113,14 @@ fn test_models_returns_config_options() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let models: Function<String, Option<Array>> =
+    let models: Function<String, Option<()>> =
         FromObject::from_object(dict.get("models").unwrap().clone())?;
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_models = autocommand::listen_for_autocommand::<Selection>(Commands::Models);
 
     let (agent, conn_rx) = MockAgent::new();
     {
@@ -166,12 +151,21 @@ fn test_models_returns_config_options() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = models.call(session_id)?;
+    let result = models.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert_eq!(collect_models(result), vec![hashmap_model("gpt4", "GPT-4")]);
+    let selection = wait_for_models(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    assert_eq!(
+        selection.options,
+        vec![HermesOption {
+            value: "gpt4".into(),
+            name: "GPT-4".into(),
+            description: None,
+            group: None,
+        }]
+    );
 
     Ok(())
 }
