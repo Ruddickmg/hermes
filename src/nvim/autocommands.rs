@@ -33,6 +33,7 @@ pub enum Commands {
     SessionForked,
     SessionResumed,
     SessionModelUpdated,
+    ThoughtLevelUpdated,
     UsageUpdate,
 
     // User message commands (format: User{ContentType}Message)
@@ -52,6 +53,11 @@ pub enum Commands {
     AgentResourceLinkThought,
     AgentImageThought,
     AgentTextThought,
+
+    // Configuration options
+    Models,
+    Modes,
+    ThoughtLevels,
 }
 
 impl TryFrom<&str> for Commands {
@@ -88,6 +94,7 @@ impl TryFrom<&str> for Commands {
             "SessionForked" => Ok(Commands::SessionForked),
             "SessionResumed" => Ok(Commands::SessionResumed),
             "SessionModelUpdated" => Ok(Commands::SessionModelUpdated),
+            "ThoughtLevelUpdated" => Ok(Commands::ThoughtLevelUpdated),
             "UsageUpdate" => Ok(Commands::UsageUpdate),
 
             // User message commands
@@ -107,6 +114,11 @@ impl TryFrom<&str> for Commands {
             "AgentResourceLinkThought" => Ok(Commands::AgentResourceLinkThought),
             "AgentImageThought" => Ok(Commands::AgentImageThought),
             "AgentTextThought" => Ok(Commands::AgentTextThought),
+
+            // Configuration options
+            "Models" => Ok(Commands::Models),
+            "Modes" => Ok(Commands::Modes),
+            "ThoughtLevels" => Ok(Commands::ThoughtLevels),
 
             _ => Err(Error::InvalidInput(format!("Unknown command: {}", value))),
         }
@@ -371,6 +383,14 @@ mod tests {
     }
 
     #[test]
+    fn test_commands_thought_level_updated() {
+        assert_eq!(
+            Commands::try_from("ThoughtLevelUpdated").unwrap(),
+            Commands::ThoughtLevelUpdated
+        );
+    }
+
+    #[test]
     fn test_commands_usage_update() {
         assert_eq!(
             Commands::try_from("UsageUpdate").unwrap(),
@@ -489,6 +509,30 @@ mod tests {
         assert_eq!(
             format!("{}", Commands::AgentTextThought),
             "AgentTextThought"
+        );
+        assert_eq!(
+            format!("{}", Commands::ThoughtLevelUpdated),
+            "ThoughtLevelUpdated"
+        );
+        assert_eq!(format!("{}", Commands::Models), "Models");
+        assert_eq!(format!("{}", Commands::ThoughtLevels), "ThoughtLevels");
+    }
+
+    #[test]
+    fn test_commands_modes() {
+        assert_eq!(Commands::try_from("Modes").unwrap(), Commands::Modes);
+    }
+
+    #[test]
+    fn test_commands_models() {
+        assert_eq!(Commands::try_from("Models").unwrap(), Commands::Models);
+    }
+
+    #[test]
+    fn test_commands_thought_levels() {
+        assert_eq!(
+            Commands::try_from("ThoughtLevels").unwrap(),
+            Commands::ThoughtLevels
         );
     }
 }

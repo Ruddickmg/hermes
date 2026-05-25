@@ -15,4 +15,6 @@ pub mod response;
 pub mod session;
 pub mod setup;
 pub mod terminal;
+pub mod thought_level;
+pub mod thought_levels;
 pub mod utilities;

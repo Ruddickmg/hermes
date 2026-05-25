@@ -529,6 +529,29 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			assert.is_nil(hermes.models("test-session-id"))
 		end)
+
+		it("thought_levels endpoint callable with opencode", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			assert.is_nil(hermes.thought_levels("test-session-id"))
+		end)
+
+		it("set_thought_level endpoint callable with opencode", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			local ok, err = pcall(hermes.set_thought_level, "test-session-id", "low")
+			assert.is_true(ok, "set_thought_level() should not crash: " .. tostring(err))
+		end)
 	end)
 
 	describe("with copilot agent (for permission requests)", function()

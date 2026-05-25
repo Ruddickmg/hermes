@@ -146,6 +146,12 @@
 ---@field name string Human-readable name
 ---@field description? string Optional description
 ---@field group? string Optional group name
+
+---@class ThoughtLevelOption
+---@field value string Option ID
+---@field name string Human-readable name
+---@field description? string Optional description
+---@field group? string Optional group name
 -- luacov: enable
 
 local M = {}
@@ -616,9 +622,17 @@ function M.set_model(session_id, model)
 	end)
 end
 
+---Set thought level for a session
+---@param session_id string Session ID
+---@param level string Thought level ID/Name
+function M.set_thought_level(session_id, level)
+	execute_async(function()
+		M._load_native_sync().set_thought_level(session_id, level)
+	end)
+end
+
 ---Get available modes for a session
 ---@param session_id string Session ID
----@return ModeOption[]|nil Array of mode options, or nil if session has no mode support
 function M.modes(session_id)
 	return execute_async(function()
 		return M._load_native_sync().modes(session_id)
@@ -627,10 +641,17 @@ end
 
 ---Get available models for a session
 ---@param session_id string Session ID
----@return ModelOption[]|nil Array of model options, or nil if session has no model support
 function M.models(session_id)
 	return execute_async(function()
 		return M._load_native_sync().models(session_id)
+	end)
+end
+
+---Get available thought levels for a session
+---@param session_id string Session ID
+function M.thought_levels(session_id)
+	return execute_async(function()
+		return M._load_native_sync().thought_levels(session_id)
 	end)
 end
 
