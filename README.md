@@ -605,16 +605,6 @@ hermes.modes(sessionId)
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
-  pattern = "SessionCreated",
-  callback = function(args)
-    local sessionId = args.data.sessionId
-
-    hermes.modes(sessionId)
-  end,
-})
-
-vim.api.nvim_create_autocmd("User", {
-  group = "hermes",
   pattern = "Modes",
   callback = function(args)
     local options = args.data.options
@@ -666,16 +656,6 @@ hermes.models(sessionId)
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
-  pattern = "SessionCreated",
-  callback = function(args)
-    local sessionId = args.data.sessionId
-
-    hermes.models(sessionId)
-  end,
-})
-
-vim.api.nvim_create_autocmd("User", {
-  group = "hermes",
   pattern = "Models",
   callback = function(args)
     local options = args.data.options
@@ -725,16 +705,6 @@ local hermes = require("hermes")
 hermes.thought_levels(sessionId)
 
 -- example
-vim.api.nvim_create_autocmd("User", {
-  group = "hermes",
-  pattern = "SessionCreated",
-  callback = function(args)
-    local sessionId = args.data.sessionId
-
-    hermes.thought_levels(sessionId)
-  end,
-})
-
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "ThoughtLevels",
