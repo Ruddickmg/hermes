@@ -22,7 +22,6 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::requests::Requests;
 use async_lock::Mutex;
-pub use close_session::*;
 pub use connect::*;
 pub use create_session::*;
 pub use disconnect::*;
