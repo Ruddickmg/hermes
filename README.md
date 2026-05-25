@@ -1375,33 +1375,66 @@ Below is a list of all autocommands and their associated data (passed to the cal
   "sessionId": "string",
   "toolCall": {
     "toolCallId": "string",
-    "fields": {
-      "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other (optional)",
-      "status": "Pending | InProgress | Completed | Cancelled | Error (optional)",
-      "title": "string (optional)",
-      "content": [{
-        "type": "text | image | resource | resourcelink | terminal | diff",
-        "text": "string (if text type)",
-        "data": "base64 string (if image type)",
-        "mimeType": "string (if image type)",
-        "uri": "string (if image/resource/resourcelink type)",
-        "resource": {
-          "text": "string (if text resource)",
-          "blob": "string (if blob resource)",
-          "uri": "string",
-          "mimeType": "string (optional)"
-        },
-        "name": "string (if resourcelink type)",
-        "description": "string (optional, if resourcelink type)",
-        "terminalId": "string (if terminal type)",
-        "path": "string (if diff type)",
-        "newText": "string (if diff type)",
-        "oldText": "string (optional, if diff type)"
-      }],
-      "locations": [{ "path": "string", "line": "number (optional)" }],
-      "rawInput": "JSON value (optional)",
-      "rawOutput": "JSON value (optional)"
-    }
+    "kind": "Read | Edit | Delete | Move | Search | Execute | Think | Fetch | SwitchMode | Other (optional)",
+    "status": "Pending | InProgress | Completed | Cancelled | Error (optional)",
+    "title": "string (optional)",
+    "content": [
+      {
+        "type": "content",
+        "content": {
+          "type": "text",
+          "text": "I need to read src/main.rs"
+        }
+      },
+      {
+        "type": "content",
+        "content": {
+          "type": "image",
+          "data": "iVBORw0KGgo...",
+          "mimeType": "image/png"
+        }
+      },
+      {
+        "type": "content",
+        "content": {
+          "type": "audio",
+          "data": "UklGRiT0...",
+          "mimeType": "audio/wav"
+        }
+      },
+      {
+        "type": "content",
+        "content": {
+          "type": "resource",
+          "resource": {
+            "text": "def hello():\n    print('hello')",
+            "uri": "file:///home/user/script.py",
+            "mimeType": "text/x-python"
+          }
+        }
+      },
+      {
+        "type": "content",
+        "content": {
+          "type": "resource_link",
+          "name": "Documentation",
+          "uri": "file:///docs/api.md"
+        }
+      },
+      {
+        "type": "diff",
+        "path": "src/main.rs",
+        "oldText": "let x = 1;",
+        "newText": "let x = 2;"
+      },
+      {
+        "type": "terminal",
+        "terminalId": "term-abc123"
+      }
+    ],
+    "locations": [{ "path": "string", "line": "number (optional)" }],
+    "rawInput": "JSON value (optional)",
+    "rawOutput": "JSON value (optional)"
   },
   "options": [{ "id": "string", "label": "string", "description": "string (optional)" }]
 }</code></pre></td>
