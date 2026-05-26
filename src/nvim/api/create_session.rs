@@ -298,6 +298,26 @@ mod session_args_tests {
         }
     }
 
+    #[test]
+    fn test_from_object_non_dictionary_returns_error() {
+        let obj = Object::from(42);
+        let result = CreateSessionArgs::from_object(obj);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_object_with_cwd() {
+        let mut dict = Dictionary::new();
+        dict.insert("cwd", "/tmp/test");
+        let args = CreateSessionArgs::from_object(Object::from(dict)).unwrap();
+        match args {
+            CreateSessionArgs::Configuration { cwd, .. } => {
+                assert_eq!(cwd, Some(PathBuf::from("/tmp/test")));
+            }
+            _ => panic!("Expected Configuration variant"),
+        }
+    }
+
     // Helper for Stdio Default
     fn create_stdio_default_args() -> CreateSessionArgs {
         let mut dict = Dictionary::new();
