@@ -3,6 +3,7 @@ use agent_client_protocol::schema::{CloseSessionRequest, SessionId};
 use crate::{
     acp::{Result, error::Error},
     api::Api,
+    nvim::requests::RequestHandler,
 };
 
 impl Api {
@@ -15,6 +16,10 @@ impl Api {
         if !agent_info.can_close_session() {
             return Ok(());
         }
+
+        self.request_handler
+            .cancel_session_requests(session_id.clone())
+            .await?;
 
         let request = CloseSessionRequest::new(SessionId::from(session_id));
 

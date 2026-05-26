@@ -242,8 +242,17 @@ impl Handler {
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn session_closed(&self, response: CloseSessionResponse) -> Result<(), Error> {
+    pub async fn session_closed(
+        &self,
+        session_id: String,
+        response: CloseSessionResponse,
+    ) -> Result<(), Error> {
         self.execute_autocommand(Commands::SessionClosed, response)
-            .await
+            .await?;
+        let mut state = self.state.lock().await;
+        state.session_info.remove(&session_id);
+        state.prompt.remove(&session_id);
+        drop(state);
+        Ok(())
     }
 }

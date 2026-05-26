@@ -5,6 +5,7 @@ use agent_client_protocol::schema::{
 };
 use async_lock::Mutex;
 use hermes::acp::handler::Handler;
+use hermes::acp::session_info::SessionDetails;
 use hermes::nvim::state::PluginState;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -69,9 +70,75 @@ fn session_resumed_succeeds() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn session_closed_succeeds() -> nvim_oxi::Result<()> {
     let handler = create_handler();
+    let session_id = String::from("test-session");
     let response = CloseSessionResponse::default();
-    let result = smol::block_on(handler.session_closed(response));
+    let result = smol::block_on(handler.session_closed(session_id, response));
     assert!(result.is_ok(), "session_closed should succeed");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_closed_removes_session_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session_id = String::from("test-session");
+    // Insert session info using SessionDetails
+    {
+        let mut locked = smol::block_on(state.lock());
+        locked
+            .session_info
+            .insert(session_id.clone(), SessionDetails::default());
+        locked
+            .prompt
+            .insert(session_id.clone(), "stale-prompt".to_string());
+    }
+
+    let response = CloseSessionResponse::default();
+    smol::block_on(handler.session_closed(session_id.clone(), response))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let locked = smol::block_on(state.lock());
+    assert!(
+        !locked.session_info.contains_key(&session_id),
+        "session_info should be removed after close"
+    );
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_closed_removes_prompt() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session_id = String::from("test-session");
+    // Insert prompt data
+    {
+        let mut locked = smol::block_on(state.lock());
+        locked
+            .prompt
+            .insert(session_id.clone(), "stale-prompt".to_string());
+    }
+
+    let response = CloseSessionResponse::default();
+    smol::block_on(handler.session_closed(session_id.clone(), response))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let locked = smol::block_on(state.lock());
+    assert!(
+        !locked.prompt.contains_key(&session_id),
+        "prompt should be removed after close"
+    );
     Ok(())
 }
 

@@ -2079,7 +2079,7 @@ require("hermes").setup({
     -- Each target has its own format (defaults to "compact" if not set):
     notification = { format = "pretty" },
     message = { format = "json" },
-    quickfix = { format = nil },  -- nil = use default ("compact")
+     = { format = nil },  -- nil = use default ("compact")
   }
 })
 ```
@@ -2093,7 +2093,6 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
 - [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
 - [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
 - [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
