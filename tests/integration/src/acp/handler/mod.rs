@@ -1,4 +1,9 @@
 //! Integration tests for Handler notification and permissions
+// NOTE: tests/integration/src/acp/handler/client.rs exists but is NOT declared here.
+// It was written as dead test code and was never compiled. The "allowed" tests in it
+// timeout due to test environment issues. Keep it undeclared until those are resolved.
+pub mod response;
+
 use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
     Error,
