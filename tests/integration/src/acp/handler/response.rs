@@ -3,11 +3,11 @@ use agent_client_protocol::schema::{
     AuthenticateResponse, CloseSessionResponse, ForkSessionResponse, ListSessionsResponse,
     ResumeSessionResponse,
 };
+use async_lock::Mutex;
 use hermes::acp::handler::Handler;
 use hermes::nvim::state::PluginState;
 use std::rc::Rc;
 use std::sync::Arc;
-use async_lock::Mutex;
 
 fn create_handler() -> Handler {
     Handler::new(
@@ -79,11 +79,10 @@ fn session_closed_succeeds() -> nvim_oxi::Result<()> {
 fn session_notification_unknown_update_returns_method_not_found() -> nvim_oxi::Result<()> {
     let handler = create_handler();
     let info = agent_client_protocol::schema::SessionInfoUpdate::new();
-    let notification =
-        agent_client_protocol::schema::SessionNotification::new(
-            "test-session",
-            agent_client_protocol::schema::SessionUpdate::SessionInfoUpdate(info),
-        );
+    let notification = agent_client_protocol::schema::SessionNotification::new(
+        "test-session",
+        agent_client_protocol::schema::SessionUpdate::SessionInfoUpdate(info),
+    );
     let result = smol::block_on(handler.session_notification(notification));
     assert_eq!(
         result.unwrap_err(),
