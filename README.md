@@ -406,7 +406,6 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [Prompted](#prompted) autocommand upon completion.
-> **Returns:** A prompt id, used to correlate agent responses to specific prompts
 
 ### Create Session
 
@@ -449,7 +448,7 @@ hermes.create_session({
 
 ### Load Session (**Optional**)
 
-Load an existing session
+Load an existing session (replays session history)
 
 ```lua
 local hermes = require("hermes")
@@ -496,6 +495,56 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [SessionLoaded](#sessionloaded) autocommand upon completion
+
+### Resume Session (**Optional**)
+
+Resume an existing session (without replaying the session history)
+
+```lua
+local hermes = require("hermes")
+
+-- call signature (uses defaults)
+hermes.resume_session(sessionId)
+
+-- call signature (with further configuration)
+hermes.resume_session(sessionId, {
+  cwd = ".", -- path to load the session from (optional, defaults to either project root or current directory)
+  mcpServers = {
+    { -- Http or Sse MCP server definition
+      type = "http", -- or "sse"
+      name = "Human readable name for MCP server",
+      url = "http://url-to-mcp-server.com",
+      headers = {
+        { ["Content-Type"] = "application/json" },
+        { headerName = "header value" },
+      },
+    },
+    {  -- Stdio MCP server definition
+      type = "stdio",
+      name = "Human readable name for MCP server",
+      command = "/path/to/the/MCP/server/executable",
+      args = { "run", "--flag", "something" },
+      -- Environment variables to set when launching the MCP server.
+      env = {
+        { name = "ENVIRONMENT_VAR_NAME", value = "value" },
+      },
+    },
+  },
+})
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.resume_session(sessionId)
+  end,
+})
+```
+
+> **Triggers:** [SessionResumed](#sessionresumed) autocommand upon completion
+
 
 ### List Sessions (**Optional**)
 
@@ -2091,7 +2140,6 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
 - [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
 - [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
 - [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
