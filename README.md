@@ -108,55 +108,46 @@ cargo build --release
 
 ## Commands
 
-**Check status:**
 ```
 :Hermes status
 ```
 Shows loading state, configuration, and current status of Hermes.
 
-**View logs:**
 ```
 :Hermes log
 ```
 Shows recent log messages and current state information.
 
-**Check current version:**
 ```
 :Hermes version
 ```
 Shows installed version, platform info, and binary status.
 
-**Update to latest:**
 ```
 :Hermes update
 ```
 Fetches the latest release from GitHub and replaces the current binary.
 
-**Manual install:**
 ```
 :Hermes install
 ```
 Download the currently configured version.
 
-**Clean installation:**
 ```
 :Hermes clean
 ```
 Removes the binary. Run `:Hermes install` or use Hermes API to re-download.
 
-**Build from source:**
 ```
 :Hermes build
 ```
 Compiles from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
 
-**Cancel build:**
 ```
 :Hermes cancel
 ```
 Cancels an in-progress source build. Shows warning if no build is running.
 
-**View configuration:**
 ```
 :Hermes setup
 ```
@@ -1295,7 +1286,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "protocolVersion": "string",
   "agentCapabilities": {
-    "load_session": "boolean",
+    "loadSession": "boolean",
     "promptCapabilities": {
       "image": "boolean",
       "audio": "boolean",
@@ -1303,12 +1294,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
     },
     "mcpCapabilities": {
       "http": "boolean",
-      "sse": "boolean"
+      "sse": "boolean",
+      "acp": "boolean"
     },
     "sessionCapabilities": {
       "list": "boolean",
       "fork": "boolean",
-      "resume": "boolean"
+      "resume": "boolean",
+      "close": "boolean",
+      "additionalDirectories": "boolean",
+      "delete": "boolean"
+    },
+    "auth": {
+      "logout": "boolean"
     }
   },
   "authMethods": [
@@ -2079,7 +2077,7 @@ require("hermes").setup({
     -- Each target has its own format (defaults to "compact" if not set):
     notification = { format = "pretty" },
     message = { format = "json" },
-     = { format = nil },  -- nil = use default ("compact")
+    file = { format = nil },  -- nil = use default ("compact")
   }
 })
 ```
@@ -2141,8 +2139,8 @@ Available formats:
   - [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text
 
 -- architecture
-- [ ] Figure out how to remove tokio dependencies (imported by the ACP SDK)
-- [ ] ACP outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `UserRequest` dispatches. Trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
-- [ ] Connection threading model: currently one OS thread per connection driving its own `smol::LocalExecutor`. Explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
-- [ ] MockAgent (e2e tests): the migration to `Agent.builder()` may still leave the `AgentToConnection` channel hop in place for some sub-request flows. Audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
+- [ ] figure out how to remove tokio dependencies (imported by the acp sdk)
+- [ ] acp outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `userrequest` dispatches. trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
+- [ ] connection threading model: currently one os thread per connection driving its own `smol::localexecutor`. explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
+- [ ] mockagent (e2e tests): the migration to `agent.builder()` may still leave the `agenttoconnection` channel hop in place for some sub-request flows. audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
 

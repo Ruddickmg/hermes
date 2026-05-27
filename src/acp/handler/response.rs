@@ -36,17 +36,18 @@ impl Handler {
                     "acp": info.agent_capabilities.mcp_capabilities.acp,
                 },
                 "sessionCapabilities": {
-                    "list": info.agent_capabilities.session_capabilities.list,
-                    "fork": info.agent_capabilities.session_capabilities.fork,
-                    "resume": info.agent_capabilities.session_capabilities.resume,
-                    "close": info.agent_capabilities.session_capabilities.close,
-                    "additional_directories": info.agent_capabilities.session_capabilities.additional_directories,
-                    "delete": info.agent_capabilities.session_capabilities.delete,
+                    "list": info.agent_capabilities.session_capabilities.list.is_some(),
+                    "fork": info.agent_capabilities.session_capabilities.fork.is_some(),
+                    "resume": info.agent_capabilities.session_capabilities.resume.is_some(),
+                    "close": info.agent_capabilities.session_capabilities.close.is_some(),
+                    "additionalDirectories": info.agent_capabilities.session_capabilities.additional_directories.is_some(),
+                    "delete": info.agent_capabilities.session_capabilities.delete.is_some(),
                 },
                 "auth": {
-                    "logout": info.agent_capabilities.auth.logout
+                    "logout": info.agent_capabilities.auth.logout.is_some()
                 },
             },
+            // TODO: handle each type of auth method
             "authMethods": info.auth_methods.iter().map(|m| serde_json::json!({
                 "id": m.id().0,
                 "name": m.name(),

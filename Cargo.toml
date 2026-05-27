@@ -5,15 +5,14 @@ version = "0.0.0-development"
 edition = "2024"
 
 [package.metadata.precommit]
-fmt = "cargo fmt"
-sort = "cargo sort"
+fmt = "cargo fmt && git -u"
+
 [workspace]
 members = [".", "tests/e2e", "tests/integration"]
 resolver = "2"
 
 [workspace.metadata.precommit]
-fmt = "cargo fmt"
-sort = "cargo sort -w"
+fmt = "cargo fmt && git add -u"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
