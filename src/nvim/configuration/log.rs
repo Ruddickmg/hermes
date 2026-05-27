@@ -227,7 +227,68 @@ impl FromObject for LogConfigPartial {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nvim_oxi::Dictionary;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_log_target_config_partial_from_object_empty_dict() {
+        let result = LogTargetConfigPartial::from_object(Object::from(Dictionary::new()));
+        let partial = result.expect("empty dict should parse");
+        assert_eq!(partial.level, None);
+        assert_eq!(partial.format, None);
+    }
+
+    #[test]
+    fn test_log_target_config_partial_from_object_with_level() {
+        let mut dict = Dictionary::new();
+        dict.insert("level", "debug");
+        let result = LogTargetConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with level should parse");
+        assert_eq!(partial.level, Some(LogLevel::Debug));
+    }
+
+    #[test]
+    fn test_log_target_config_partial_from_object_with_format() {
+        let mut dict = Dictionary::new();
+        dict.insert("format", "json");
+        let result = LogTargetConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with format should parse");
+        assert_eq!(partial.format, Some(LogFormat::Json));
+    }
+
+    #[test]
+    fn test_log_file_config_partial_from_object_empty_dict() {
+        let result = LogFileConfigPartial::from_object(Object::from(Dictionary::new()));
+        let partial = result.expect("empty dict should parse");
+        assert!(partial.path.is_none(), "path should be None for empty dict");
+    }
+
+    #[test]
+    fn test_log_file_config_partial_from_object_with_path() {
+        let mut dict = Dictionary::new();
+        dict.insert("path", "/tmp/test.log");
+        let result = LogFileConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with path should parse");
+        assert_eq!(partial.path, Some("/tmp/test.log".to_string()));
+    }
+
+    #[test]
+    fn test_log_file_config_partial_from_object_with_level() {
+        let mut dict = Dictionary::new();
+        dict.insert("level", "info");
+        let result = LogFileConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with level should parse");
+        assert_eq!(partial.level, Some(LogLevel::Info));
+    }
+
+    #[test]
+    fn test_log_file_config_partial_from_object_with_max_size() {
+        let mut dict = Dictionary::new();
+        dict.insert("max_size", 10_485_760i64);
+        let result = LogFileConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with max_size should parse");
+        assert_eq!(partial.max_size, Some(10_485_760));
+    }
 
     #[test]
     fn test_log_target_config_partial_apply_to_level() {

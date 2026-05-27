@@ -108,55 +108,46 @@ cargo build --release
 
 ## Commands
 
-**Check status:**
 ```
 :Hermes status
 ```
 Shows loading state, configuration, and current status of Hermes.
 
-**View logs:**
 ```
 :Hermes log
 ```
 Shows recent log messages and current state information.
 
-**Check current version:**
 ```
 :Hermes version
 ```
 Shows installed version, platform info, and binary status.
 
-**Update to latest:**
 ```
 :Hermes update
 ```
 Fetches the latest release from GitHub and replaces the current binary.
 
-**Manual install:**
 ```
 :Hermes install
 ```
 Download the currently configured version.
 
-**Clean installation:**
 ```
 :Hermes clean
 ```
 Removes the binary. Run `:Hermes install` or use Hermes API to re-download.
 
-**Build from source:**
 ```
 :Hermes build
 ```
 Compiles from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
 
-**Cancel build:**
 ```
 :Hermes cancel
 ```
 Cancels an in-progress source build. Shows warning if no build is running.
 
-**View configuration:**
 ```
 :Hermes setup
 ```
@@ -543,6 +534,31 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [SessionsListed](#sessionslisted) autocommand upon completion
+
+### Close Session (**Optional**)
+
+Close active session and free all resources associated with it
+
+```lua
+local hermes = require("hermes")
+local sessionId = "session-id-from-create-session-response"
+
+-- call signature
+hermes.close_session(sessionId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.close_session(sessionId)
+  end,
+})
+```
+
+> **Triggers:** [SessionClosed](#sessionclosed) autocommand upon completion
 
 ### Cancel (**Optional**)
 
@@ -1270,7 +1286,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><pre><code class="language-json">{
   "protocolVersion": "string",
   "agentCapabilities": {
-    "load_session": "boolean",
+    "loadSession": "boolean",
     "promptCapabilities": {
       "image": "boolean",
       "audio": "boolean",
@@ -1278,12 +1294,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
     },
     "mcpCapabilities": {
       "http": "boolean",
-      "sse": "boolean"
+      "sse": "boolean",
+      "acp": "boolean"
     },
     "sessionCapabilities": {
       "list": "boolean",
       "fork": "boolean",
-      "resume": "boolean"
+      "resume": "boolean",
+      "close": "boolean",
+      "additionalDirectories": "boolean",
+      "delete": "boolean"
+    },
+    "auth": {
+      "logout": "boolean"
     }
   },
   "authMethods": [
@@ -1747,6 +1770,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
   }
 }</code></pre></td>
     </tr>
+    <tr id="sessionclosed">
+      <td><code>SessionClosed</code></td>
+      <td>Active session closed</td>
+      <td>⚡ <a href="#close-session-optional">close_session()</a></td>
+      <td><pre><code class="language-json">{}</code></pre></td>
+    </tr>
     <tr>
       <td><code>ToolCall</code></td>
       <td>Agent makes a tool call</td>
@@ -2048,7 +2077,7 @@ require("hermes").setup({
     -- Each target has its own format (defaults to "compact" if not set):
     notification = { format = "pretty" },
     message = { format = "json" },
-    quickfix = { format = nil },  -- nil = use default ("compact")
+    file = { format = nil },  -- nil = use default ("compact")
   }
 })
 ```
@@ -2062,29 +2091,27 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Close sessions](https://agentclientprotocol.com/rfds/session-close)
 - [ ] [Resume sessions](https://agentclientprotocol.com/rfds/session-resume)
 - [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
+- [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
 - [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
   - [x] Via tcp socket
   - [ ] Via unix socket
-- [ ] Add autocommand that triggers on all events
 - [ ] Support "unstable"/proposed ACP methods
   - [x] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
   - [ ] model
     - [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
   - [ ] authentication
-    - [ ] [logout](https://agentclientprotocol.com/rfds/logout-method)
     - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
   - [ ] session
     - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
     - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
     - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
     - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
-  - [ ] [Auth methods](https://agentclientprotocol.com/rfds/mcp-over-acp)
+  - [ ] [ACP over MCP](https://agentclientprotocol.com/rfds/mcp-over-acp)
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
@@ -2112,7 +2139,8 @@ Available formats:
   - [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text
 
 -- architecture
-- [ ] ACP outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `UserRequest` dispatches. Trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
-- [ ] Connection threading model: currently one OS thread per connection driving its own `smol::LocalExecutor`. Explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
-- [ ] MockAgent (e2e tests): the migration to `Agent.builder()` may still leave the `AgentToConnection` channel hop in place for some sub-request flows. Audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
+- [ ] figure out how to remove tokio dependencies (imported by the acp sdk)
+- [ ] acp outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `userrequest` dispatches. trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
+- [ ] connection threading model: currently one os thread per connection driving its own `smol::localexecutor`. explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
+- [ ] mockagent (e2e tests): the migration to `agent.builder()` may still leave the `agenttoconnection` channel hop in place for some sub-request flows. audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
 

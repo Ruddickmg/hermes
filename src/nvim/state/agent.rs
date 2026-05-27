@@ -37,6 +37,14 @@ impl AgentInfo {
         self.agents.insert(agent, info);
     }
 
+    pub fn can_close_session(&self) -> bool {
+        let allowed = self
+            .get_capabilities()
+            .map(|capabilities| capabilities.session_capabilities.close.is_some())
+            .unwrap_or(false);
+        self.notify_user(allowed, "closing sessions")
+    }
+
     pub fn can_load_session(&self) -> bool {
         let allowed = self
             .get_capabilities()

@@ -894,4 +894,27 @@ mod tests {
         let vec = content.into_vec();
         assert_eq!(vec.len(), 2);
     }
+
+    #[test]
+    fn required_string_wrong_type_returns_error() {
+        let mut dict = Dictionary::new();
+        dict.insert("type", "text");
+        dict.insert("text", 42);
+        let result = ContentBlockType::from_object(Object::from(dict));
+        assert!(result.is_err(), "non-string value for 'text' should error");
+    }
+
+    #[test]
+    fn optional_string_wrong_type_returns_error() {
+        let mut dict = Dictionary::new();
+        dict.insert("type", "link");
+        dict.insert("name", "test");
+        dict.insert("uri", "https://example.com");
+        dict.insert("description", 42);
+        let result = ContentBlockType::from_object(Object::from(dict));
+        assert!(
+            result.is_err(),
+            "non-string value for 'description' should error"
+        );
+    }
 }

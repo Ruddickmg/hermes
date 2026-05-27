@@ -1,8 +1,8 @@
 use agent_client_protocol::schema::{
-    AuthenticateResponse, ExtResponse, ForkSessionResponse, InitializeResponse,
-    ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PromptResponse,
-    ResumeSessionResponse, SessionConfigOptionCategory, SetSessionConfigOptionResponse,
-    SetSessionModeResponse, SetSessionModelResponse,
+    AuthenticateResponse, CloseSessionResponse, ExtResponse, ForkSessionResponse,
+    InitializeResponse, ListSessionsResponse, LoadSessionResponse, NewSessionResponse,
+    PromptResponse, ResumeSessionResponse, SessionConfigOptionCategory,
+    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
 };
 use tracing::instrument;
 
@@ -33,13 +33,21 @@ impl Handler {
                 "mcpCapabilities": {
                     "http": info.agent_capabilities.mcp_capabilities.http,
                     "sse": info.agent_capabilities.mcp_capabilities.sse,
+                    "acp": info.agent_capabilities.mcp_capabilities.acp,
                 },
                 "sessionCapabilities": {
-                    "list": info.agent_capabilities.session_capabilities.list,
-                    "fork": info.agent_capabilities.session_capabilities.fork,
-                    "resume": info.agent_capabilities.session_capabilities.resume,
+                    "list": info.agent_capabilities.session_capabilities.list.is_some(),
+                    "fork": info.agent_capabilities.session_capabilities.fork.is_some(),
+                    "resume": info.agent_capabilities.session_capabilities.resume.is_some(),
+                    "close": info.agent_capabilities.session_capabilities.close.is_some(),
+                    "additionalDirectories": info.agent_capabilities.session_capabilities.additional_directories.is_some(),
+                    "delete": info.agent_capabilities.session_capabilities.delete.is_some(),
+                },
+                "auth": {
+                    "logout": info.agent_capabilities.auth.logout.is_some()
                 },
             },
+            // TODO: handle each type of auth method
             "authMethods": info.auth_methods.iter().map(|m| serde_json::json!({
                 "id": m.id().0,
                 "name": m.name(),
@@ -232,5 +240,20 @@ impl Handler {
     pub async fn session_resumed(&self, response: ResumeSessionResponse) -> Result<(), Error> {
         self.execute_autocommand(Commands::SessionResumed, response)
             .await
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn session_closed(
+        &self,
+        session_id: String,
+        response: CloseSessionResponse,
+    ) -> Result<(), Error> {
+        self.execute_autocommand(Commands::SessionClosed, response)
+            .await?;
+        let mut state = self.state.lock().await;
+        state.session_info.remove(&session_id);
+        state.prompt.remove(&session_id);
+        drop(state);
+        Ok(())
     }
 }

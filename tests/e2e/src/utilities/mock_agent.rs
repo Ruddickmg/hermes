@@ -12,17 +12,18 @@ use agent_client_protocol::{
     on_receive_request,
     schema::{
         AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification,
-        ContentBlock, ContentChunk, CreateTerminalRequest, CreateTerminalResponse, Implementation,
-        InitializeRequest, InitializeResponse, ListSessionsRequest, ListSessionsResponse,
-        LoadSessionRequest, LoadSessionResponse, McpCapabilities, NewSessionRequest,
-        NewSessionResponse, PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion,
-        ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
+        CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk,
+        CreateTerminalRequest, CreateTerminalResponse, Implementation, InitializeRequest,
+        InitializeResponse, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest,
+        LoadSessionResponse, McpCapabilities, NewSessionRequest, NewSessionResponse,
+        PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion, ReadTextFileRequest,
+        ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
         RequestPermissionOutcome, RequestPermissionRequest, SessionCapabilities,
-        SessionForkCapabilities, SessionListCapabilities, SessionNotification,
-        SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
-        SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
-        SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
-        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
+        SessionCloseCapabilities, SessionForkCapabilities, SessionListCapabilities,
+        SessionNotification, SessionResumeCapabilities, SessionUpdate,
+        SetSessionConfigOptionRequest, SetSessionConfigOptionResponse, SetSessionModeRequest,
+        SetSessionModeResponse, SetSessionModelRequest, SetSessionModelResponse, StopReason,
+        TerminalOutputRequest, TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
         WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
     },
 };
@@ -337,7 +338,8 @@ fn build_mock_agent_builder(
                                                 SessionCapabilities::new()
                                                     .list(Some(SessionListCapabilities::new()))
                                                     .fork(Some(SessionForkCapabilities::new()))
-                                                    .resume(Some(SessionResumeCapabilities::new())),
+                                                    .resume(Some(SessionResumeCapabilities::new()))
+                                                    .close(Some(SessionCloseCapabilities::new())),
                                             ),
                                     ),
                             )
@@ -564,6 +566,30 @@ fn build_mock_agent_builder(
                         })
                         .await
                         .map_err(|_| internal_error("list_sessions timed out"))
+                        .and_then(|r| r);
+                        responder.respond_with_result(result)
+                    }
+                }
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let config = config.clone();
+                move |_req: CloseSessionRequest,
+                      responder: Responder<CloseSessionResponse>,
+                      _cx: ConnectionTo<acp::Client>| {
+                    let config = config.clone();
+                    async move {
+                        let dur = config.lock().unwrap().timeout;
+                        let result = timeout(dur, async {
+                            let config = config.lock().unwrap();
+                            Ok::<_, acp::Error>(
+                                config.close_session_response.clone().unwrap_or_default(),
+                            )
+                        })
+                        .await
+                        .map_err(|_| internal_error("close_session timed out"))
                         .and_then(|r| r);
                         responder.respond_with_result(result)
                     }

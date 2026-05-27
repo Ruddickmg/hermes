@@ -408,4 +408,10 @@ mod tests {
 
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_client_config_with_path_sets_log_path() {
+        let config = ClientConfig::with_path("/tmp/hermes.log");
+        assert_eq!(config.log.file.path, "/tmp/hermes.log");
+    }
 }

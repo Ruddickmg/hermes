@@ -229,6 +229,10 @@ describe("hermes.init (main API)", function()
 		it("exports set_thought_level from Rust", function()
 			assert.is_function(native.set_thought_level)
 		end)
+
+		it("exports close_session from Rust", function()
+			assert.is_function(native.close_session)
+		end)
 	end)
 
 	describe("API function signatures", function()
