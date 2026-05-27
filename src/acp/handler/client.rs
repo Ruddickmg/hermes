@@ -124,7 +124,10 @@ impl Handler {
             self.process_notification(&session_notification).await?;
 
         let state = self.state.lock().await;
-        if state.agent_info.needs_local_history() {
+        if state
+            .agent_info
+            .needs_local_history(state.config.session.store_history)
+        {
             let key = format!("{}/{}.jsonl", state.agent_info.current, session_id);
             if let Ok(content) = serde_json::to_string(&session_notification) {
                 state.agent_info.history.write_keyed(key, content);

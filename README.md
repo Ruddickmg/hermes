@@ -207,6 +207,9 @@ hermes.setup({
   buffer = {
     auto_save = false,  -- Auto-save modified files after writing to them 
   },
+  session = {
+    store_history = true,  -- Store session history locally when agent does not support load_session
+  },
   log = {
     -- send logs to stdio
     stdio = {

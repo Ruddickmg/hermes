@@ -90,6 +90,7 @@ Configuration options: ~
     • permissions:          Permission settings
     • terminal:             Terminal configuration
     • buffer:               Buffer settings
+    • session:              Session configuration
     • log:                  Logging configuration
     • download.version:     Binary version to use (default: "latest")
     • download.auto:        Auto-download binary on first use (default: true)

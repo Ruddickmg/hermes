@@ -26,6 +26,7 @@
 ---@field permissions? HermesPermissions Permission settings for agent operations
 ---@field terminal? HermesTerminalConfig Terminal configuration
 ---@field buffer? HermesBufferConfig Buffer configuration
+---@field session? HermesSessionConfig Session configuration
 ---@field log? HermesLogConfig Logging configuration
 
 ---@class HermesPermissions
@@ -45,6 +46,10 @@
 ---@class HermesBufferConfig
 ---Buffer configuration options
 ---@field auto_save? boolean Auto-save modified files after writing (default: false)
+
+---@class HermesSessionConfig
+---Session configuration options
+---@field store_history? boolean Store session history locally when agent does not support load_session (default: true)
 
 ---@class HermesLogConfig
 ---Logging configuration options

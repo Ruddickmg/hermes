@@ -337,7 +337,8 @@ impl Api {
         let can_send_images = agent_info.can_send_images();
         let can_send_audio = agent_info.can_send_audio();
         let can_send_embedded = agent_info.can_send_embedded_context();
-        let needs_local_history = agent_info.needs_local_history();
+        let needs_local_history =
+            agent_info.needs_local_history(state.config.session.store_history);
         let content_blocks: Vec<ContentBlock> = content_vec
             .into_iter()
             .map(Into::into)

@@ -146,8 +146,8 @@ impl AgentInfo {
         self.notify_user(allowed, "listing sessions")
     }
 
-    pub fn needs_local_history(&self) -> bool {
-        !self.can_load_session() && self.can_resume_sessions()
+    pub fn needs_local_history(&self, store_history: bool) -> bool {
+        store_history && !self.can_load_session() && self.can_resume_sessions()
     }
 }
 
@@ -524,7 +524,7 @@ mod tests {
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_resume_no_load());
         info.set_agent(agent);
-        assert_eq!(info.needs_local_history(), true);
+        assert_eq!(info.needs_local_history(true), true);
     }
 
     #[test]
@@ -533,7 +533,7 @@ mod tests {
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_load_and_resume());
         info.set_agent(agent);
-        assert_eq!(info.needs_local_history(), false);
+        assert_eq!(info.needs_local_history(true), false);
     }
 
     #[test]
@@ -542,7 +542,16 @@ mod tests {
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_test_response());
         info.set_agent(agent);
-        assert_eq!(info.needs_local_history(), false);
+        assert_eq!(info.needs_local_history(true), false);
+    }
+
+    #[test]
+    fn test_needs_local_history_false_when_store_history_disabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_resume_no_load());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(false), false);
     }
 
     #[test]

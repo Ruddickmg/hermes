@@ -86,6 +86,7 @@ impl Api {
         let config = maybe_config.unwrap_or_default();
         let state = self.state.lock().await;
         let project_root = state.config.project_root.clone();
+        let store_history = state.config.session.store_history;
         let agent_info = state.agent_info.clone();
         drop(state);
 
@@ -111,7 +112,7 @@ impl Api {
             let filepath = format!("{}/{}.jsonl", agent, session_id);
             let history_path = agent_info.history_base_path.join(&filepath);
 
-            if history_path.exists() {
+            if agent_info.needs_local_history(store_history) && history_path.exists() {
                 let contents = std::fs::read_to_string(&history_path).map_err(|e| {
                     Error::Internal(format!(
                         "Failed to read history file at {:?}: {}",
@@ -139,6 +140,11 @@ impl Api {
                 self.response_handler
                     .replay_session_notifications(history)
                     .await?;
+            } else if !store_history {
+                tracing::warn!(
+                    "Agent does not support load_session and store_history is disabled. \
+                     Resuming session without local history."
+                );
             }
 
             connection
