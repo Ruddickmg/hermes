@@ -99,6 +99,15 @@ impl Handler {
             _ => return Err(Error::method_not_found()),
         }?;
 
+        let state = self.state.lock().await;
+        if state.agent_info.needs_local_history() {
+            let key = format!("{}/{}.jsonl", state.agent_info.current, session_id);
+            if let Ok(content) = serde_json::to_string(&session_notification) {
+                state.agent_info.history.write_keyed(key, content);
+            }
+        }
+        drop(state);
+
         Ok(self
             .execute_autocommand(
                 command,
