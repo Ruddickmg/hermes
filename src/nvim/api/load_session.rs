@@ -1,3 +1,6 @@
+use agent_client_protocol::schema::{
+    LoadSessionRequest, ResumeSessionRequest, SessionNotification,
+};
 use nvim_oxi::{
     Dictionary, Object,
     conversion::FromObject,
@@ -86,27 +89,66 @@ impl Api {
         let agent_info = state.agent_info.clone();
         drop(state);
 
+        let connection = self
+            .connection
+            .get_current_connection()
+            .await
+            .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
+
+        let cwd = config.cwd.unwrap_or_else(|| {
+            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            crate::utilities::get_project_root(current_dir, root_markers)
+        });
+
         if agent_info.can_load_session() {
-            let request = agent_client_protocol::schema::LoadSessionRequest::new(
-                agent_client_protocol::schema::SessionId::from(session_id),
-                config.cwd.unwrap_or_else(|| {
-                    let current_dir =
-                        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                    crate::utilities::get_project_root(current_dir, root_markers)
-                }),
-            );
-
-            let connection = self
-                .connection
-                .get_current_connection()
+            connection
+                .load_session(
+                    LoadSessionRequest::new(session_id, cwd)
+                        .mcp_servers(config.mcp_servers.clone()),
+                )
                 .await
-                .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
-
-            connection.load_session(request).await
-        } else if agent_info.can_resume_sessions() {
+        } else if agent_info.can_resume_sessions()
+            && self.response_handler.can_receive_notifications().await
+        {
             let agent = agent_info.current.clone();
             let filepath = format!("{}/{}.jsonl", agent, session_id);
-            // get history and replay all events
+            let history_path = agent_info.history_base_path.join(&filepath);
+
+            if history_path.exists() {
+                let contents = std::fs::read_to_string(&history_path).map_err(|e| {
+                    Error::Internal(format!(
+                        "Failed to read history file at {:?}: {}",
+                        history_path, e
+                    ))
+                })?;
+
+                let history = contents
+                    .lines()
+                    .filter(|line| !line.trim().is_empty())
+                    .filter_map(|line| {
+                        serde_json::from_str::<SessionNotification>(line)
+                            .inspect_err(|e| {
+                                tracing::error!(
+                                    "Failed to parse history line for session {}: {} (line: {})",
+                                    session_id,
+                                    e,
+                                    line
+                                )
+                            })
+                            .ok()
+                    })
+                    .collect::<Vec<_>>();
+
+                self.response_handler
+                    .replay_session_notifications(history)
+                    .await?;
+            }
+
+            connection
+                .resume_session(
+                    ResumeSessionRequest::new(session_id, cwd).mcp_servers(config.mcp_servers),
+                )
+                .await?;
             Ok(())
         } else {
             Ok(())

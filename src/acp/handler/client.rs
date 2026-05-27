@@ -58,13 +58,16 @@ impl Handler {
             .map(RequestPermissionResponse::new)
     }
 
-    pub async fn session_notification(
+    /// Shared notification processing logic.
+    ///
+    /// Maps a `SessionUpdate` to the corresponding `Commands` variant, generates
+    /// prompt IDs for user messages, and builds the `HermesNotification` payload.
+    ///
+    /// Does **not** write to history or fire autocommands — callers handle those.
+    async fn process_notification(
         &self,
-        session_notification: SessionNotification,
-    ) -> Result<()> {
-        if !self.can_receive_notifications().await {
-            return Err(Error::method_not_found());
-        }
+        session_notification: &SessionNotification,
+    ) -> Result<(Commands, HermesNotification)> {
         let session_id = session_notification.session_id.to_string();
         let command = match session_notification.update.clone() {
             SessionUpdate::UserMessageChunk(chunk) => {
@@ -99,6 +102,27 @@ impl Handler {
             _ => return Err(Error::method_not_found()),
         }?;
 
+        let hermes_notification = HermesNotification {
+            session_id: session_notification.session_id.clone(),
+            prompt_id: self.get_prompt_id(&session_id).await?,
+            update: session_notification.update.clone(),
+        };
+
+        Ok((command, hermes_notification))
+    }
+
+    pub async fn session_notification(
+        &self,
+        session_notification: SessionNotification,
+    ) -> Result<()> {
+        if !self.can_receive_notifications().await {
+            return Err(Error::method_not_found());
+        }
+
+        let session_id = session_notification.session_id.to_string();
+        let (command, hermes_notification) =
+            self.process_notification(&session_notification).await?;
+
         let state = self.state.lock().await;
         if state.agent_info.needs_local_history() {
             let key = format!("{}/{}.jsonl", state.agent_info.current, session_id);
@@ -109,15 +133,32 @@ impl Handler {
         drop(state);
 
         Ok(self
-            .execute_autocommand(
-                command,
-                HermesNotification {
-                    session_id: session_notification.session_id.clone(),
-                    prompt_id: self.get_prompt_id(&session_id).await?,
-                    update: session_notification.update.clone(),
-                },
-            )
+            .execute_autocommand(command, hermes_notification)
             .await?)
+    }
+
+    /// Replay a session notification without writing to history.
+    ///
+    /// Intended for use during `load_session` when resuming from local history.
+    /// Checks `can_receive_notifications()` once and logs a single warning if
+    /// notifications are disabled, then replays all queued events.
+    pub async fn replay_session_notifications(
+        &self,
+        session_notifications: Vec<SessionNotification>,
+    ) -> acp::Result<()> {
+        if self.can_receive_notifications().await {
+            for notification in session_notifications {
+                let (command, hermes_notification) =
+                    self.process_notification(&notification).await?;
+                self.execute_autocommand(command, hermes_notification)
+                    .await?
+            }
+            Ok(())
+        } else {
+            Err(acp::error::Error::Permissions(
+                "Notifications are disabled. Could not replay session history".to_string(),
+            ))
+        }
     }
 
     pub async fn write_text_file(

@@ -13,26 +13,30 @@ pub struct AgentInfo {
     pub current: Assistant,
     agents: HashMap<Assistant, InitializeResponse>,
     pub history: ChannelWriter<HistorySink>,
+    pub history_base_path: PathBuf,
 }
 
 impl Default for AgentInfo {
     fn default() -> Self {
         let temp = std::env::temp_dir().join("hermes-history");
-        let sink = HistorySink::new(temp).expect("failed to create history sink in temp dir");
+        let sink =
+            HistorySink::new(temp.clone()).expect("failed to create history sink in temp dir");
         let writer = ChannelWriter::new_file(sink).expect("failed to create history writer");
         Self {
             current: Assistant::default(),
             agents: HashMap::new(),
             history: writer,
+            history_base_path: temp,
         }
     }
 }
 
 impl AgentInfo {
     pub fn set_history(&mut self, base_path: PathBuf) -> io::Result<()> {
-        let sink = HistorySink::new(base_path)?;
+        let sink = HistorySink::new(base_path.clone())?;
         let writer = ChannelWriter::new_file(sink)?;
         self.history = writer;
+        self.history_base_path = base_path;
         Ok(())
     }
 
@@ -168,6 +172,20 @@ mod tests {
         };
         info.add_agent(agent, create_test_response());
         info
+    }
+
+    #[test]
+    fn test_history_base_path_defaults_to_temp() {
+        let info = AgentInfo::default();
+        assert!(info.history_base_path.ends_with("hermes-history"));
+    }
+
+    #[test]
+    fn test_set_history_updates_base_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut info = AgentInfo::default();
+        info.set_history(temp_dir.path().join("history")).unwrap();
+        assert_eq!(info.history_base_path, temp_dir.path().join("history"));
     }
 
     #[test]
