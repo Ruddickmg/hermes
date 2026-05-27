@@ -5,14 +5,14 @@ version = "0.0.0-development"
 edition = "2024"
 
 [package.metadata.precommit]
-fmt = "git stash push -k -m \"pre-commit-fmt\" 2>/dev/null || true; cargo fmt; git diff --cached --name-only --diff-filter=ACM | xargs -r git add; git stash pop -q 2>/dev/null || true"
+fmt = "git diff --cached --name-only --diff-filter=ACM | grep '\\.rs$' | while read -r f; do cargo fmt -- \"$f\" && git add \"$f\"; done"
 
 [workspace]
 members = [".", "tests/e2e", "tests/integration"]
 resolver = "2"
 
 [workspace.metadata.precommit]
-fmt = "git stash push -k -m \"pre-commit-fmt\" 2>/dev/null || true; cargo fmt; git diff --cached --name-only --diff-filter=ACM | xargs -r git add; git stash pop -q 2>/dev/null || true"
+fmt = "git diff --cached --name-only --diff-filter=ACM | grep '\\.rs$' | while read -r f; do cargo fmt -- \"$f\" && git add \"$f\"; done"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
