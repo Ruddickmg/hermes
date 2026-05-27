@@ -6,6 +6,7 @@
 use std::io;
 
 pub mod file;
+pub mod history;
 
 /// Trait for log output destinations
 ///
@@ -17,6 +18,14 @@ pub trait LogSink: Send + 'static {
     /// # Arguments
     /// * `messages` - Slice of log message strings to write
     fn write_batch(&mut self, messages: &[String]) -> io::Result<()>;
+
+    /// Write a single message keyed to a destination (e.g., a file path).
+    ///
+    /// The default implementation falls back to `write_batch`.
+    /// Implementations can use `key` to route the message (e.g., per-file sinks).
+    fn write_keyed(&mut self, _key: &str, message: &str) -> io::Result<()> {
+        self.write_batch(&[message.to_string()])
+    }
 
     /// Flush any pending writes
     fn flush(&mut self) -> io::Result<()>;

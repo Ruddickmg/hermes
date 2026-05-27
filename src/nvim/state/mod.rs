@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::{
     acp::{connection::Assistant, session_info::SessionDetails},
@@ -21,6 +22,15 @@ impl PluginState {
     #[instrument(level = "trace")]
     pub fn new() -> Self {
         Self::with_config(ClientConfig::default())
+    }
+
+    #[instrument(level = "trace")]
+    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Self {
+        let history_path = storage_path.join("history");
+        self.agent_info
+            .set_history(history_path)
+            .expect("failed to initialize history writer");
+        self
     }
 
     #[instrument(level = "trace")]

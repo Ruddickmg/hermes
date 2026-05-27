@@ -1,16 +1,41 @@
 use std::collections::HashMap;
+use std::io;
+use std::path::PathBuf;
 
 use agent_client_protocol::schema::InitializeResponse;
 
 use crate::acp::connection::Assistant;
+use crate::utilities::logging::channel::ChannelWriter;
+use crate::utilities::logging::sink::history::HistorySink;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct AgentInfo {
     pub current: Assistant,
     agents: HashMap<Assistant, InitializeResponse>,
+    pub history: ChannelWriter<HistorySink>,
+}
+
+impl Default for AgentInfo {
+    fn default() -> Self {
+        let temp = std::env::temp_dir().join("hermes-history");
+        let sink = HistorySink::new(temp).expect("failed to create history sink in temp dir");
+        let writer = ChannelWriter::new_file(sink).expect("failed to create history writer");
+        Self {
+            current: Assistant::default(),
+            agents: HashMap::new(),
+            history: writer,
+        }
+    }
 }
 
 impl AgentInfo {
+    pub fn set_history(&mut self, base_path: PathBuf) -> io::Result<()> {
+        let sink = HistorySink::new(base_path)?;
+        let writer = ChannelWriter::new_file(sink)?;
+        self.history = writer;
+        Ok(())
+    }
+
     fn notify_user(&self, allowed: bool, capability: &str) -> bool {
         if !allowed {
             tracing::warn!(
@@ -115,6 +140,10 @@ impl AgentInfo {
             .map(|capabilities| capabilities.session_capabilities.list.is_some())
             .unwrap_or(false);
         self.notify_user(allowed, "listing sessions")
+    }
+
+    pub fn needs_local_history(&self) -> bool {
+        !self.can_load_session() && self.can_resume_sessions()
     }
 }
 
@@ -449,5 +478,52 @@ mod tests {
         info.add_agent(agent.clone(), create_response_with_list_enabled());
         info.set_agent(agent);
         assert_eq!(info.can_list_sessions(), true);
+    }
+
+    fn create_response_with_resume_no_load() -> InitializeResponse {
+        InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+            AgentCapabilities::new()
+                .load_session(false)
+                .session_capabilities(
+                    SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new())),
+                ),
+        )
+    }
+
+    fn create_response_with_load_and_resume() -> InitializeResponse {
+        InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+            AgentCapabilities::new()
+                .load_session(true)
+                .session_capabilities(
+                    SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new())),
+                ),
+        )
+    }
+
+    #[test]
+    fn test_needs_local_history_true_when_resume_enabled_and_load_disabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_resume_no_load());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(), true);
+    }
+
+    #[test]
+    fn test_needs_local_history_false_when_load_enabled_and_resume_enabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_load_and_resume());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(), false);
+    }
+
+    #[test]
+    fn test_needs_local_history_false_when_resume_disabled_and_load_disabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_test_response());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(), false);
     }
 }

@@ -16,6 +16,7 @@ const FLUSH_TIMEOUT_MS: u64 = 100; // Flush after 100ms regardless
 #[derive(Debug)]
 enum LogMessage {
     Data(String),
+    Keyed { key: String, content: String },
     Flush,
     Shutdown,
 }
@@ -77,6 +78,17 @@ impl<S: LogSink> ChannelWriter<S> {
         S: LogSink,
     {
         Self::new(sink, FLUSH_INTERVAL_UI)
+    }
+
+    /// Send a keyed message to the worker thread
+    ///
+    /// The `key` is passed to the sink's `write_keyed` method, allowing
+    /// per-destination routing (e.g., per-file paths).
+    pub fn write_keyed(&self, key: impl Into<String>, content: impl Into<String>) {
+        let _ = self.sender.send(LogMessage::Keyed {
+            key: key.into(),
+            content: content.into(),
+        });
     }
 
     /// Signal the worker thread to shutdown and wait for it to complete
@@ -189,6 +201,10 @@ impl<S: LogSink> Worker<S> {
                             sink.write_batch(&message_buffer).ok();
                             message_buffer.clear();
                         }
+                    }
+                    LogMessage::Keyed { key, content } => {
+                        // Send keyed messages directly — sink handles per-key batching
+                        sink.write_keyed(&key, &content).ok();
                     }
                     LogMessage::Flush => {
                         // Flush immediately
