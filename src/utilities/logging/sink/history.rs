@@ -118,7 +118,7 @@ mod tests {
     }
 
     #[test]
-    fn test_history_sink_separates_paths() {
+    fn test_history_sink_separates_paths_writes_to_correct_files() {
         let temp_dir = TempDir::new().unwrap();
         let mut sink = create_sink(&temp_dir);
 
@@ -132,13 +132,29 @@ mod tests {
 
         let contents_a =
             fs::read_to_string(temp_dir.path().join("history/open-code/session-a.jsonl")).unwrap();
-        let contents_b =
-            fs::read_to_string(temp_dir.path().join("history/copilot/session-b.jsonl")).unwrap();
 
         assert_eq!(
             contents_a.lines().collect::<Vec<_>>(),
             ["line-a1", "line-a2"]
         );
+    }
+
+    #[test]
+    fn test_history_sink_separates_paths_writes_to_different_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut sink = create_sink(&temp_dir);
+
+        sink.write_keyed("open-code/session-a.jsonl", "line-a1")
+            .unwrap();
+        sink.write_keyed("copilot/session-b.jsonl", "line-b1")
+            .unwrap();
+        sink.write_keyed("open-code/session-a.jsonl", "line-a2")
+            .unwrap();
+        sink.flush().unwrap();
+
+        let contents_b =
+            fs::read_to_string(temp_dir.path().join("history/copilot/session-b.jsonl")).unwrap();
+
         assert_eq!(contents_b.lines().collect::<Vec<_>>(), ["line-b1"]);
     }
 

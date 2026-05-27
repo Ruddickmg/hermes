@@ -108,6 +108,7 @@ mod tests {
         SessionConfigSelectOption, SessionMode, SessionModeState,
     };
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
 
     #[test]
     fn get_session_prompt_generates_and_caches_uuid_for_new_session() {
@@ -165,5 +166,16 @@ mod tests {
 
         let details = state.session_info.get("test-session").unwrap();
         assert_eq!(details.mode_is_legacy(), None);
+    }
+
+    #[test]
+    fn with_storage_path_initializes_history_writer() {
+        let temp_dir = TempDir::new().unwrap();
+        let state = PluginState::new().with_storage_path(temp_dir.path().to_path_buf());
+
+        state
+            .agent_info
+            .history
+            .write_keyed("agent/session.jsonl", "test");
     }
 }

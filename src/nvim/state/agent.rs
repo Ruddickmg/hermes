@@ -526,4 +526,29 @@ mod tests {
         info.set_agent(agent);
         assert_eq!(info.needs_local_history(), false);
     }
+
+    #[test]
+    fn test_default_history_accepts_writes() {
+        let info = AgentInfo::default();
+        info.history.write_keyed("test/session.jsonl", "hello");
+        info.history.write_keyed("test/session.jsonl", "world");
+    }
+
+    #[test]
+    fn test_set_history_accepts_valid_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut info = AgentInfo::default();
+        let result = info.set_history(temp_dir.path().join("history"));
+        assert!(result.is_ok());
+        info.history.write_keyed("agent/session.jsonl", "test");
+    }
+
+    #[test]
+    fn test_set_history_writes_to_different_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut info = AgentInfo::default();
+        info.set_history(temp_dir.path().join("history")).unwrap();
+        info.history.write_keyed("agent/session.jsonl", "line1");
+        info.history.write_keyed("agent/session.jsonl", "line2");
+    }
 }
