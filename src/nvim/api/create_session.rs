@@ -151,20 +151,18 @@ impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn create_session(&self, session: CreateSessionArgs) -> crate::acp::Result<()> {
         let state = self.state.lock().await;
-        let root_markers = state.config.root_markers.clone();
+        let project_root = state.config.project_root.clone();
         let agent_info = state.agent_info.clone();
         drop(state);
-        let current_directory = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let root = crate::utilities::get_project_root(current_directory, root_markers);
         let can_connect_over_http = agent_info.can_connect_to_mcp_over_http();
         let can_connect_over_sse = agent_info.can_connect_to_mcp_over_sse();
 
         let request = match session {
             CreateSessionArgs::Default => {
-                agent_client_protocol::schema::NewSessionRequest::new(root)
+                agent_client_protocol::schema::NewSessionRequest::new(project_root)
             }
             CreateSessionArgs::Configuration { cwd, mcp_servers } => {
-                agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(root))
+                agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(project_root))
                     .mcp_servers(
                         mcp_servers
                             .unwrap_or_default()

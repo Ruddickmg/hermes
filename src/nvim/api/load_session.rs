@@ -85,7 +85,7 @@ impl Api {
     pub async fn load_session(&self, (session_id, maybe_config): LoadSessionArgs) -> Result<()> {
         let config = maybe_config.unwrap_or_default();
         let state = self.state.lock().await;
-        let root_markers = state.config.root_markers.clone();
+        let project_root = state.config.project_root.clone();
         let agent_info = state.agent_info.clone();
         drop(state);
 
@@ -95,10 +95,7 @@ impl Api {
             .await
             .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
 
-        let cwd = config.cwd.unwrap_or_else(|| {
-            let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            crate::utilities::get_project_root(current_dir, root_markers)
-        });
+        let cwd = config.cwd.unwrap_or(project_root);
 
         if agent_info.can_load_session() {
             connection

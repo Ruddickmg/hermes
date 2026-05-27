@@ -3,6 +3,8 @@ mod log;
 mod permissions;
 mod terminal;
 
+use std::path::PathBuf;
+
 pub use buffer::{BufferConfig, BufferConfigPartial};
 pub use log::{
     LOG_FILE_NAME, LogConfig, LogConfigPartial, LogFileConfig, LogFileConfigPartial,
@@ -15,6 +17,8 @@ use nvim_oxi::{
 };
 pub use permissions::{Permissions, PermissionsPartial};
 pub use terminal::{TerminalConfig, TerminalConfigPartial};
+
+use crate::utilities::default_project_root;
 
 /// Converts an [`Object`] to a [`Dictionary`], handling empty Lua tables gracefully.
 ///
@@ -47,6 +51,7 @@ pub struct ClientConfig {
     pub buffer: BufferConfig,
     pub log: LogConfig,
     pub root_markers: Vec<String>,
+    pub project_root: PathBuf,
 }
 
 impl ClientConfig {
@@ -69,12 +74,14 @@ pub struct ClientConfigPartial {
 
 impl Default for ClientConfig {
     fn default() -> Self {
+        let root_markers = vec![".git".to_string()];
         Self {
             permissions: Default::default(),
             terminal: Default::default(),
             buffer: Default::default(),
             log: Default::default(),
-            root_markers: vec![".git".to_string()],
+            project_root: default_project_root(root_markers.clone()),
+            root_markers,
         }
     }
 }
@@ -93,6 +100,10 @@ impl ClientConfigPartial {
         }
         if let Some(log) = self.log {
             log.apply_to(&mut config.log);
+        }
+        if let Some(root_markers) = self.root_markers {
+            config.project_root = default_project_root(root_markers.clone());
+            config.root_markers = root_markers;
         }
     }
 }
@@ -245,6 +256,7 @@ mod tests {
     use crate::utilities::LogFormat;
 
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_client_config_partial_apply_to_updates_nested() {
@@ -287,6 +299,7 @@ mod tests {
     fn test_client_config_partial_apply_to_preserves_all_when_none() {
         let mut config = ClientConfig {
             root_markers: vec![".git".to_string()],
+            project_root: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             permissions: Permissions {
                 fs_write_access: false,
                 fs_read_access: false,
@@ -328,6 +341,68 @@ mod tests {
     }
 
     #[test]
+    fn test_client_config_partial_apply_to_updates_root_markers() {
+        let mut config = ClientConfig {
+            root_markers: vec!["old_marker".to_string()],
+            project_root: PathBuf::from("/fake/path"),
+            ..ClientConfig::default()
+        };
+        let expected_markers = vec!["nonexistent_marker_abc123".to_string()];
+        let partial = ClientConfigPartial {
+            root_markers: Some(expected_markers.clone()),
+            ..Default::default()
+        };
+        partial.apply_to(&mut config);
+
+        assert_eq!(config.root_markers, expected_markers);
+    }
+
+    #[test]
+    fn test_client_config_partial_apply_to_updates_project_root() {
+        let mut config = ClientConfig {
+            root_markers: vec!["old_marker".to_string()],
+            project_root: PathBuf::from("/fake/path"),
+            ..ClientConfig::default()
+        };
+        let partial = ClientConfigPartial {
+            root_markers: Some(vec!["nonexistent_marker_abc123".to_string()]),
+            ..Default::default()
+        };
+        partial.apply_to(&mut config);
+
+        let expected_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        assert_eq!(config.project_root, expected_root);
+    }
+
+    #[test]
+    fn test_client_config_partial_apply_to_preserves_root_markers() {
+        let expected_markers = vec![".git".to_string()];
+        let mut config = ClientConfig {
+            root_markers: expected_markers.clone(),
+            project_root: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            ..ClientConfig::default()
+        };
+        let partial = ClientConfigPartial::default();
+        partial.apply_to(&mut config);
+
+        assert_eq!(config.root_markers, expected_markers);
+    }
+
+    #[test]
+    fn test_client_config_partial_apply_to_preserves_project_root() {
+        let expected_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let mut config = ClientConfig {
+            root_markers: vec![".git".to_string()],
+            project_root: expected_root.clone(),
+            ..ClientConfig::default()
+        };
+        let partial = ClientConfigPartial::default();
+        partial.apply_to(&mut config);
+
+        assert_eq!(config.project_root, expected_root);
+    }
+
+    #[test]
     fn test_client_config_partial_from_object_parses_empty_dict() {
         let dict = nvim_oxi::Dictionary::default();
         let obj = nvim_oxi::Object::from(dict);
@@ -366,6 +441,23 @@ mod tests {
         assert!(partial.terminal.is_some());
         assert!(partial.buffer.is_some());
         assert!(partial.log.is_some());
+    }
+
+    #[test]
+    fn test_client_config_partial_from_object_parses_root_markers() {
+        let mut dict = nvim_oxi::Dictionary::new();
+        let mut markers = nvim_oxi::Array::new();
+        markers.push(".git".to_string());
+        markers.push("Cargo.toml".to_string());
+        dict.insert("root_markers", markers);
+
+        let obj = nvim_oxi::Object::from(dict);
+        let partial = ClientConfigPartial::from_object(obj).expect("Should parse");
+
+        assert_eq!(
+            partial.root_markers,
+            Some(vec![".git".to_string(), "Cargo.toml".to_string()])
+        );
     }
 
     #[test]

@@ -83,7 +83,7 @@ impl Api {
     ) -> Result<()> {
         let config = maybe_config.unwrap_or_default();
         let state = self.state.lock().await;
-        let root_markers = state.config.root_markers.clone();
+        let project_root = state.config.project_root.clone();
         let agent_info = state.agent_info.clone();
         drop(state);
 
@@ -93,10 +93,7 @@ impl Api {
 
         let request = agent_client_protocol::schema::ResumeSessionRequest::new(
             agent_client_protocol::schema::SessionId::from(session_id),
-            config.cwd.unwrap_or_else(|| {
-                let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                crate::utilities::get_project_root(current_dir, root_markers)
-            }),
+            config.cwd.unwrap_or(project_root),
         );
 
         let connection = self
