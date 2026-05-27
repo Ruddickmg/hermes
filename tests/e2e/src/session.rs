@@ -6,13 +6,14 @@ use crate::{
 };
 use agent_client_protocol::schema::{
     CloseSessionResponse, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
-    NewSessionResponse, PromptResponse, SessionConfigOption, SessionConfigOptionCategory,
-    SessionConfigSelectOption, SessionMode, SessionModeState, StopReason,
+    NewSessionResponse, PromptResponse, ResumeSessionResponse, SessionConfigOption,
+    SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
+    StopReason,
 };
 use hermes::{
     api::{
         ConnectionArgs, CreateSessionArgs, DisconnectArgs, ListSessionsConfig, LoadSessionConfig,
-        PromptArgs, PromptContent, SetModeArgs,
+        PromptArgs, PromptContent, ResumeSessionConfig, SetModeArgs,
     },
     nvim::{autocommands::Commands, hermes},
 };
@@ -751,5 +752,59 @@ fn test_close_session_fires_session_closed() -> Result<(), nvim_oxi::Error> {
 
     assert!(closed.is_ok(), "SessionClosed autocommand should fire");
 
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_resume_session() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let resume_session: Function<(String, Option<ResumeSessionConfig>), ()> =
+        FromObject::from_object(dict.get("resume_session").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+
+    let (agent, conn_rx) = MockAgent::new();
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    let mut options = Dictionary::new();
+    options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    // Create a session first
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id.to_string();
+
+    // Resume the session
+    let wait_for_resumed_session =
+        autocommand::listen_for_autocommand::<ResumeSessionResponse>(Commands::SessionResumed);
+
+    let config = ResumeSessionConfig {
+        cwd: Some(std::path::PathBuf::from(".")),
+        mcp_servers: Vec::new(),
+    };
+    resume_session.call((session_id.clone(), Some(config)))?;
+
+    let resumed_session = wait_for_resumed_session(Duration::from_secs(TIMEOUT_IN_SECONDS));
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    resumed_session.inspect_err(|e| error!("Failed to resume session: {:?}", e))?;
     Ok(())
 }

@@ -8,10 +8,10 @@ use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
     Error,
     schema::{
-        ContentBlock, ContentChunk, LoadSessionResponse, NewSessionResponse, SessionConfigOption,
-        SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
-        SessionNotification, SessionUpdate, SetSessionConfigOptionResponse, SetSessionModeResponse,
-        SetSessionModelResponse, TextContent, UsageUpdate,
+        ContentBlock, ContentChunk, LoadSessionResponse, NewSessionResponse, ResumeSessionResponse,
+        SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode,
+        SessionModeState, SessionNotification, SessionUpdate, SetSessionConfigOptionResponse,
+        SetSessionModeResponse, SetSessionModelResponse, TextContent, UsageUpdate,
     },
 };
 use async_lock::Mutex;
@@ -642,6 +642,78 @@ fn session_loaded_stores_none_when_empty() -> nvim_oxi::Result<()> {
     let response = LoadSessionResponse::default();
 
     smol::block_on(handler.session_loaded("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.mode_is_legacy(), None);
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_resumed_stores_legacy_mode_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let mode = SessionMode::new("chat", "Chat");
+    let modes = SessionModeState::new("chat", vec![mode]);
+    let response = ResumeSessionResponse::default().modes(modes);
+
+    smol::block_on(handler.session_resumed("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.mode_is_legacy(), Some(true));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_resumed_stores_config_options_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "mode",
+        "Mode",
+        "chat",
+        vec![SessionConfigSelectOption::new("chat", "Chat")],
+    )
+    .category(SessionConfigOptionCategory::Mode);
+    let response = ResumeSessionResponse::default().config_options(vec![option]);
+
+    smol::block_on(handler.session_resumed("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.mode_is_legacy(), Some(false));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_resumed_stores_none_when_empty() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let response = ResumeSessionResponse::default();
+
+    smol::block_on(handler.session_resumed("test-session".to_string(), response))?;
 
     let state_guard = smol::block_on(state.lock());
     let details = state_guard.session_info.get("test-session").unwrap();

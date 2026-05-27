@@ -320,6 +320,50 @@ describe("Hermes API Endpoints (E2E)", function()
 			assert.is_true(ok, "load_session() should not crash: " .. tostring(err))
 		end)
 
+		it("resume_session endpoint callable with opencode", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			-- First connect
+			local ok, err = pcall(function()
+				hermes.connect("opencode")
+			end)
+			if not ok then
+				error("connect() should not crash: " .. tostring(err))
+			end
+
+			vim.wait(500)
+
+			-- Setup listener for SessionResumed
+			local _received = false
+			local autocmd_ok, autocmd_id = pcall(function()
+				return vim.api.nvim_create_autocmd("User", {
+					group = vim.api.nvim_create_augroup("hermes", { clear = false }),
+					pattern = "SessionResumed",
+					once = true,
+					callback = function(_args)
+						_received = true
+					end,
+				})
+			end)
+			if not autocmd_ok then
+				error("Should create SessionResumed autocommand listener")
+			end
+			table.insert(test_autocmds, autocmd_id)
+
+			-- Call resume_session
+			ok, err = pcall(function()
+				hermes.resume_session("test-session-id", nil)
+			end)
+
+			-- Single assertion at the end
+			assert.is_true(ok, "resume_session() should not crash: " .. tostring(err))
+		end)
+
 		it("list_sessions endpoint callable with opencode", function()
 			local hermes = setup_endpoint_test("opencode")
 

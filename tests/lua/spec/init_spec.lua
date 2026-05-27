@@ -189,6 +189,10 @@ describe("hermes.init (main API)", function()
 		it("exports load_session from Rust", function()
 			assert.is_function(native.load_session)
 		end)
+
+		it("exports resume_session from Rust", function()
+			assert.is_function(native.resume_session)
+		end)
 		
 		it("exports list_sessions from Rust", function()
 			assert.is_function(native.list_sessions)

@@ -579,6 +579,15 @@ function M.load_session(session_id, opts)
 	end)
 end
 
+---Resume an existing session
+---@param session_id string Session ID to resume
+---@param opts? SessionOptions Session configuration options
+function M.resume_session(session_id, opts)
+	execute_async(function()
+		M._load_native_sync().resume_session(session_id, opts or {})
+	end)
+end
+
 ---List sessions with optional filtering
 ---@param opts? ListSessionsOptions Filter options
 function M.list_sessions(opts)
