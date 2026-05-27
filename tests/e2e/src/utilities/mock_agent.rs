@@ -320,30 +320,7 @@ fn build_mock_agent_builder(
                     async move {
                         let dur = config.lock().unwrap().timeout;
                         let result = timeout(dur, async {
-                            Ok::<_, acp::Error>(
-                                InitializeResponse::new(ProtocolVersion::V1)
-                                    .agent_info(Implementation::new("mock-agent", "0.1.0"))
-                                    .agent_capabilities(
-                                        AgentCapabilities::new()
-                                            .load_session(true)
-                                            .prompt_capabilities(
-                                                PromptCapabilities::new()
-                                                    .image(true)
-                                                    .audio(true)
-                                                    .embedded_context(true),
-                                            )
-                                            .mcp_capabilities(
-                                                McpCapabilities::new().http(true).sse(true),
-                                            )
-                                            .session_capabilities(
-                                                SessionCapabilities::new()
-                                                    .list(Some(SessionListCapabilities::new()))
-                                                    .fork(Some(SessionForkCapabilities::new()))
-                                                    .resume(Some(SessionResumeCapabilities::new()))
-                                                    .close(Some(SessionCloseCapabilities::new())),
-                                            ),
-                                    ),
-                            )
+                            Ok::<_, acp::Error>(config.lock().unwrap().initialize_response.clone())
                         })
                         .await
                         .map_err(|_| internal_error("initialize timed out"))

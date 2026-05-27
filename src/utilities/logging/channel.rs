@@ -172,11 +172,12 @@ impl<S: LogSink> Worker<S> {
                     match receiver.recv_timeout(timeout) {
                         Ok(msg) => msg,
                         Err(RecvTimeoutError::Timeout) => {
-                            // Timeout occurred - check if we need to flush
+                            // Timeout occurred - flush batched data messages and keyed sink
                             if !message_buffer.is_empty() {
                                 sink.write_batch(&message_buffer).ok();
                                 message_buffer.clear();
                             }
+                            let _ = sink.flush();
                             continue;
                         }
                         Err(RecvTimeoutError::Disconnected) => {

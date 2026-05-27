@@ -7,7 +7,6 @@
 
 pub mod models;
 pub mod modes;
-pub mod prompt;
 pub mod set_mode;
 pub mod set_model;
 pub mod thought_levels;

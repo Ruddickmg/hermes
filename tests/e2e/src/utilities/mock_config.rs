@@ -1,13 +1,15 @@
 //! Configuration for MockAgent
 
 use agent_client_protocol::schema::{
-    AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest, ExtResponse,
-    InitializeResponse, ListSessionsResponse, LoadSessionResponse, NewSessionResponse,
-    PermissionOption, PermissionOptionId, PermissionOptionKind, ProtocolVersion,
-    ReadTextFileRequest, ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse,
-    SessionId, SessionInfo, SetSessionConfigOptionResponse, SetSessionModeResponse,
-    SetSessionModelResponse, TerminalOutputRequest, ToolCallId, ToolCallUpdate,
-    ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
+    AgentCapabilities, AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest,
+    ExtResponse, Implementation, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
+    McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionId,
+    PermissionOptionKind, PromptCapabilities, ProtocolVersion, ReadTextFileRequest,
+    ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse, SessionCapabilities,
+    SessionCloseCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
+    SessionListCapabilities, SessionResumeCapabilities, SetSessionConfigOptionResponse,
+    SetSessionModeResponse, SetSessionModelResponse, TerminalOutputRequest, ToolCallId,
+    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -58,7 +60,26 @@ pub struct MockConfig {
 impl Default for MockConfig {
     fn default() -> Self {
         Self {
-            initialize_response: InitializeResponse::new(ProtocolVersion::LATEST),
+            initialize_response: InitializeResponse::new(ProtocolVersion::LATEST)
+                .agent_info(Implementation::new("mock-agent", "0.1.0"))
+                .agent_capabilities(
+                    AgentCapabilities::new()
+                        .load_session(true)
+                        .prompt_capabilities(
+                            PromptCapabilities::new()
+                                .image(true)
+                                .audio(true)
+                                .embedded_context(true),
+                        )
+                        .mcp_capabilities(McpCapabilities::new().http(true).sse(true))
+                        .session_capabilities(
+                            SessionCapabilities::new()
+                                .list(Some(SessionListCapabilities::new()))
+                                .fork(Some(SessionForkCapabilities::new()))
+                                .resume(Some(SessionResumeCapabilities::new()))
+                                .close(Some(SessionCloseCapabilities::new())),
+                        ),
+                ),
             authenticate_response: AuthenticateResponse::default(),
             new_session_response: NewSessionResponse::new(generate_session_id()),
             permission_request: None,
