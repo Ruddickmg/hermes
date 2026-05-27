@@ -8,17 +8,21 @@ use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
     Error,
     schema::{
-        ContentBlock, ContentChunk, LoadSessionResponse, NewSessionResponse, ResumeSessionResponse,
+        AgentCapabilities, ContentBlock, ContentChunk, InitializeResponse, LoadSessionResponse,
+        NewSessionResponse, ProtocolVersion, ResumeSessionResponse, SessionCapabilities,
         SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode,
-        SessionModeState, SessionNotification, SessionUpdate, SetSessionConfigOptionResponse,
-        SetSessionModeResponse, SetSessionModelResponse, TextContent, UsageUpdate,
+        SessionModeState, SessionNotification, SessionResumeCapabilities, SessionUpdate,
+        SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
+        TextContent, UsageUpdate,
     },
 };
 use async_lock::Mutex;
 use hermes::acp::handler::Handler;
 use hermes::nvim::state::PluginState;
+use std::io::{Read, Write};
 use std::rc::Rc;
 use std::sync::Arc;
+use tempfile::TempDir;
 
 fn create_test_notification() -> SessionNotification {
     let chunk = ContentChunk::new(ContentBlock::Text(TextContent::new("test message")));
@@ -1066,6 +1070,172 @@ fn session_thought_level_set_session_not_found() -> nvim_oxi::Result<()> {
     assert!(
         matches!(result, Err(hermes::acp::error::Error::SessionNotFound(_))),
         "Should return SessionNotFound for nonexistent session"
+    );
+
+    Ok(())
+}
+
+fn create_notification_with_session(session_id: &str) -> SessionNotification {
+    let chunk = ContentChunk::new(ContentBlock::Text(TextContent::new("test message")));
+    SessionNotification::new(
+        session_id.to_string(),
+        SessionUpdate::AgentMessageChunk(chunk),
+    )
+}
+
+#[nvim_oxi::test]
+fn session_notification_writes_history_to_file() -> nvim_oxi::Result<()> {
+    let temp_dir = TempDir::new().unwrap();
+    let state = Arc::new(Mutex::new(
+        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
+    ));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let agent = hermes::acp::connection::Assistant::from("test-agent");
+    let session_caps = SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new()));
+    let info = InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+        AgentCapabilities::new()
+            .load_session(false)
+            .session_capabilities(session_caps),
+    );
+    smol::block_on(handler.set_agent_info(agent.clone(), info));
+    smol::block_on(async {
+        state.lock().await.agent_info.set_agent(agent);
+    });
+
+    let session = NewSessionResponse::new("test-session");
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let notification = create_notification_with_session("test-session");
+    let result = smol::block_on(handler.session_notification(notification));
+    assert!(result.is_ok(), "session_notification should succeed");
+
+    smol::block_on(async {
+        let mut guard = state.lock().await;
+        guard.agent_info.history.flush().unwrap();
+    });
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    let history_path = temp_dir
+        .path()
+        .join("history")
+        .join("test-agent")
+        .join("test-session.jsonl");
+    assert!(history_path.exists(), "History file should exist");
+
+    let mut file = std::fs::File::open(&history_path).unwrap();
+    let mut content = String::new();
+    file.read_to_string(&mut content).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(content.trim()).unwrap();
+    assert_eq!(
+        parsed["update"]["sessionUpdate"], "agent_message_chunk",
+        "Should store agent_message_chunk update"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_notification_skips_history_when_not_needed() -> nvim_oxi::Result<()> {
+    let temp_dir = TempDir::new().unwrap();
+    let state = Arc::new(Mutex::new(
+        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
+    ));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let agent = hermes::acp::connection::Assistant::from("test-agent");
+    let info = InitializeResponse::new(ProtocolVersion::V1)
+        .agent_capabilities(AgentCapabilities::new().load_session(true));
+    smol::block_on(handler.set_agent_info(agent.clone(), info));
+    smol::block_on(async {
+        state.lock().await.agent_info.set_agent(agent);
+    });
+
+    let notification = create_notification_with_session("test-session");
+    let result = smol::block_on(handler.session_notification(notification));
+    assert!(result.is_ok(), "session_notification should succeed");
+
+    smol::block_on(async {
+        let mut guard = state.lock().await;
+        guard.agent_info.history.flush().unwrap();
+    });
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    let history_path = temp_dir
+        .path()
+        .join("history")
+        .join("test-agent")
+        .join("test-session.jsonl");
+    assert!(
+        !history_path.exists(),
+        "History file should not exist when needs_local_history is false"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_notification_does_not_write_history_when_permissions_denied() -> nvim_oxi::Result<()> {
+    let temp_dir = TempDir::new().unwrap();
+    let state = Arc::new(Mutex::new(
+        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
+    ));
+    smol::block_on(async {
+        state.lock().await.config.permissions.send_notifications = false;
+    });
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let agent = hermes::acp::connection::Assistant::from("test-agent");
+    let session_caps = SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new()));
+    let info = InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+        AgentCapabilities::new()
+            .load_session(false)
+            .session_capabilities(session_caps),
+    );
+    smol::block_on(handler.set_agent_info(agent.clone(), info));
+    smol::block_on(async {
+        state.lock().await.agent_info.set_agent(agent);
+    });
+
+    let notification = create_notification_with_session("test-session");
+    let result = smol::block_on(handler.session_notification(notification));
+    assert_eq!(
+        result.unwrap_err(),
+        Error::method_not_found(),
+        "Should return MethodNotFound when permissions denied"
+    );
+
+    smol::block_on(async {
+        let mut guard = state.lock().await;
+        guard.agent_info.history.flush().unwrap();
+    });
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    let history_path = temp_dir
+        .path()
+        .join("history")
+        .join("test-agent")
+        .join("test-session.jsonl");
+    assert!(
+        !history_path.exists(),
+        "History file should not exist when notification is rejected"
     );
 
     Ok(())

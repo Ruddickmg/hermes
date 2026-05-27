@@ -86,25 +86,31 @@ impl Api {
         let agent_info = state.agent_info.clone();
         drop(state);
 
-        if !agent_info.can_load_session() {
-            return Ok(());
+        if agent_info.can_load_session() {
+            let request = agent_client_protocol::schema::LoadSessionRequest::new(
+                agent_client_protocol::schema::SessionId::from(session_id),
+                config.cwd.unwrap_or_else(|| {
+                    let current_dir =
+                        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+                    crate::utilities::get_project_root(current_dir, root_markers)
+                }),
+            );
+
+            let connection = self
+                .connection
+                .get_current_connection()
+                .await
+                .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
+
+            connection.load_session(request).await
+        } else if agent_info.can_resume_sessions() {
+            let agent = agent_info.current.clone();
+            let filepath = format!("{}/{}.jsonl", agent, session_id);
+            // get history and replay all events
+            Ok(())
+        } else {
+            Ok(())
         }
-
-        let request = agent_client_protocol::schema::LoadSessionRequest::new(
-            agent_client_protocol::schema::SessionId::from(session_id),
-            config.cwd.unwrap_or_else(|| {
-                let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-                crate::utilities::get_project_root(current_dir, root_markers)
-            }),
-        );
-
-        let connection = self
-            .connection
-            .get_current_connection()
-            .await
-            .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
-
-        connection.load_session(request).await
     }
 }
 
