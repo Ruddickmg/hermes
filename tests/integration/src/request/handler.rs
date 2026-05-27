@@ -1,8 +1,10 @@
 //! Integration tests for RequestHandler trait and Requests implementation
 use crate::helpers::ui::wait_for;
 use agent_client_protocol::schema::{
-    CreateTerminalResponse, RequestPermissionOutcome, RequestPermissionRequest, SessionId,
-    ToolCallId, ToolCallUpdate, ToolCallUpdateFields, WriteTextFileRequest, WriteTextFileResponse,
+    CreateTerminalResponse, KillTerminalResponse, ReleaseTerminalResponse,
+    RequestPermissionOutcome, RequestPermissionRequest, SessionId, TerminalId,
+    TerminalOutputResponse, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
+    WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
 };
 use async_channel::bounded as oneshot_channel;
 use async_lock::Mutex;
@@ -811,5 +813,176 @@ fn test_request_is_session_false_for_non_matching() -> nvim_oxi::Result<()> {
         !request.is_session("other-session".to_string()),
         "Should not match different session"
     );
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_terminal_output_respond_sends_response() -> nvim_oxi::Result<()> {
+    let requests = Arc::new(
+        Requests::new(
+            NvimRuntime::new(),
+            Arc::new(Mutex::new(PluginState::default())),
+        )
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
+    );
+    let session_id = String::from("test-session");
+    let (sender, mut receiver) = oneshot_channel::<Result<TerminalOutputResponse>>(1);
+    let output_request = agent_client_protocol::schema::TerminalOutputRequest::new(
+        SessionId::from("test-session"),
+        TerminalId::from("test-terminal"),
+    );
+    let responder = Responder::TerminalOutput(sender, output_request);
+
+    let request_id = block_on(requests.add_request(session_id, responder));
+    let request = block_on(requests.get_request(&request_id)).expect("Request should exist");
+
+    let response_obj = nvim_oxi::Object::from("terminal output");
+    block_on(request.respond(response_obj))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let outcome = receiver.try_recv().expect("Should receive output response");
+    let response = outcome.expect("Should be Ok");
+    assert_eq!(response.output, "terminal output");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_terminal_exit_respond_sends_response() -> nvim_oxi::Result<()> {
+    let requests = Arc::new(
+        Requests::new(
+            NvimRuntime::new(),
+            Arc::new(Mutex::new(PluginState::default())),
+        )
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
+    );
+    let session_id = String::from("test-session");
+    let (sender, mut receiver) = oneshot_channel::<Result<(Option<u32>, Option<String>)>>(1);
+    let exit_request = agent_client_protocol::schema::WaitForTerminalExitRequest::new(
+        SessionId::from("test-session"),
+        TerminalId::from("test-terminal"),
+    );
+    let responder = Responder::TerminalExit(sender, exit_request);
+
+    let request_id = block_on(requests.add_request(session_id, responder));
+    let request = block_on(requests.get_request(&request_id)).expect("Request should exist");
+
+    let response_obj = nvim_oxi::Object::from("success");
+    block_on(request.respond(response_obj))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let outcome = receiver.try_recv().expect("Should receive exit response");
+    assert!(outcome.is_ok(), "Exit response should be Ok");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_terminal_release_respond_sends_response() -> nvim_oxi::Result<()> {
+    let requests = Arc::new(
+        Requests::new(
+            NvimRuntime::new(),
+            Arc::new(Mutex::new(PluginState::default())),
+        )
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
+    );
+    let session_id = String::from("test-session");
+    let (sender, mut receiver) = oneshot_channel::<Result<ReleaseTerminalResponse>>(1);
+    let release_request = agent_client_protocol::schema::ReleaseTerminalRequest::new(
+        SessionId::from("test-session"),
+        TerminalId::from("test-terminal"),
+    );
+    let responder = Responder::TerminalRelease(sender, release_request);
+
+    let request_id = block_on(requests.add_request(session_id, responder));
+    let request = block_on(requests.get_request(&request_id)).expect("Request should exist");
+
+    let response_obj = nvim_oxi::Object::from(0i64);
+    block_on(request.respond(response_obj))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let outcome = receiver
+        .try_recv()
+        .expect("Should receive release response");
+    assert!(outcome.is_ok(), "Release response should be Ok");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_terminal_kill_respond_sends_response() -> nvim_oxi::Result<()> {
+    let requests = Arc::new(
+        Requests::new(
+            NvimRuntime::new(),
+            Arc::new(Mutex::new(PluginState::default())),
+        )
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
+    );
+    let session_id = String::from("test-session");
+    let (sender, mut receiver) = oneshot_channel::<Result<KillTerminalResponse>>(1);
+    let kill_request = agent_client_protocol::schema::KillTerminalRequest::new(
+        SessionId::from("test-session"),
+        TerminalId::from("test-terminal"),
+    );
+    let responder = Responder::TerminalKill(sender, kill_request);
+
+    let request_id = block_on(requests.add_request(session_id, responder));
+    let request = block_on(requests.get_request(&request_id)).expect("Request should exist");
+
+    let response_obj = nvim_oxi::Object::from(0i64);
+    block_on(request.respond(response_obj))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let outcome = receiver.try_recv().expect("Should receive kill response");
+    assert!(outcome.is_ok(), "Kill response should be Ok");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_respond_twice_on_same_request_fails() -> nvim_oxi::Result<()> {
+    let requests = Arc::new(
+        Requests::new(
+            NvimRuntime::new(),
+            Arc::new(Mutex::new(PluginState::default())),
+        )
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
+    );
+    let session_id = String::from("test-session");
+    let (sender, _receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let responder = Responder::PermissionResponse(sender);
+
+    let request_id = block_on(requests.add_request(session_id, responder));
+    let request = block_on(requests.get_request(&request_id)).expect("Request should exist");
+
+    // First respond succeeds
+    let response_obj = nvim_oxi::Object::from("selected-option-id");
+    block_on(request.respond(response_obj.clone()))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Second respond should fail (responder already taken)
+    let result = block_on(request.respond(response_obj));
+    assert!(result.is_err(), "Second respond should fail");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_cancel_twice_on_same_permission_request_fails() -> nvim_oxi::Result<()> {
+    let requests = Arc::new(
+        Requests::new(
+            NvimRuntime::new(),
+            Arc::new(Mutex::new(PluginState::default())),
+        )
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
+    );
+    let session_id = String::from("test-session");
+    let (sender, _receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let responder = Responder::PermissionResponse(sender);
+
+    let request_id = block_on(requests.add_request(session_id, responder));
+    let request = block_on(requests.get_request(&request_id)).expect("Request should exist");
+
+    // First cancel succeeds
+    block_on(request.cancel()).map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Second cancel should fail (responder already taken)
+    let result = block_on(request.cancel());
+    assert!(result.is_err(), "Second cancel should fail");
     Ok(())
 }

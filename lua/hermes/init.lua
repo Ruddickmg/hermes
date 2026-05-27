@@ -596,6 +596,14 @@ function M.prompt(session_id, content)
 	end)
 end
 
+---Close active session and free all resources associated with it
+---@param session_id string Session ID
+function M.close_session(session_id)
+	execute_async(function()
+		M._load_native_sync().close_session(session_id)
+	end)
+end
+
 ---Cancel current operation
 ---@param session_id string Session ID
 function M.cancel(session_id)

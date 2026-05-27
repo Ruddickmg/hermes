@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+cargo fmt
+cargo sort
+git add -u
