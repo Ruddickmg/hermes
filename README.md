@@ -307,6 +307,27 @@ hermes.disconnect({ "copilot", "opencode" })
 hermes.disconnect()
 ```
 
+
+### Logout
+
+Below are examples of how you can disconnect from agent(s).
+
+```lua
+local hermes = require("hermes")
+
+-- logout a single agent
+hermes.logout("copilot");
+
+-- logout a list of agents
+hermes.logout({ "copilot", "opencode" })
+
+-- logout all agents
+hermes.logout()
+```
+
+> **Triggers:** [LoggedOut](#loggedout) autocommand upon completion.
+
+
 ### Authenticate
 
 Handle agent authentication.
