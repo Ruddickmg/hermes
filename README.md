@@ -1388,17 +1388,6 @@ Below is a list of all autocommands and their associated data (passed to the cal
   }
 }</code></pre></td>
     </tr>
-    <tr id="modeupdated">
-      <td><code>ModeUpdated</code></td>
-      <td>Session mode changed</td>
-      <td>⚡ <a href="#set-mode-optional">set_mode()</a></td>
-      <td><pre><code class="language-json">{
-  "value": "string",
-  "name": "string",
-  "description": "string (optional)",
-  "group": "string (optional)"
-}</code></pre></td>
-    </tr>
     <tr id="models-1">
       <td><code>Models</code></td>
       <td>Available models retrieved</td>
@@ -1439,6 +1428,17 @@ Below is a list of all autocommands and their associated data (passed to the cal
     "description": "string (optional)",
     "group": "string (optional)"
   }
+}</code></pre></td>
+    </tr>
+    <tr id="modeupdated">
+      <td><code>ModeUpdated</code></td>
+      <td>Session mode changed</td>
+      <td>⚡ <a href="#set-mode-optional">set_mode()</a></td>
+      <td><pre><code class="language-json">{
+  "value": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "group": "string (optional)"
 }</code></pre></td>
     </tr>
     <tr id="permissionrequest">
@@ -1548,6 +1548,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
   "line": "number (optional, 1-based)",
   "limit": "number (optional, max lines to read)"
 }</code></pre></td>
+    </tr>
+    <tr id="sessionclosed">
+      <td><code>SessionClosed</code></td>
+      <td>Active session closed</td>
+      <td>⚡ <a href="#close-session-optional">close_session()</a></td>
+      <td><pre><code class="language-json">{}</code></pre></td>
     </tr>
     <tr id="sessioncreated">
       <td><code>SessionCreated</code></td>
@@ -1734,6 +1740,20 @@ Below is a list of all autocommands and their associated data (passed to the cal
   "nextCursor": "string (optional)"
 }</code></pre></td>
     </tr>
+    <tr id="sessionupdate">
+      <td><code>SessionUpdate</code></td>
+      <td>Session metadata updated (title, timestamps, etc.)</td>
+      <td>🤖 Agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "promptId": "uuid string",
+  "update": {
+    "sessionUpdate": "session_info_update",
+    "title": "string (optional)",
+    "updatedAt": "string (optional)"
+  }
+}</code></pre></td>
+    </tr>
     <tr id="terminalcreate">
       <td><code>TerminalCreate</code></td>
       <td>Agent requests to create a terminal for command execution</td>
@@ -1790,17 +1810,6 @@ Below is a list of all autocommands and their associated data (passed to the cal
   "terminalId": "string"
 }</code></pre></td>
     </tr>
-    <tr id="thoughtlevelupdated">
-      <td><code>ThoughtLevelUpdated</code></td>
-      <td>Session thought level updated</td>
-      <td>⚡ <a href="#set-thought-level-optional">set_thought_level()</a></td>
-      <td><pre><code class="language-json">{
-  "value": "string",
-  "name": "string",
-  "description": "string (optional)",
-  "group": "string (optional)"
-}</code></pre></td>
-    </tr>
     <tr id="thoughtlevels">
       <td><code>ThoughtLevels</code></td>
       <td>Available thought levels retrieved</td>
@@ -1822,11 +1831,16 @@ Below is a list of all autocommands and their associated data (passed to the cal
   }
 }</code></pre></td>
     </tr>
-    <tr id="sessionclosed">
-      <td><code>SessionClosed</code></td>
-      <td>Active session closed</td>
-      <td>⚡ <a href="#close-session-optional">close_session()</a></td>
-      <td><pre><code class="language-json">{}</code></pre></td>
+    <tr id="thoughtlevelupdated">
+      <td><code>ThoughtLevelUpdated</code></td>
+      <td>Session thought level updated</td>
+      <td>⚡ <a href="#set-thought-level-optional">set_thought_level()</a></td>
+      <td><pre><code class="language-json">{
+  "value": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "group": "string (optional)"
+}</code></pre></td>
     </tr>
     <tr>
       <td><code>ToolCall</code></td>
@@ -2143,7 +2157,6 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
 - [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
 - [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents

@@ -24,6 +24,7 @@ pub enum Commands {
     // Session lifecycle commands
     ConnectionInitialized,
     SessionCreated,
+    SessionUpdate,
     Prompted,
     Authenticated,
     ConfigurationUpdated,
@@ -86,6 +87,7 @@ impl TryFrom<&str> for Commands {
             // Session lifecycle commands
             "ConnectionInitialized" => Ok(Commands::ConnectionInitialized),
             "SessionCreated" => Ok(Commands::SessionCreated),
+            "SessionUpdate" => Ok(Commands::SessionUpdate),
             "Prompted" => Ok(Commands::Prompted),
             "Authenticated" => Ok(Commands::Authenticated),
             "ConfigurationUpdated" => Ok(Commands::ConfigurationUpdated),
@@ -312,6 +314,14 @@ mod tests {
         assert_eq!(
             Commands::try_from("SessionCreated").unwrap(),
             Commands::SessionCreated
+        );
+    }
+
+    #[test]
+    fn test_commands_session_update() {
+        assert_eq!(
+            Commands::try_from("SessionUpdate").unwrap(),
+            Commands::SessionUpdate
         );
     }
 
