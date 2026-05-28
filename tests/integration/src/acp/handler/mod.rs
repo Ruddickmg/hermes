@@ -1087,7 +1087,9 @@ fn create_notification_with_session(session_id: &str) -> SessionNotification {
 fn session_notification_writes_history_to_file() -> nvim_oxi::Result<()> {
     let temp_dir = TempDir::new().unwrap();
     let state = Arc::new(Mutex::new(
-        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
+        PluginState::new()
+            .with_storage_path(temp_dir.path().to_path_buf())
+            .unwrap(),
     ));
     let handler = Handler::new(
         state.clone(),
@@ -1146,7 +1148,9 @@ fn session_notification_writes_history_to_file() -> nvim_oxi::Result<()> {
 fn session_notification_skips_history_when_not_needed() -> nvim_oxi::Result<()> {
     let temp_dir = TempDir::new().unwrap();
     let state = Arc::new(Mutex::new(
-        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
+        PluginState::new()
+            .with_storage_path(temp_dir.path().to_path_buf())
+            .unwrap(),
     ));
     let handler = Handler::new(
         state.clone(),
@@ -1190,7 +1194,9 @@ fn session_notification_skips_history_when_not_needed() -> nvim_oxi::Result<()> 
 fn session_notification_does_not_write_history_when_permissions_denied() -> nvim_oxi::Result<()> {
     let temp_dir = TempDir::new().unwrap();
     let state = Arc::new(Mutex::new(
-        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
+        PluginState::new()
+            .with_storage_path(temp_dir.path().to_path_buf())
+            .unwrap(),
     ));
     smol::block_on(async {
         state.lock().await.config.permissions.send_notifications = false;
