@@ -152,7 +152,7 @@ impl Hermes {
 
     fn logout_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, args: LogoutArgs| async move {
-            api.try_borrow_mut()?.logout(args).await
+            api.try_borrow()?.logout(args).await
         })
     }
 

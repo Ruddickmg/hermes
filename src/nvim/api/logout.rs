@@ -109,25 +109,20 @@ impl Pushable for LogoutArgs {
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn logout(&mut self, args: LogoutArgs) -> crate::acp::Result<()> {
-        let agents: Vec<Assistant> = match args {
-            LogoutArgs::Single(agent) => vec![agent],
-            LogoutArgs::Multiple(agents) => agents,
+    pub async fn logout(&self, args: LogoutArgs) -> crate::acp::Result<()> {
+        let agents: Vec<Assistant> = match &args {
+            LogoutArgs::Single(agent) => vec![agent.clone()],
+            LogoutArgs::Multiple(agents) => agents.clone(),
             LogoutArgs::All => self.connection.connected_agents(),
         };
-        future::join_all(
-            agents
-                .iter()
-                .filter_map(|assistant| self.connection.get_connection(assistant))
-                .map(async |connection| {
-                    connection
-                        .logout(LogoutRequest::new())
-                        .await
-                        .inspect_err(|e| error!("Error logging out: {:?}", e))
-                })
-                .collect::<Vec<_>>(),
-        )
-        .await;
+
+        let futures: Vec<_> = agents
+            .iter()
+            .filter_map(|assistant| self.connection.get_connection(assistant))
+            .map(|connection| connection.logout(LogoutRequest::new()))
+            .collect();
+
+        future::try_join_all(futures).await?;
         Ok(())
     }
 }

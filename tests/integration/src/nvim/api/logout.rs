@@ -30,14 +30,32 @@ where
 }
 
 #[nvim_oxi::test]
-fn logout_returns_connection_error_when_no_connection_exists() -> nvim_oxi::Result<()> {
+fn logout_all_returns_ok_when_no_connections_exist() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
             .unwrap();
-    let mut api = create_test_api(plugin_state, logger);
+    let api = create_test_api(plugin_state, logger);
 
     let result = block_on(api.logout(hermes::api::LogoutArgs::All));
+
+    assert!(result.is_ok());
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn logout_multiple_returns_error_when_agents_not_connected() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state, logger);
+
+    let result = block_on(api.logout(hermes::api::LogoutArgs::Multiple(vec![
+        hermes::acp::connection::Assistant::Copilot,
+        hermes::acp::connection::Assistant::Opencode,
+    ])));
 
     assert!(matches!(
         result,

@@ -160,7 +160,7 @@ impl ConnectionManager {
     }
 
     #[instrument(level = "trace", skip(self, connection))]
-    fn add_connection(&mut self, agent: Assistant, connection: Connection) {
+    pub(crate) fn add_connection(&mut self, agent: Assistant, connection: Connection) {
         self.connection.insert(agent, connection);
     }
 
@@ -414,6 +414,44 @@ mod tests {
         ];
 
         assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn connected_agents_returns_empty_when_no_connections() {
+        let manager = ConnectionManager::new(Arc::new(Mutex::new(PluginState::new())));
+        let agents = manager.connected_agents();
+        assert!(agents.is_empty());
+    }
+
+    #[test]
+    fn connected_agents_returns_single_agent() {
+        let mut manager = ConnectionManager::new(Arc::new(Mutex::new(PluginState::new())));
+        let (sender, _) = async_channel::unbounded();
+        let handle = std::thread::spawn(|| Ok(()));
+        let connection = Connection::new(sender, handle, None);
+        manager.add_connection(Assistant::Copilot, connection);
+        let agents = manager.connected_agents();
+        assert_eq!(agents.len(), 1);
+        assert_eq!(agents[0], Assistant::Copilot);
+    }
+
+    #[test]
+    fn connected_agents_returns_multiple_agents() {
+        let mut manager = ConnectionManager::new(Arc::new(Mutex::new(PluginState::new())));
+        let (sender1, _) = async_channel::unbounded();
+        let handle1 = std::thread::spawn(|| Ok(()));
+        let connection1 = Connection::new(sender1, handle1, None);
+        manager.add_connection(Assistant::Copilot, connection1);
+
+        let (sender2, _) = async_channel::unbounded();
+        let handle2 = std::thread::spawn(|| Ok(()));
+        let connection2 = Connection::new(sender2, handle2, None);
+        manager.add_connection(Assistant::Opencode, connection2);
+
+        let agents = manager.connected_agents();
+        assert_eq!(agents.len(), 2);
+        assert!(agents.contains(&Assistant::Copilot));
+        assert!(agents.contains(&Assistant::Opencode));
     }
 
     #[test]

@@ -15,9 +15,9 @@ use agent_client_protocol::{
         CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk,
         CreateTerminalRequest, CreateTerminalResponse, Implementation, InitializeRequest,
         InitializeResponse, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest,
-        LoadSessionResponse, McpCapabilities, NewSessionRequest, NewSessionResponse,
-        PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion, ReadTextFileRequest,
-        ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
+        LoadSessionResponse, LogoutRequest, LogoutResponse, McpCapabilities, NewSessionRequest,
+        NewSessionResponse, PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion,
+        ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
         RequestPermissionOutcome, RequestPermissionRequest, ResumeSessionRequest,
         ResumeSessionResponse, SessionCapabilities, SessionCloseCapabilities,
         SessionForkCapabilities, SessionListCapabilities, SessionNotification,
@@ -601,6 +601,26 @@ fn build_mock_agent_builder(
                         .await
                         .map_err(|_| internal_error("close_session timed out"))
                         .and_then(|r| r);
+                        responder.respond_with_result(result)
+                    }
+                }
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let config = config.clone();
+                move |_req: LogoutRequest,
+                      responder: Responder<LogoutResponse>,
+                      _cx: ConnectionTo<acp::Client>| {
+                    let config = config.clone();
+                    async move {
+                        let dur = config.lock().unwrap().timeout;
+                        let result =
+                            timeout(dur, async { Ok::<_, acp::Error>(LogoutResponse::new()) })
+                                .await
+                                .map_err(|_| internal_error("logout timed out"))
+                                .and_then(|r| r);
                         responder.respond_with_result(result)
                     }
                 }

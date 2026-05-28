@@ -4,6 +4,7 @@ pub mod connection;
 pub mod copilot;
 pub mod error_handling;
 pub mod file_system;
+pub mod logout;
 pub mod mock_agent_tests;
 pub mod mode;
 pub mod model;
