@@ -144,7 +144,7 @@ fn session_closed_removes_prompt() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
-fn session_notification_unknown_update_returns_method_not_found() -> nvim_oxi::Result<()> {
+fn session_notification_session_info_update_succeeds() -> nvim_oxi::Result<()> {
     let handler = create_handler();
     let info = agent_client_protocol::schema::SessionInfoUpdate::new();
     let notification = agent_client_protocol::schema::SessionNotification::new(
@@ -153,9 +153,9 @@ fn session_notification_unknown_update_returns_method_not_found() -> nvim_oxi::R
     );
     let result = smol::block_on(handler.session_notification(notification));
     assert_eq!(
-        result.unwrap_err(),
-        agent_client_protocol::Error::method_not_found(),
-        "Unhandled SessionUpdate variant should return MethodNotFound"
+        result,
+        Ok(()),
+        "SessionInfoUpdate should map to Commands::SessionUpdate and succeed"
     );
     Ok(())
 }
