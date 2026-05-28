@@ -48,9 +48,11 @@ fn test_logout_function() -> Result<(), nvim_oxi::Error> {
     >(Commands::LoggedOut);
 
     // Logout should succeed
-    let result = logout.call(LogoutArgs::All);
+    logout.call(LogoutArgs::All).unwrap();
+
+    let result = wait_for_logout(Duration::from_secs(TIMEOUT_IN_SECONDS));
+
     assert!(result.is_ok(), "logout should succeed");
-    let _ = wait_for_logout(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
     // Cleanup
     disconnect.call(hermes::api::DisconnectArgs::All)?;
