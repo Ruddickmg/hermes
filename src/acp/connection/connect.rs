@@ -93,6 +93,10 @@ async fn dispatch(
             let response = cx.send_request(request).block_task().await?;
             client.session_closed(session_id, response).await?;
         }
+        UserRequest::Logout(request) => {
+            let response = cx.send_request(request).block_task().await?;
+            client.logged_out(response).await?;
+        }
         UserRequest::Close => return Err(Error::InvalidInput(format!("{:?}", msg))),
     }
     Ok(())
