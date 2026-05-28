@@ -279,6 +279,11 @@ impl ConnectionManager {
     }
 
     #[instrument(level = "trace", skip(self))]
+    pub fn connected_agents(&self) -> Vec<Assistant> {
+        self.connection.keys().cloned().collect()
+    }
+
+    #[instrument(level = "trace", skip(self))]
     pub fn close_all(&mut self) -> Result<(), Error> {
         self.disconnect(self.connection.keys().cloned().collect())?;
         info!("Successfully disconnected from all agents");

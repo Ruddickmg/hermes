@@ -1,4 +1,6 @@
+use crate::{acp::connection::Assistant, api::Api};
 use agent_client_protocol::schema::LogoutRequest;
+use futures::future;
 use nvim_oxi::{
     Object, ObjectKind,
     conversion::FromObject,
@@ -6,8 +8,6 @@ use nvim_oxi::{
     serde::SerializeError,
 };
 use tracing::{error, instrument};
-
-use crate::{acp::connection::Assistant, api::Api};
 
 #[derive(Clone, Debug, Default)]
 pub enum LogoutArgs {
@@ -110,35 +110,25 @@ impl Pushable for LogoutArgs {
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn logout(&mut self, args: LogoutArgs) -> crate::acp::Result<()> {
-        match args {
-            LogoutArgs::Single(agent) => {
-                let connection = self.connection.get_connection(&agent).ok_or_else(|| {
-                    crate::acp::error::Error::Connection(format!(
-                        "No connection found for {}",
-                        agent
-                    ))
-                })?;
-                connection.logout(LogoutRequest::new()).await
-            }
-            LogoutArgs::Multiple(agents) => {
-                for agent in agents {
-                    if let Some(connection) = self.connection.get_connection(&agent) {
-                        connection.logout(LogoutRequest::new()).await?;
-                    }
-                }
-                Ok(())
-            }
-            LogoutArgs::All => {
-                let connection =
-                    self.connection
-                        .get_current_connection()
+        let agents: Vec<Assistant> = match args {
+            LogoutArgs::Single(agent) => vec![agent],
+            LogoutArgs::Multiple(agents) => agents,
+            LogoutArgs::All => self.connection.connected_agents(),
+        };
+        future::join_all(
+            agents
+                .iter()
+                .filter_map(|assistant| self.connection.get_connection(assistant))
+                .map(async |connection| {
+                    connection
+                        .logout(LogoutRequest::new())
                         .await
-                        .ok_or_else(|| {
-                            crate::acp::error::Error::Connection("No connection found".to_string())
-                        })?;
-                connection.logout(LogoutRequest::new()).await
-            }
-        }
+                        .inspect_err(|e| error!("Error logging out: {:?}", e))
+                })
+                .collect::<Vec<_>>(),
+        )
+        .await;
+        Ok(())
     }
 }
 
