@@ -1718,6 +1718,20 @@ Below is a list of all autocommands and their associated data (passed to the cal
   ]
 }</code></pre></td>
     </tr>
+    <tr id="sessionupdate">
+      <td><code>SessionUpdate</code></td>
+      <td>Session metadata updated (title, timestamps, etc.)</td>
+      <td>🤖 Agent</td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string",
+  "promptId": "uuid string",
+  "update": {
+    "sessionUpdate": "session_info_update",
+    "title": "string (optional)",
+    "updatedAt": "string (optional)"
+  }
+}</code></pre></td>
+    </tr>
     <tr id="sessionslisted">
       <td><code>SessionsListed</code></td>
       <td>Session list received</td>
@@ -2143,7 +2157,6 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Handle session updates](https://agentclientprotocol.com/rfds/session-info-update)
 - [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
 - [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents

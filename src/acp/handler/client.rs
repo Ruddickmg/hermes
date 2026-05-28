@@ -99,6 +99,7 @@ impl Handler {
             SessionUpdate::CurrentModeUpdate(_) => Ok(Commands::ModeCurrent),
             SessionUpdate::ConfigOptionUpdate(_) => Ok(Commands::ConfigurationOption),
             SessionUpdate::UsageUpdate(_) => Ok(Commands::UsageUpdate),
+            SessionUpdate::SessionInfoUpdate(_) => Ok(Commands::SessionUpdate),
             _ => return Err(Error::method_not_found()),
         }?;
 
