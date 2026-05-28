@@ -61,8 +61,9 @@ fn session_forked_succeeds() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn session_resumed_succeeds() -> nvim_oxi::Result<()> {
     let handler = create_handler();
+    let session_id = String::from("test-session");
     let response = ResumeSessionResponse::default();
-    let result = smol::block_on(handler.session_resumed(response));
+    let result = smol::block_on(handler.session_resumed(session_id, response));
     assert!(result.is_ok(), "session_resumed should succeed");
     Ok(())
 }

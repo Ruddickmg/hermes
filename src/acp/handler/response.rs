@@ -237,7 +237,19 @@ impl Handler {
     }
 
     #[instrument(level = "trace", skip(self))]
-    pub async fn session_resumed(&self, response: ResumeSessionResponse) -> Result<(), Error> {
+    pub async fn session_resumed(
+        &self,
+        session_id: String,
+        response: ResumeSessionResponse,
+    ) -> Result<(), Error> {
+        let details = response.clone();
+        let mut state = self.state.lock().await;
+        let session = NewSessionResponse::new(session_id)
+            .modes(details.modes)
+            .models(details.models)
+            .config_options(details.config_options);
+        state.set_session_info(&session);
+        drop(state);
         self.execute_autocommand(Commands::SessionResumed, response)
             .await
     }

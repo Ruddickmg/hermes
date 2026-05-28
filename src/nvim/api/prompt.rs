@@ -1,6 +1,7 @@
 use agent_client_protocol::schema::{
-    AudioContent, BlobResourceContents, ContentBlock, EmbeddedResource, EmbeddedResourceResource,
-    ImageContent, PromptRequest, ResourceLink, TextContent, TextResourceContents,
+    AudioContent, BlobResourceContents, ContentBlock, ContentChunk, EmbeddedResource,
+    EmbeddedResourceResource, ImageContent, PromptRequest, ResourceLink, SessionNotification,
+    SessionUpdate, TextContent, TextResourceContents,
 };
 use nvim_oxi::{
     Array, Dictionary, Object, ObjectKind,
@@ -332,9 +333,12 @@ impl Api {
         let content_vec = content.into_vec();
         let mut state = self.state.lock().await;
         let agent_info = state.agent_info.clone();
+        let agent_name = state.agent_info.current.clone();
         let can_send_images = agent_info.can_send_images();
         let can_send_audio = agent_info.can_send_audio();
         let can_send_embedded = agent_info.can_send_embedded_context();
+        let needs_local_history =
+            agent_info.needs_local_history(state.config.session.store_history);
         let content_blocks: Vec<ContentBlock> = content_vec
             .into_iter()
             .map(Into::into)
@@ -353,7 +357,26 @@ impl Api {
         let prompt_id = uuid::Uuid::new_v4().to_string();
         state.update_session_prompt_id(session_id.clone(), prompt_id.to_string());
         drop(state);
-        let request = PromptRequest::new(session_id, content_blocks).message_id(prompt_id.clone());
+
+        let history: Vec<String> = if needs_local_history {
+            content_blocks
+                .iter()
+                .filter_map(|block| {
+                    let chunk =
+                        ContentChunk::new(block.clone()).message_id(Some(prompt_id.clone()));
+                    let notif = SessionNotification::new(
+                        session_id.clone(),
+                        SessionUpdate::UserMessageChunk(chunk),
+                    );
+                    serde_json::to_string(&notif).ok()
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
+        let request = PromptRequest::new(session_id.to_string(), content_blocks)
+            .message_id(prompt_id.clone());
         let connection = self
             .connection
             .get_current_connection()
@@ -365,6 +388,15 @@ impl Api {
             })?;
 
         connection.prompt(request).await?;
+
+        if !history.is_empty() {
+            let key = format!("{}/{}.jsonl", agent_name, session_id);
+            let state = self.state.lock().await;
+            history
+                .into_iter()
+                .for_each(|content| state.agent_info.history.write_keyed(key.clone(), content));
+            drop(state);
+        }
 
         Ok(prompt_id)
     }

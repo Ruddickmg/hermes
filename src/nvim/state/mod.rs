@@ -1,4 +1,6 @@
+use crate::acp::Result;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::{
     acp::{connection::Assistant, session_info::SessionDetails},
@@ -21,6 +23,13 @@ impl PluginState {
     #[instrument(level = "trace")]
     pub fn new() -> Self {
         Self::with_config(ClientConfig::default())
+    }
+
+    #[instrument(level = "trace")]
+    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Result<Self> {
+        let history_path = storage_path.join("history");
+        self.agent_info.set_history(history_path)?;
+        Ok(self)
     }
 
     #[instrument(level = "trace")]
@@ -98,6 +107,7 @@ mod tests {
         SessionConfigSelectOption, SessionMode, SessionModeState,
     };
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
 
     #[test]
     fn get_session_prompt_generates_and_caches_uuid_for_new_session() {
@@ -155,5 +165,18 @@ mod tests {
 
         let details = state.session_info.get("test-session").unwrap();
         assert_eq!(details.mode_is_legacy(), None);
+    }
+
+    #[test]
+    fn with_storage_path_initializes_history_writer() {
+        let temp_dir = TempDir::new().unwrap();
+        let state = PluginState::new()
+            .with_storage_path(temp_dir.path().to_path_buf())
+            .unwrap();
+
+        state
+            .agent_info
+            .history
+            .write_keyed("agent/session.jsonl", "test");
     }
 }

@@ -26,6 +26,7 @@
 ---@field permissions? HermesPermissions Permission settings for agent operations
 ---@field terminal? HermesTerminalConfig Terminal configuration
 ---@field buffer? HermesBufferConfig Buffer configuration
+---@field session? HermesSessionConfig Session configuration
 ---@field log? HermesLogConfig Logging configuration
 
 ---@class HermesPermissions
@@ -45,6 +46,10 @@
 ---@class HermesBufferConfig
 ---Buffer configuration options
 ---@field auto_save? boolean Auto-save modified files after writing (default: false)
+
+---@class HermesSessionConfig
+---Session configuration options
+---@field store_history? boolean Store session history locally when agent does not support load_session (default: true)
 
 ---@class HermesLogConfig
 ---Logging configuration options
@@ -542,7 +547,7 @@ end
 ---@param opts? ConnectionOptions Connection options
 function M.connect(agent, opts)
 	execute_async(function()
-		M._load_native_sync().connect(agent, opts or {})
+		M._load_native_sync().connect(agent, opts)
 	end)
 end
 
@@ -566,7 +571,7 @@ end
 ---@param opts? SessionOptions Session configuration options
 function M.create_session(opts)
 	execute_async(function()
-		M._load_native_sync().create_session(opts or {})
+		M._load_native_sync().create_session(opts)
 	end)
 end
 
@@ -575,7 +580,16 @@ end
 ---@param opts? SessionOptions Session configuration options
 function M.load_session(session_id, opts)
 	execute_async(function()
-		M._load_native_sync().load_session(session_id, opts or {})
+		M._load_native_sync().load_session(session_id, opts)
+	end)
+end
+
+---Resume an existing session
+---@param session_id string Session ID to resume
+---@param opts? SessionOptions Session configuration options
+function M.resume_session(session_id, opts)
+	execute_async(function()
+		M._load_native_sync().resume_session(session_id, opts)
 	end)
 end
 

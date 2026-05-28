@@ -1,13 +1,15 @@
 //! Configuration for MockAgent
 
 use agent_client_protocol::schema::{
-    AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest, ExtResponse,
-    InitializeResponse, ListSessionsResponse, LoadSessionResponse, NewSessionResponse,
-    PermissionOption, PermissionOptionId, PermissionOptionKind, ProtocolVersion,
-    ReadTextFileRequest, ReleaseTerminalRequest, RequestPermissionRequest, SessionId, SessionInfo,
-    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
-    TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
-    WaitForTerminalExitRequest, WriteTextFileRequest,
+    AgentCapabilities, AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest,
+    ExtResponse, Implementation, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
+    McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionId,
+    PermissionOptionKind, PromptCapabilities, ProtocolVersion, ReadTextFileRequest,
+    ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse, SessionCapabilities,
+    SessionCloseCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
+    SessionListCapabilities, SessionResumeCapabilities, SetSessionConfigOptionResponse,
+    SetSessionModeResponse, SetSessionModelResponse, TerminalOutputRequest, ToolCallId,
+    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -23,6 +25,8 @@ pub struct MockConfig {
     pub permission_request: Option<RequestPermissionRequest>,
     /// Optional override for load_session response
     pub load_session_response: Option<LoadSessionResponse>,
+    /// Optional override for resume_session response
+    pub resume_session_response: Option<ResumeSessionResponse>,
     /// Optional override for list_sessions response
     pub list_sessions_response: Option<ListSessionsResponse>,
     /// Optional override for set_session_mode response
@@ -56,11 +60,31 @@ pub struct MockConfig {
 impl Default for MockConfig {
     fn default() -> Self {
         Self {
-            initialize_response: InitializeResponse::new(ProtocolVersion::LATEST),
+            initialize_response: InitializeResponse::new(ProtocolVersion::LATEST)
+                .agent_info(Implementation::new("mock-agent", "0.1.0"))
+                .agent_capabilities(
+                    AgentCapabilities::new()
+                        .load_session(true)
+                        .prompt_capabilities(
+                            PromptCapabilities::new()
+                                .image(true)
+                                .audio(true)
+                                .embedded_context(true),
+                        )
+                        .mcp_capabilities(McpCapabilities::new().http(true).sse(true))
+                        .session_capabilities(
+                            SessionCapabilities::new()
+                                .list(Some(SessionListCapabilities::new()))
+                                .fork(Some(SessionForkCapabilities::new()))
+                                .resume(Some(SessionResumeCapabilities::new()))
+                                .close(Some(SessionCloseCapabilities::new())),
+                        ),
+                ),
             authenticate_response: AuthenticateResponse::default(),
             new_session_response: NewSessionResponse::new(generate_session_id()),
             permission_request: None,
             load_session_response: None,
+            resume_session_response: None,
             list_sessions_response: None,
             set_session_mode_response: None,
             set_session_config_option_response: None,
@@ -117,6 +141,12 @@ impl MockConfig {
     /// Set a custom load_session response (overrides default session tracking)
     pub fn set_load_session_response(mut self, response: LoadSessionResponse) -> Self {
         self.load_session_response = Some(response);
+        self
+    }
+
+    /// Set a custom resume_session response
+    pub fn set_resume_session_response(mut self, response: ResumeSessionResponse) -> Self {
+        self.resume_session_response = Some(response);
         self
     }
 

@@ -18,12 +18,13 @@ use agent_client_protocol::{
         LoadSessionResponse, McpCapabilities, NewSessionRequest, NewSessionResponse,
         PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion, ReadTextFileRequest,
         ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
-        RequestPermissionOutcome, RequestPermissionRequest, SessionCapabilities,
-        SessionCloseCapabilities, SessionForkCapabilities, SessionListCapabilities,
-        SessionNotification, SessionResumeCapabilities, SessionUpdate,
-        SetSessionConfigOptionRequest, SetSessionConfigOptionResponse, SetSessionModeRequest,
-        SetSessionModeResponse, SetSessionModelRequest, SetSessionModelResponse, StopReason,
-        TerminalOutputRequest, TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
+        RequestPermissionOutcome, RequestPermissionRequest, ResumeSessionRequest,
+        ResumeSessionResponse, SessionCapabilities, SessionCloseCapabilities,
+        SessionForkCapabilities, SessionListCapabilities, SessionNotification,
+        SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
+        SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
+        SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
+        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
         WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
     },
 };
@@ -319,30 +320,7 @@ fn build_mock_agent_builder(
                     async move {
                         let dur = config.lock().unwrap().timeout;
                         let result = timeout(dur, async {
-                            Ok::<_, acp::Error>(
-                                InitializeResponse::new(ProtocolVersion::V1)
-                                    .agent_info(Implementation::new("mock-agent", "0.1.0"))
-                                    .agent_capabilities(
-                                        AgentCapabilities::new()
-                                            .load_session(true)
-                                            .prompt_capabilities(
-                                                PromptCapabilities::new()
-                                                    .image(true)
-                                                    .audio(true)
-                                                    .embedded_context(true),
-                                            )
-                                            .mcp_capabilities(
-                                                McpCapabilities::new().http(true).sse(true),
-                                            )
-                                            .session_capabilities(
-                                                SessionCapabilities::new()
-                                                    .list(Some(SessionListCapabilities::new()))
-                                                    .fork(Some(SessionForkCapabilities::new()))
-                                                    .resume(Some(SessionResumeCapabilities::new()))
-                                                    .close(Some(SessionCloseCapabilities::new())),
-                                            ),
-                                    ),
-                            )
+                            Ok::<_, acp::Error>(config.lock().unwrap().initialize_response.clone())
                         })
                         .await
                         .map_err(|_| internal_error("initialize timed out"))
@@ -459,6 +437,38 @@ fn build_mock_agent_builder(
                         })
                         .await
                         .map_err(|_| internal_error("load_session timed out"))
+                        .and_then(|r| r);
+                        responder.respond_with_result(result)
+                    }
+                }
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let config = config.clone();
+                move |request: ResumeSessionRequest,
+                      responder: Responder<ResumeSessionResponse>,
+                      _cx: ConnectionTo<acp::Client>| {
+                    let config = config.clone();
+                    async move {
+                        let dur = config.lock().unwrap().timeout;
+                        let result = timeout(dur, async {
+                            let config = config.lock().unwrap();
+                            if let Some(ref response) = config.resume_session_response {
+                                return Ok(response.clone());
+                            }
+                            if config.sessions.contains_key(&request.session_id) {
+                                Ok(ResumeSessionResponse::new())
+                            } else {
+                                Err(internal_error(format!(
+                                    "session not found: {}",
+                                    request.session_id
+                                )))
+                            }
+                        })
+                        .await
+                        .map_err(|_| internal_error("resume_session timed out"))
                         .and_then(|r| r);
                         responder.respond_with_result(result)
                     }

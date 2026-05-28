@@ -11,6 +11,7 @@ pub mod models;
 pub mod modes;
 pub mod prompt;
 pub mod respond;
+pub mod resume_session;
 pub mod set_mode;
 pub mod set_model;
 pub mod set_thought_level;
@@ -35,6 +36,7 @@ use nvim_oxi::{
 };
 pub use prompt::*;
 pub use respond::*;
+pub use resume_session::*;
 pub use set_mode::*;
 pub use set_model::*;
 pub use set_thought_level::*;
@@ -138,6 +140,14 @@ impl Hermes {
         })
     }
 
+    fn resume_session_method(&self) -> Object {
+        self.api_method(
+            |api: Rc<RefCell<Api>>, args: ResumeSessionArgs| async move {
+                api.try_borrow()?.resume_session(args).await
+            },
+        )
+    }
+
     fn authenticate_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, id: String| async move {
             api.try_borrow()?.authenticate(id).await
@@ -211,6 +221,7 @@ impl From<Hermes> for Dictionary {
             ("disconnect", hermes.disconnect_method()),
             ("list_sessions", hermes.list_sessions_method()),
             ("load_session", hermes.load_session_method()),
+            ("resume_session", hermes.resume_session_method()),
             ("modes", hermes.modes_method()),
             ("models", hermes.models_method()),
             ("authenticate", hermes.authenticate_method()),

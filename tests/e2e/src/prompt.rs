@@ -5,7 +5,8 @@ use crate::{
     utilities::{autocommand, mock_agent::MockAgent},
 };
 use agent_client_protocol::schema::{
-    InitializeResponse, NewSessionResponse, PromptResponse, StopReason,
+    AgentCapabilities, InitializeResponse, NewSessionResponse, PromptResponse, ProtocolVersion,
+    SessionCapabilities, SessionResumeCapabilities, StopReason,
 };
 use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, PromptArgs, PromptContent},
@@ -219,5 +220,93 @@ fn test_prompt_returns_prompt_id() -> Result<(), nvim_oxi::Error> {
         "prompt_id should be a non-empty UUID"
     );
 
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_prompt_writes_history() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let prompt: Function<PromptArgs, Option<nvim_oxi::String>> =
+        FromObject::from_object(dict.get("prompt").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+
+    // Start MockAgent configured for local history
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        let caps = AgentCapabilities::new()
+            .load_session(false)
+            .session_capabilities(
+                SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new())),
+            );
+        config.initialize_response =
+            InitializeResponse::new(ProtocolVersion::LATEST).agent_capabilities(caps);
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    let mut options = Dictionary::new();
+    options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id;
+
+    // Send prompt with multiple text content blocks
+    let mut text1 = Dictionary::new();
+    text1.insert("type", "text");
+    text1.insert("text", "Hello");
+    let mut text2 = Dictionary::new();
+    text2.insert("type", "text");
+    text2.insert("text", "World");
+    let mut text3 = Dictionary::new();
+    text3.insert("type", "text");
+    text3.insert("text", "Test");
+
+    let content_array = Array::from_iter(vec![
+        Object::from(text1),
+        Object::from(text2),
+        Object::from(text3),
+    ]);
+    let content = PromptContent::Multiple(
+        content_array
+            .into_iter()
+            .map(FromObject::from_object)
+            .collect::<Result<Vec<_>, _>>()?,
+    );
+
+    let prompt_result = prompt.call((session_id.to_string(), content))?;
+    let _prompt_id = prompt_result.expect("prompt should return a prompt_id string");
+    let port = mock_handle.port();
+
+    // Allow the background worker's periodic flush (100ms timeout) to write keyed history
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
+    // Verify history file on disk — single assertion checking 6 lines (3 user + 3 agent chunks)
+    let state_dir =
+        nvim_oxi::api::call_function::<(String,), String>("stdpath", ("state".to_string(),))?;
+    let history_path = format!(
+        "{}/hermes/history/mock-agent (localhost:{})/{}.jsonl",
+        state_dir, port, session_id
+    );
+    let file_content =
+        std::fs::read_to_string(&history_path).expect("history file should exist after prompt");
+    assert_eq!(file_content.trim().lines().count(), 6);
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
     Ok(())
 }

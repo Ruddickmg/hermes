@@ -1,16 +1,45 @@
 use std::collections::HashMap;
+use std::io;
+use std::path::PathBuf;
 
 use agent_client_protocol::schema::InitializeResponse;
 
 use crate::acp::connection::Assistant;
+use crate::utilities::logging::channel::ChannelWriter;
+use crate::utilities::logging::sink::history::HistorySink;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct AgentInfo {
     pub current: Assistant,
     agents: HashMap<Assistant, InitializeResponse>,
+    pub history: ChannelWriter<HistorySink>,
+    pub history_base_path: PathBuf,
+}
+
+impl Default for AgentInfo {
+    fn default() -> Self {
+        let temp = std::env::temp_dir().join("hermes-history");
+        let sink =
+            HistorySink::new(temp.clone()).expect("failed to create history sink in temp dir");
+        let writer = ChannelWriter::new_file(sink).expect("failed to create history writer");
+        Self {
+            current: Assistant::default(),
+            agents: HashMap::new(),
+            history: writer,
+            history_base_path: temp,
+        }
+    }
 }
 
 impl AgentInfo {
+    pub fn set_history(&mut self, base_path: PathBuf) -> io::Result<()> {
+        let sink = HistorySink::new(base_path.clone())?;
+        let writer = ChannelWriter::new_file(sink)?;
+        self.history = writer;
+        self.history_base_path = base_path;
+        Ok(())
+    }
+
     fn notify_user(&self, allowed: bool, capability: &str) -> bool {
         if !allowed {
             tracing::warn!(
@@ -116,6 +145,10 @@ impl AgentInfo {
             .unwrap_or(false);
         self.notify_user(allowed, "listing sessions")
     }
+
+    pub fn needs_local_history(&self, store_history: bool) -> bool {
+        store_history && !self.can_load_session() && self.can_resume_sessions()
+    }
 }
 
 #[cfg(test)]
@@ -139,6 +172,20 @@ mod tests {
         };
         info.add_agent(agent, create_test_response());
         info
+    }
+
+    #[test]
+    fn test_history_base_path_defaults_to_temp() {
+        let info = AgentInfo::default();
+        assert!(info.history_base_path.ends_with("hermes-history"));
+    }
+
+    #[test]
+    fn test_set_history_updates_base_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut info = AgentInfo::default();
+        info.set_history(temp_dir.path().join("history")).unwrap();
+        assert_eq!(info.history_base_path, temp_dir.path().join("history"));
     }
 
     #[test]
@@ -449,5 +496,86 @@ mod tests {
         info.add_agent(agent.clone(), create_response_with_list_enabled());
         info.set_agent(agent);
         assert_eq!(info.can_list_sessions(), true);
+    }
+
+    fn create_response_with_resume_no_load() -> InitializeResponse {
+        InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+            AgentCapabilities::new()
+                .load_session(false)
+                .session_capabilities(
+                    SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new())),
+                ),
+        )
+    }
+
+    fn create_response_with_load_and_resume() -> InitializeResponse {
+        InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+            AgentCapabilities::new()
+                .load_session(true)
+                .session_capabilities(
+                    SessionCapabilities::new().resume(Some(SessionResumeCapabilities::new())),
+                ),
+        )
+    }
+
+    #[test]
+    fn test_needs_local_history_true_when_resume_enabled_and_load_disabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_resume_no_load());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(true), true);
+    }
+
+    #[test]
+    fn test_needs_local_history_false_when_load_enabled_and_resume_enabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_load_and_resume());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(true), false);
+    }
+
+    #[test]
+    fn test_needs_local_history_false_when_resume_disabled_and_load_disabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_test_response());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(true), false);
+    }
+
+    #[test]
+    fn test_needs_local_history_false_when_store_history_disabled() {
+        let mut info = AgentInfo::default();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_resume_no_load());
+        info.set_agent(agent);
+        assert_eq!(info.needs_local_history(false), false);
+    }
+
+    #[test]
+    fn test_default_history_accepts_writes() {
+        let info = AgentInfo::default();
+        info.history.write_keyed("test/session.jsonl", "hello");
+        info.history.write_keyed("test/session.jsonl", "world");
+    }
+
+    #[test]
+    fn test_set_history_accepts_valid_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut info = AgentInfo::default();
+        let result = info.set_history(temp_dir.path().join("history"));
+        assert!(result.is_ok());
+        info.history.write_keyed("agent/session.jsonl", "test");
+    }
+
+    #[test]
+    fn test_set_history_writes_to_different_path() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut info = AgentInfo::default();
+        info.set_history(temp_dir.path().join("history")).unwrap();
+        info.history.write_keyed("agent/session.jsonl", "line1");
+        info.history.write_keyed("agent/session.jsonl", "line2");
     }
 }
