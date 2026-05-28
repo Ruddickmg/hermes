@@ -11,7 +11,6 @@ use async_lock::Mutex;
 use hermes::nvim::requests::{RequestHandler, Requests, Responder};
 use hermes::nvim::state::PluginState;
 use hermes::utilities::NvimRuntime;
-use std::rc::Rc;
 use std::sync::Arc;
 
 fn mock_runtime() -> NvimRuntime {

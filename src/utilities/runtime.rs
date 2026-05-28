@@ -144,8 +144,7 @@ mod tests {
 
         let result = nvim_rt.run(async move {
             // Simulate re-entrant call (as if Lua called back into Hermes)
-            let inner_result = inner_rt.run(async { 99 });
-            inner_result
+            inner_rt.run(async { 99 })
         });
 
         // Outer call completes

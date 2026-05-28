@@ -39,10 +39,14 @@ tests/lua/xdg/
 tests/lua/bin/xdg/
 
 # Lua test cache and logs
-*.luacov.report*
-*.luacov.stats*
+luacov.*
+*.luacov.*
 tests/lua/**/*.log
 
 # Temporary test files
 *.tmp
 **/*.tmp
+
+# LLVM coverage raw data
+*.profraw
+*.profdata

@@ -85,7 +85,7 @@ fn test_modes_returns_legacy_modes() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = modes.call(session_id);
+    let _result = modes.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
@@ -151,7 +151,7 @@ fn test_modes_returns_config_options() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = modes.call(session_id);
+    let _result = modes.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
@@ -223,7 +223,7 @@ fn test_modes_returns_grouped_options() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = modes.call(session_id);
+    let _result = modes.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();

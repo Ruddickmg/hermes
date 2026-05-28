@@ -8,7 +8,6 @@ use hermes::acp::Result;
 use hermes::nvim::requests::{RequestHandler, Requests, Responder};
 use hermes::nvim::state::PluginState;
 use hermes::utilities::NvimRuntime;
-use std::rc::Rc;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -76,7 +75,7 @@ fn create_terminal_cleanup_after_response() -> nvim_oxi::Result<()> {
 
 #[nvim_oxi::test]
 fn create_terminal_user_handler_response_received() -> nvim_oxi::Result<()> {
-    let (requests, request_id, mut receiver) =
+    let (requests, request_id, receiver) =
         setup_terminal_request("echo", vec!["hello".to_string()]);
     let terminal_id = "my-custom-terminal-id-123";
 
@@ -102,7 +101,7 @@ fn create_terminal_user_handler_response_received() -> nvim_oxi::Result<()> {
 
 #[nvim_oxi::test]
 fn create_terminal_invalid_response_sends_error() -> nvim_oxi::Result<()> {
-    let (requests, request_id, mut receiver) =
+    let (requests, request_id, receiver) =
         setup_terminal_request("echo", vec!["hello".to_string()]);
 
     // Send invalid response (integer instead of string)

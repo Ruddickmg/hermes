@@ -2,7 +2,7 @@ use hermes::{
     api::{ConnectionArgs, LogoutArgs},
     nvim::autocommands::Commands,
 };
-use nvim_oxi::{Dictionary, Function, Object, conversion::FromObject};
+use nvim_oxi::{Dictionary, Function, conversion::FromObject};
 use std::time::Duration;
 
 use crate::{
