@@ -310,7 +310,7 @@ hermes.disconnect()
 
 ### Logout
 
-Below are examples of how you can disconnect from agent(s).
+Below are examples of how you can log out from agent(s).
 
 ```lua
 local hermes = require("hermes")
