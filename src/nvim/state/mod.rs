@@ -1,3 +1,4 @@
+use crate::acp::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -25,12 +26,10 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
-    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Self {
+    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Result<Self> {
         let history_path = storage_path.join("history");
-        self.agent_info
-            .set_history(history_path)
-            .expect("failed to initialize history writer");
-        self
+        self.agent_info.set_history(history_path)?;
+        Ok(self)
     }
 
     #[instrument(level = "trace")]
@@ -171,7 +170,9 @@ mod tests {
     #[test]
     fn with_storage_path_initializes_history_writer() {
         let temp_dir = TempDir::new().unwrap();
-        let state = PluginState::new().with_storage_path(temp_dir.path().to_path_buf());
+        let state = PluginState::new()
+            .with_storage_path(temp_dir.path().to_path_buf())
+            .unwrap();
 
         state
             .agent_info

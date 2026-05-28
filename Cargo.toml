@@ -5,14 +5,14 @@ version = "0.0.0-development"
 edition = "2024"
 
 [package.metadata.precommit]
-fmt = "git diff --cached --name-only --diff-filter=ACM | grep '\\.rs$' | while read -r f; do cargo fmt -- \"$f\" && git add \"$f\"; done"
+fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IFS= read -r f; do git add \"$f\"; done; true; }"
 
 [workspace]
 members = [".", "tests/e2e", "tests/integration"]
 resolver = "2"
 
 [workspace.metadata.precommit]
-fmt = "git diff --cached --name-only --diff-filter=ACM | grep '\\.rs$' | while read -r f; do cargo fmt -- \"$f\" && git add \"$f\"; done"
+fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IFS= read -r f; do git add \"$f\"; done; true; }"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

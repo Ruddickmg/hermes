@@ -9,7 +9,6 @@ use tracing::error;
 use crate::{
     acp::{Result, error::Error},
     api::{Api, mcp_servers::parse_mcp_servers},
-    utilities::{self},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -34,13 +33,7 @@ impl FromObject for ResumeSessionConfig {
             .and_then(parse_mcp_servers)
             .unwrap_or_default();
 
-        let current_directory = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let root = utilities::get_project_root(current_directory, vec![".git".to_string()]);
-
-        Ok(Self {
-            cwd: Some(cwd.unwrap_or(root)),
-            mcp_servers,
-        })
+        Ok(Self { cwd, mcp_servers })
     }
 }
 
@@ -94,7 +87,8 @@ impl Api {
         let request = agent_client_protocol::schema::ResumeSessionRequest::new(
             agent_client_protocol::schema::SessionId::from(session_id),
             config.cwd.unwrap_or(project_root),
-        );
+        )
+        .mcp_servers(config.mcp_servers);
 
         let connection = self
             .connection
@@ -108,6 +102,8 @@ impl Api {
 
 #[cfg(test)]
 mod tests {
+    use crate::utilities;
+
     use super::*;
 
     impl ResumeSessionConfig {
