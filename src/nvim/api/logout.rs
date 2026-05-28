@@ -1,10 +1,17 @@
-use crate::{acp::connection::Assistant, api::Api};
+use crate::{
+    acp::{
+        self,
+        connection::{Assistant, Connection},
+        error::Error,
+    },
+    api::Api,
+};
 use agent_client_protocol::schema::LogoutRequest;
 use futures::future;
 use nvim_oxi::{
     Object, ObjectKind,
     conversion::FromObject,
-    lua::{self, Error, Poppable, Pushable},
+    lua::{self, Poppable, Pushable},
     serde::SerializeError,
 };
 use tracing::{error, instrument};
@@ -92,7 +99,7 @@ impl Poppable for LogoutArgs {
 }
 
 impl Pushable for LogoutArgs {
-    unsafe fn push(self, state: *mut lua::ffi::State) -> Result<i32, Error> {
+    unsafe fn push(self, state: *mut lua::ffi::State) -> Result<i32, lua::Error> {
         unsafe {
             match self {
                 Self::All => ().push(state),
@@ -115,10 +122,15 @@ impl Api {
             LogoutArgs::Multiple(agents) => agents.clone(),
             LogoutArgs::All => self.connection.connected_agents(),
         };
-
         let futures: Vec<_> = agents
             .iter()
-            .filter_map(|assistant| self.connection.get_connection(assistant))
+            .map(|assistant| {
+                self.connection.get_connection(assistant).ok_or_else(|| {
+                    Error::Connection(format!("No connection found for: {}", assistant))
+                })
+            })
+            .collect::<acp::Result<Vec<&Connection>>>()?
+            .iter()
             .map(|connection| connection.logout(LogoutRequest::new()))
             .collect();
 

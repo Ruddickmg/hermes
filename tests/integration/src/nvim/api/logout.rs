@@ -43,3 +43,44 @@ fn logout_all_returns_ok_when_no_connections_exist() -> nvim_oxi::Result<()> {
 
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn logout_single_returns_error_when_agent_not_connected() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state, logger);
+
+    let result = block_on(api.logout(hermes::api::LogoutArgs::Single(
+        hermes::acp::connection::Assistant::Copilot,
+    )));
+
+    assert!(matches!(
+        result,
+        Err(hermes::acp::error::Error::Connection(_))
+    ));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn logout_multiple_returns_error_when_agents_not_connected() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state, logger);
+
+    let result = block_on(api.logout(hermes::api::LogoutArgs::Multiple(vec![
+        hermes::acp::connection::Assistant::Copilot,
+        hermes::acp::connection::Assistant::Opencode,
+    ])));
+
+    assert!(matches!(
+        result,
+        Err(hermes::acp::error::Error::Connection(_))
+    ));
+
+    Ok(())
+}
