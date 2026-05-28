@@ -403,9 +403,9 @@ data.replace(String::from("world"));  // OK!
 Adhere to "Clean Code" patterns.
 - **Design:** Apply SOLID principles where applicable.
 
-### Cross-Platform Compatibility (Lua)
+### Cross-Platform Compatibility 
 
-**CRITICAL:** All Lua code must work across Windows, Linux, and macOS. Never use platform-specific shell commands.
+**CRITICAL:** All Lua must work across Windows, Linux, and macOS. Never use platform-specific shell commands.
 
 ## Library Research First
 

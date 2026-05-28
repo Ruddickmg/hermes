@@ -131,7 +131,7 @@ pub struct ConnectionDetails {
 }
 
 pub struct ConnectionManager {
-    connection: HashMap<Assistant, Connection>,
+    connection: HashMap<String, Connection>,
     state: Arc<Mutex<PluginState>>,
 }
 
@@ -161,12 +161,12 @@ impl ConnectionManager {
 
     #[instrument(level = "trace", skip(self, connection))]
     pub(crate) fn add_connection(&mut self, agent: Assistant, connection: Connection) {
-        self.connection.insert(agent, connection);
+        self.connection.insert(agent.to_string(), connection);
     }
 
     #[instrument(level = "trace", skip(self))]
     pub fn get_connection(&self, agent: &Assistant) -> Option<&Connection> {
-        self.connection.get(agent)
+        self.connection.get(&agent.to_string())
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -189,9 +189,10 @@ impl ConnectionManager {
         ConnectionDetails { agent, protocol }: ConnectionDetails,
     ) -> crate::acp::Result<&Connection> {
         let permissions = self.get_permissions().await;
+        let agent_name = agent.to_string();
 
         // Check if connection already exists without borrowing
-        let already_connected = self.connection.contains_key(&agent);
+        let already_connected = self.connection.contains_key(&agent_name);
         if already_connected {
             warn!(
                 "A connection already exists for '{}'. Returning existing connection",
@@ -199,7 +200,7 @@ impl ConnectionManager {
             );
             return self
                 .connection
-                .get(&agent)
+                .get(&agent_name)
                 .ok_or_else(|| Error::Internal("Connection not found".to_string()));
         }
 
@@ -280,12 +281,15 @@ impl ConnectionManager {
 
     #[instrument(level = "trace", skip(self))]
     pub fn connected_agents(&self) -> Vec<Assistant> {
-        self.connection.keys().cloned().collect()
+        self.connection
+            .keys()
+            .map(|key| Assistant::from(key.as_str()))
+            .collect()
     }
 
     #[instrument(level = "trace", skip(self))]
     pub fn close_all(&mut self) -> Result<(), Error> {
-        self.disconnect(self.connection.keys().cloned().collect())?;
+        self.disconnect(self.connected_agents())?;
         info!("Successfully disconnected from all agents");
         Ok(())
     }
@@ -311,9 +315,12 @@ impl ConnectionManager {
 
     #[instrument(level = "trace", skip(self))]
     fn disconnect_assistant(&mut self, assistant: &Assistant) -> Result<(), Error> {
-        let connection = self.connection.remove(assistant).ok_or_else(|| {
-            Error::Connection(format!("No connection found for assistant {}", assistant))
-        })?;
+        let connection = self
+            .connection
+            .remove(&assistant.to_string())
+            .ok_or_else(|| {
+                Error::Connection(format!("No connection found for assistant {}", assistant))
+            })?;
         drop(connection);
         Ok(())
     }
