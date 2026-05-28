@@ -74,8 +74,11 @@ async fn dispatch(
             client.session_forked(response).await?;
         }
         UserRequest::ResumeSession(request) => {
+            let session_id = request.session_id.clone();
             let response = cx.send_request(request).block_task().await?;
-            client.session_resumed(response).await?;
+            client
+                .session_resumed(session_id.to_string(), response)
+                .await?;
         }
         UserRequest::SetSessionModel(request) => {
             let session_id = request.session_id.to_string();

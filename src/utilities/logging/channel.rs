@@ -16,6 +16,7 @@ const FLUSH_TIMEOUT_MS: u64 = 100; // Flush after 100ms regardless
 #[derive(Debug)]
 enum LogMessage {
     Data(String),
+    Keyed { key: String, content: String },
     Flush,
     Shutdown,
 }
@@ -77,6 +78,17 @@ impl<S: LogSink> ChannelWriter<S> {
         S: LogSink,
     {
         Self::new(sink, FLUSH_INTERVAL_UI)
+    }
+
+    /// Send a keyed message to the worker thread
+    ///
+    /// The `key` is passed to the sink's `write_keyed` method, allowing
+    /// per-destination routing (e.g., per-file paths).
+    pub fn write_keyed(&self, key: impl Into<String>, content: impl Into<String>) {
+        let _ = self.sender.send(LogMessage::Keyed {
+            key: key.into(),
+            content: content.into(),
+        });
     }
 
     /// Signal the worker thread to shutdown and wait for it to complete
@@ -160,11 +172,12 @@ impl<S: LogSink> Worker<S> {
                     match receiver.recv_timeout(timeout) {
                         Ok(msg) => msg,
                         Err(RecvTimeoutError::Timeout) => {
-                            // Timeout occurred - check if we need to flush
+                            // Timeout occurred - flush batched data messages and keyed sink
                             if !message_buffer.is_empty() {
                                 sink.write_batch(&message_buffer).ok();
                                 message_buffer.clear();
                             }
+                            let _ = sink.flush();
                             continue;
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -189,6 +202,10 @@ impl<S: LogSink> Worker<S> {
                             sink.write_batch(&message_buffer).ok();
                             message_buffer.clear();
                         }
+                    }
+                    LogMessage::Keyed { key, content } => {
+                        // Send keyed messages directly — sink handles per-key batching
+                        sink.write_keyed(&key, &content).ok();
                     }
                     LogMessage::Flush => {
                         // Flush immediately
@@ -297,6 +314,7 @@ mod tests {
     #[derive(Clone)]
     struct TrackingSink {
         messages: Arc<Mutex<Vec<String>>>,
+        keyed_messages: Arc<Mutex<Vec<(String, String)>>>,
         flush_count: Arc<AtomicUsize>,
     }
 
@@ -304,12 +322,17 @@ mod tests {
         fn new() -> Self {
             Self {
                 messages: Arc::new(Mutex::new(Vec::new())),
+                keyed_messages: Arc::new(Mutex::new(Vec::new())),
                 flush_count: Arc::new(AtomicUsize::new(0)),
             }
         }
 
         fn get_messages(&self) -> Vec<String> {
             self.messages.lock().unwrap().clone()
+        }
+
+        fn get_keyed_messages(&self) -> Vec<(String, String)> {
+            self.keyed_messages.lock().unwrap().clone()
         }
 
         fn get_flush_count(&self) -> usize {
@@ -320,6 +343,14 @@ mod tests {
     impl LogSink for TrackingSink {
         fn write_batch(&mut self, messages: &[String]) -> io::Result<()> {
             self.messages.lock().unwrap().extend_from_slice(messages);
+            Ok(())
+        }
+
+        fn write_keyed(&mut self, key: &str, message: &str) -> io::Result<()> {
+            self.keyed_messages
+                .lock()
+                .unwrap()
+                .push((key.to_string(), message.to_string()));
             Ok(())
         }
 
@@ -497,5 +528,38 @@ mod tests {
 
         let messages = sink.get_messages();
         assert_eq!(messages.len(), 100);
+    }
+
+    #[test]
+    fn test_channel_writer_keyed_message_reaches_sink() {
+        let sink = TrackingSink::new();
+        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+
+        writer.write_keyed("my-key", "my-content");
+        writer.flush().unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        writer.shutdown();
+
+        let keyed = sink.get_keyed_messages();
+        assert_eq!(
+            keyed.as_slice(),
+            &[("my-key".to_string(), "my-content".to_string())]
+        );
+    }
+
+    #[test]
+    fn test_channel_writer_multiple_keyed_messages_preserved() {
+        let sink = TrackingSink::new();
+        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+
+        writer.write_keyed("key-a", "content-a");
+        writer.write_keyed("key-b", "content-b");
+        writer.write_keyed("key-a", "content-a2");
+        writer.flush().unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        writer.shutdown();
+
+        let keyed = sink.get_keyed_messages();
+        assert_eq!(keyed.len(), 3);
     }
 }
