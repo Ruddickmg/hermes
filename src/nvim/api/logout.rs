@@ -1,14 +1,22 @@
+use crate::{
+    acp::{
+        self,
+        connection::{Assistant, Connection},
+        error::Error,
+    },
+    api::Api,
+};
+use agent_client_protocol::schema::LogoutRequest;
+use futures::future;
 use nvim_oxi::{
     Object, ObjectKind,
     conversion::FromObject,
-    lua::{self, Error, Poppable, Pushable},
+    lua::{self, Poppable, Pushable},
 };
 use tracing::error;
 
-use crate::{acp::connection::Assistant, api::Api};
-
 #[derive(Clone, Debug, Default)]
-pub enum DisconnectArgs {
+pub enum LogoutArgs {
     Multiple(Vec<Assistant>),
     Single(Assistant),
     #[default]
@@ -17,7 +25,7 @@ pub enum DisconnectArgs {
 
 const EXPECTED: &str = "Nil, String or Array of Strings";
 
-impl FromObject for DisconnectArgs {
+impl FromObject for LogoutArgs {
     fn from_object(obj: Object) -> Result<Self, nvim_oxi::conversion::Error> {
         match obj.kind() {
             ObjectKind::Nil => Ok(Self::All),
@@ -54,17 +62,22 @@ impl FromObject for DisconnectArgs {
     }
 }
 
-impl Poppable for DisconnectArgs {
+impl Poppable for LogoutArgs {
     unsafe fn pop(lua: *mut nvim_oxi::lua::ffi::State) -> Result<Self, lua::Error> {
         let obj = unsafe { Object::pop(lua)? };
         Ok(Self::from_object(obj)
-            .inspect_err(|e| error!("An error occurred while parsing the disconnect arguments, failed to disconnect: {:?}", e))
+            .inspect_err(|e| {
+                error!(
+                    "An error occurred while parsing the logout arguments, failed to logout: {:?}",
+                    e
+                )
+            })
             .unwrap_or(Self::Multiple(vec![])))
     }
 }
 
-impl Pushable for DisconnectArgs {
-    unsafe fn push(self, state: *mut lua::ffi::State) -> Result<i32, Error> {
+impl Pushable for LogoutArgs {
+    unsafe fn push(self, state: *mut lua::ffi::State) -> Result<i32, lua::Error> {
         unsafe {
             match self {
                 Self::All => ().push(state),
@@ -81,12 +94,26 @@ impl Pushable for DisconnectArgs {
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn disconnect(&mut self, args: DisconnectArgs) -> crate::acp::Result<()> {
-        match args {
-            DisconnectArgs::Multiple(agents) => self.connection.disconnect(agents),
-            DisconnectArgs::Single(agent) => self.connection.disconnect(vec![agent]),
-            DisconnectArgs::All => self.connection.close_all(),
-        }
+    pub async fn logout(&self, args: LogoutArgs) -> crate::acp::Result<()> {
+        let agents: Vec<Assistant> = match &args {
+            LogoutArgs::Single(agent) => vec![agent.clone()],
+            LogoutArgs::Multiple(agents) => agents.clone(),
+            LogoutArgs::All => self.connection.connected_agents(),
+        };
+        let futures: Vec<_> = agents
+            .iter()
+            .map(|assistant| {
+                self.connection.get_connection(assistant).ok_or_else(|| {
+                    Error::Connection(format!("No connection found for: {}", assistant))
+                })
+            })
+            .collect::<acp::Result<Vec<&Connection>>>()?
+            .iter()
+            .map(|connection| connection.logout(LogoutRequest::new()))
+            .collect();
+
+        future::try_join_all(futures).await?;
+        Ok(())
     }
 }
 
@@ -108,16 +135,16 @@ mod tests {
         )
     }
 
-    // Strategy for generating DisconnectArgs variants
-    fn arb_disconnect_args() -> impl Strategy<Value = DisconnectArgs> {
+    // Strategy for generating LogoutArgs variants
+    fn arb_logout_args() -> impl Strategy<Value = LogoutArgs> {
         prop_oneof!(
-            Just(DisconnectArgs::All),
+            Just(LogoutArgs::All),
             arb_assistant_name().prop_map(|name| {
                 match Assistant::from(name.as_str()) {
                     Assistant::Copilot | Assistant::Opencode => {
-                        DisconnectArgs::Single(Assistant::from(name.as_str()))
+                        LogoutArgs::Single(Assistant::from(name.as_str()))
                     }
-                    _ => DisconnectArgs::All, // Custom assistants become All for simplicity
+                    _ => LogoutArgs::All,
                 }
             }),
             prop::collection::vec(arb_assistant_name(), 0..5).prop_map(|names| {
@@ -131,9 +158,9 @@ mod tests {
                     })
                     .collect();
                 if assistants.is_empty() {
-                    DisconnectArgs::All
+                    LogoutArgs::All
                 } else {
-                    DisconnectArgs::Multiple(assistants)
+                    LogoutArgs::Multiple(assistants)
                 }
             })
         )
@@ -141,27 +168,24 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_disconnect_args_from_str_roundtrip(name in arb_assistant_name()) {
+        fn test_logout_args_from_str_roundtrip(name in arb_assistant_name()) {
             // Property: converting string to Assistant should never panic
             let _ = Assistant::from(name.as_str());
         }
 
         #[test]
-        fn test_disconnect_args_pushable_roundtrip(args in arb_disconnect_args()) {
-            // Property: Pushable -> Poppable should preserve the value
-            // Note: We can't easily test the full round-trip without a Lua state,
-            // but we can verify the enum structure is preserved
+        fn test_logout_args_pushable_roundtrip(args in arb_logout_args()) {
             match args {
-                DisconnectArgs::All => {
+                LogoutArgs::All => {
                     // All variant should remain All
                 }
-                DisconnectArgs::Single(ref assistant) => {
+                LogoutArgs::Single(ref assistant) => {
                     prop_assert!(
                         matches!(assistant, Assistant::Copilot | Assistant::Opencode | Assistant::CustomStdio { .. }),
                         "Single variant should contain valid assistant"
                     );
                 }
-                DisconnectArgs::Multiple(ref assistants) => {
+                LogoutArgs::Multiple(ref assistants) => {
                     prop_assert!(
                         !assistants.is_empty(),
                         "Multiple variant should contain at least one assistant"

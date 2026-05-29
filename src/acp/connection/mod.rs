@@ -10,8 +10,8 @@ use tracing::{debug, error, warn};
 use crate::acp::{Result, error::Error};
 use agent_client_protocol::schema::{
     AuthenticateRequest, CancelNotification, CloseSessionRequest, ForkSessionRequest,
-    InitializeRequest, ListSessionsRequest, LoadSessionRequest, NewSessionRequest, PromptRequest,
-    ResumeSessionRequest, SetSessionConfigOptionRequest, SetSessionModeRequest,
+    InitializeRequest, ListSessionsRequest, LoadSessionRequest, LogoutRequest, NewSessionRequest,
+    PromptRequest, ResumeSessionRequest, SetSessionConfigOptionRequest, SetSessionModeRequest,
     SetSessionModelRequest,
 };
 use async_channel::Sender;
@@ -40,6 +40,7 @@ pub enum UserRequest {
     ResumeSession(ResumeSessionRequest),
     SetSessionModel(SetSessionModelRequest),
     CloseSession(CloseSessionRequest),
+    Logout(LogoutRequest),
 }
 
 #[derive(Debug)]
@@ -232,6 +233,12 @@ impl Connection {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn close_session(&self, request: CloseSessionRequest) -> Result<()> {
         self.send(UserRequest::CloseSession(request)).await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub async fn logout(&self, request: LogoutRequest) -> Result<()> {
+        self.send(UserRequest::Logout(request)).await?;
         Ok(())
     }
 }

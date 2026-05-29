@@ -13,11 +13,12 @@ CONTENTS                                              *hermes-contents*
   4. API ....................................... |hermes-api|
     4.1 Connect ................................ |hermes-connect|
     4.2 Disconnect ............................. |hermes-disconnect|
-    4.3 List Sessions .......................... |hermes-list-sessions|
-    4.4 Authenticate ........................... |hermes-authenticate|
-    4.5 Sessions ............................... |hermes-sessions|
-    4.6 Prompt .................................. |hermes-prompt|
-    4.7 Configuration ............................ |hermes-configuration|
+    4.3 Logout ................................. |hermes-logout|
+    4.4 List Sessions .......................... |hermes-list-sessions|
+    4.5 Authenticate ........................... |hermes-authenticate|
+    4.6 Sessions ............................... |hermes-sessions|
+    4.7 Prompt .................................. |hermes-prompt|
+    4.8 Configuration ............................ |hermes-configuration|
   5. Detailed Configuration .................. |hermes-detailed-config|
   6. Autocommands .............................. |hermes-autocommands|
   7. Commands .................................. |hermes-commands|
@@ -159,7 +160,29 @@ Example: >
 <
 
 ------------------------------------------------------------------------------
-4.3 LIST SESSIONS                                     *hermes-list-sessions*
+4.3 LOGOUT                                            *hermes-logout*
+
+*hermes.logout()*                                         Logout from agent
+
+Parameters: ~
+    {agents} (string|string[]|nil) Agent(s) to logout, nil for all
+
+Example: >
+    -- Logout single agent
+    require("hermes").logout("opencode")
+    
+    -- Logout multiple
+    require("hermes").logout({"opencode", "copilot"})
+    
+    -- Logout all
+    require("hermes").logout()
+<
+
+Autocommands triggered: ~
+    LoggedOut - On successful logout
+
+------------------------------------------------------------------------------
+4.4 LIST SESSIONS                                     *hermes-list-sessions*
 
 *hermes.list_sessions()*                                   List all sessions
 
@@ -191,7 +214,7 @@ Autocommand triggered: ~
     SessionsListed - On successful list with session data and nextCursor
 
 ------------------------------------------------------------------------------
-4.4 AUTHENTICATE                                      *hermes-authenticate*
+4.5 AUTHENTICATE                                      *hermes-authenticate*
 
 *hermes.authenticate()*                                  Authenticate with agent
 
@@ -212,7 +235,7 @@ Autocommand triggered: ~
     Authenticated - On successful authentication
 
 ------------------------------------------------------------------------------
-4.5 SESSIONS                                          *hermes-sessions*
+4.6 SESSIONS                                          *hermes-sessions*
 
 *hermes.create_session()*                                Create new session
 *hermes.load_session()*                                   Load existing session
@@ -267,7 +290,7 @@ Autocommands triggered: ~
     SessionCreated, SessionLoaded
 
 ------------------------------------------------------------------------------
-4.6 PROMPT                                            *hermes-prompt*
+4.7 PROMPT                                            *hermes-prompt*
 
 *hermes.prompt()*                                        Send prompt to agent
 
@@ -300,7 +323,7 @@ Autocommands triggered: ~
     AvailableCommands, ModeCurrent
 
 ------------------------------------------------------------------------------
-4.7 CONFIGURATION                                     *hermes-configuration*
+4.8 CONFIGURATION                                     *hermes-configuration*
 
 *hermes.cancel()*                                        Cancel operation
 *hermes.set_mode()*                                       Set session mode

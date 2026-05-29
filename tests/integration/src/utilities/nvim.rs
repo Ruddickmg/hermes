@@ -4,7 +4,6 @@
 //! These tests verify the actual cross-thread communication flow using wait_for helpers.
 use hermes::acp::error::Error;
 use hermes::utilities::{NvimMessenger, NvimRuntime, TransmitToNvim};
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

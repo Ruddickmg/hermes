@@ -559,6 +559,14 @@ function M.disconnect(agents)
 	end)
 end
 
+---Logout from agent(s)
+---@param agents? string|string[] Agent name(s) to logout, nil for all
+function M.logout(agents)
+	execute_async(function()
+		M._load_native_sync().logout(agents)
+	end)
+end
+
 ---Authenticate with an agent
 ---@param auth_method_id string Authentication method ID from ConnectionInitialized
 function M.authenticate(auth_method_id)

@@ -307,6 +307,27 @@ hermes.disconnect({ "copilot", "opencode" })
 hermes.disconnect()
 ```
 
+
+### Logout
+
+Below are examples of how you can log out from agent(s).
+
+```lua
+local hermes = require("hermes")
+
+-- logout a single agent
+hermes.logout("copilot");
+
+-- logout a list of agents
+hermes.logout({ "copilot", "opencode" })
+
+-- logout all agents
+hermes.logout()
+```
+
+> **Triggers:** [LoggedOut](#loggedout) autocommand upon completion.
+
+
 ### Authenticate
 
 Handle agent authentication.
@@ -1375,6 +1396,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
   }
 }</code></pre></td>
     </tr>
+    <tr id="loggedout">
+      <td><code>LoggedOut</code></td>
+      <td>Agent logout completed</td>
+      <td>⚡ <a href="#logout">logout()</a></td>
+      <td><pre><code class="language-json">{}</code></pre></td>
+    </tr>
     <tr id="modecurrent">
       <td><code>ModeCurrent</code></td>
       <td>Current mode changes</td>
@@ -2157,7 +2184,6 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [logout](https://agentclientprotocol.com/protocol/authentication#logging-out)
 - [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
 - [x] Allow connecting to Agents
   - [x] Via stdio
