@@ -84,6 +84,7 @@ impl Assistant {
     ///
     /// The caller is responsible for spawning the command on the correct
     /// executor (the one whose reactor will handle the child's IO).
+    #[instrument(level = "trace", skip(self))]
     pub fn command(&self) -> crate::acp::Result<async_process::Command> {
         let (program, args) = match self {
             Assistant::Copilot => ("copilot", vec!["--acp"]),
@@ -103,6 +104,7 @@ impl Assistant {
         Ok(cmd)
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub fn name(&self) -> String {
         match self {
             Assistant::CustomStdio { name, .. } => name.clone(),
