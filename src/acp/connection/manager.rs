@@ -102,6 +102,14 @@ impl Assistant {
         cmd.args(args);
         Ok(cmd)
     }
+
+    pub fn name(&self) -> String {
+        match self {
+            Assistant::CustomStdio { name, .. } => name.clone(),
+            Assistant::CustomUrl { name, .. } => name.clone(),
+            assistant => assistant.to_string(),
+        }
+    }
 }
 
 impl From<&str> for Assistant {
@@ -161,12 +169,12 @@ impl ConnectionManager {
 
     #[instrument(level = "trace", skip(self, connection))]
     pub(crate) fn add_connection(&mut self, agent: Assistant, connection: Connection) {
-        self.connection.insert(agent.to_string(), connection);
+        self.connection.insert(agent.name(), connection);
     }
 
     #[instrument(level = "trace", skip(self))]
     pub fn get_connection(&self, agent: &Assistant) -> Option<&Connection> {
-        self.connection.get(&agent.to_string())
+        self.connection.get(&agent.name())
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -189,7 +197,7 @@ impl ConnectionManager {
         ConnectionDetails { agent, protocol }: ConnectionDetails,
     ) -> crate::acp::Result<&Connection> {
         let permissions = self.get_permissions().await;
-        let agent_name = agent.to_string();
+        let agent_name = agent.name();
 
         // Check if connection already exists without borrowing
         let already_connected = self.connection.contains_key(&agent_name);
@@ -228,9 +236,9 @@ impl ConnectionManager {
 
         let handle = std::thread::spawn(move || {
             let executor = std::rc::Rc::new(smol::LocalExecutor::new());
-            let agent_name = thread_agent.to_string();
+            let agent_display_name = thread_agent.to_string();
 
-            trace!("Starting smol executor for {}", agent_name);
+            trace!("Starting smol executor for {}", agent_display_name);
 
             // Run the connection in the executor.
             // smol::block_on drives the top-level future, while executor.run()
@@ -260,10 +268,10 @@ impl ConnectionManager {
             }));
 
             match &run_result {
-                Ok(()) => info!("Agent thread for '{}' exited normally", agent_name),
+                Ok(()) => info!("Agent thread for '{}' exited normally", agent_display_name),
                 Err(e) => error!(
                     "Agent thread for '{}' exited with error: {:?}",
-                    agent_name, e
+                    agent_display_name, e
                 ),
             }
 
@@ -315,12 +323,9 @@ impl ConnectionManager {
 
     #[instrument(level = "trace", skip(self))]
     fn disconnect_assistant(&mut self, assistant: &Assistant) -> Result<(), Error> {
-        let connection = self
-            .connection
-            .remove(&assistant.to_string())
-            .ok_or_else(|| {
-                Error::Connection(format!("No connection found for assistant {}", assistant))
-            })?;
+        let connection = self.connection.remove(&assistant.name()).ok_or_else(|| {
+            Error::Connection(format!("No connection found for assistant {}", assistant))
+        })?;
         drop(connection);
         Ok(())
     }
