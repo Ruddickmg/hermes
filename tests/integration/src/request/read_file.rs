@@ -13,7 +13,6 @@ use hermes::nvim::state::PluginState;
 use hermes::utilities::NvimRuntime;
 use std::io::Write;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;

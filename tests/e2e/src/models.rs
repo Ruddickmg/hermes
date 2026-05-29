@@ -5,8 +5,8 @@ use crate::{
     utilities::{autocommand, mock_agent::MockAgent, mock_config::generate_session_id},
 };
 use agent_client_protocol::schema::{
-    InitializeResponse, ModelInfo, NewSessionResponse, SessionConfigOption,
-    SessionConfigOptionCategory, SessionConfigSelectOption, SessionModelState,
+    InitializeResponse, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
+    SessionConfigSelectOption, SessionModelState,
 };
 use hermes::{
     acp::session_info::{HermesOption, Selection},
@@ -85,7 +85,7 @@ fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = models.call(session_id);
+    let _result = models.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
@@ -151,7 +151,7 @@ fn test_models_returns_config_options() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    let result = models.call(session_id);
+    let _result = models.call(session_id);
 
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();

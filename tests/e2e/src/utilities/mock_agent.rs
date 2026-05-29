@@ -11,17 +11,14 @@ use agent_client_protocol::{
     self as acp, Agent, ByteStreams, ConnectionTo, Responder, on_receive_notification,
     on_receive_request,
     schema::{
-        AgentCapabilities, AuthenticateRequest, AuthenticateResponse, CancelNotification,
-        CloseSessionRequest, CloseSessionResponse, ContentBlock, ContentChunk,
-        CreateTerminalRequest, CreateTerminalResponse, Implementation, InitializeRequest,
-        InitializeResponse, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest,
-        LoadSessionResponse, McpCapabilities, NewSessionRequest, NewSessionResponse,
-        PromptCapabilities, PromptRequest, PromptResponse, ProtocolVersion, ReadTextFileRequest,
-        ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
+        AuthenticateRequest, AuthenticateResponse, CancelNotification, CloseSessionRequest,
+        CloseSessionResponse, ContentBlock, ContentChunk, CreateTerminalRequest,
+        CreateTerminalResponse, InitializeRequest, InitializeResponse, ListSessionsRequest,
+        ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, LogoutRequest,
+        LogoutResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse,
+        ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
         RequestPermissionOutcome, RequestPermissionRequest, ResumeSessionRequest,
-        ResumeSessionResponse, SessionCapabilities, SessionCloseCapabilities,
-        SessionForkCapabilities, SessionListCapabilities, SessionNotification,
-        SessionResumeCapabilities, SessionUpdate, SetSessionConfigOptionRequest,
+        ResumeSessionResponse, SessionNotification, SessionUpdate, SetSessionConfigOptionRequest,
         SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
         SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
         TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
@@ -488,10 +485,7 @@ fn build_mock_agent_builder(
                         let result = timeout(dur, async {
                             let config = config.lock().unwrap();
                             Ok::<_, acp::Error>(
-                                config
-                                    .set_session_mode_response
-                                    .clone()
-                                    .unwrap_or_else(SetSessionModeResponse::new),
+                                config.set_session_mode_response.clone().unwrap_or_default(),
                             )
                         })
                         .await
@@ -545,7 +539,7 @@ fn build_mock_agent_builder(
                                 config
                                     .set_session_model_response
                                     .clone()
-                                    .unwrap_or_else(SetSessionModelResponse::new),
+                                    .unwrap_or_default(),
                             )
                         })
                         .await
@@ -601,6 +595,26 @@ fn build_mock_agent_builder(
                         .await
                         .map_err(|_| internal_error("close_session timed out"))
                         .and_then(|r| r);
+                        responder.respond_with_result(result)
+                    }
+                }
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let config = config.clone();
+                move |_req: LogoutRequest,
+                      responder: Responder<LogoutResponse>,
+                      _cx: ConnectionTo<acp::Client>| {
+                    let config = config.clone();
+                    async move {
+                        let dur = config.lock().unwrap().timeout;
+                        let result =
+                            timeout(dur, async { Ok::<_, acp::Error>(LogoutResponse::new()) })
+                                .await
+                                .map_err(|_| internal_error("logout timed out"))
+                                .and_then(|r| r);
                         responder.respond_with_result(result)
                     }
                 }

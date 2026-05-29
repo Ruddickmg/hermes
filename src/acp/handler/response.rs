@@ -1,7 +1,7 @@
 use agent_client_protocol::schema::{
     AuthenticateResponse, CloseSessionResponse, ExtResponse, ForkSessionResponse,
-    InitializeResponse, ListSessionsResponse, LoadSessionResponse, NewSessionResponse,
-    PromptResponse, ResumeSessionResponse, SessionConfigOptionCategory,
+    InitializeResponse, ListSessionsResponse, LoadSessionResponse, LogoutResponse,
+    NewSessionResponse, PromptResponse, ResumeSessionResponse, SessionConfigOptionCategory,
     SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
 };
 use tracing::instrument;
@@ -79,6 +79,12 @@ impl Handler {
     #[instrument(level = "trace", skip(self))]
     pub async fn authenticated(&self, response: AuthenticateResponse) -> Result<(), Error> {
         self.execute_autocommand(Commands::Authenticated, response)
+            .await
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn logged_out(&self, response: LogoutResponse) -> Result<(), Error> {
+        self.execute_autocommand(Commands::LoggedOut, response)
             .await
     }
 

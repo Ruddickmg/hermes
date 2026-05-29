@@ -102,6 +102,14 @@ impl Assistant {
         cmd.args(args);
         Ok(cmd)
     }
+
+    pub fn name(&self) -> String {
+        match self {
+            Assistant::CustomStdio { name, .. } => name.clone(),
+            Assistant::CustomUrl { name, .. } => name.clone(),
+            assistant => assistant.to_string(),
+        }
+    }
 }
 
 impl From<&str> for Assistant {
@@ -131,7 +139,7 @@ pub struct ConnectionDetails {
 }
 
 pub struct ConnectionManager {
-    connection: HashMap<Assistant, Connection>,
+    connection: HashMap<String, Connection>,
     state: Arc<Mutex<PluginState>>,
 }
 
@@ -160,13 +168,13 @@ impl ConnectionManager {
     }
 
     #[instrument(level = "trace", skip(self, connection))]
-    fn add_connection(&mut self, agent: Assistant, connection: Connection) {
-        self.connection.insert(agent, connection);
+    pub(crate) fn add_connection(&mut self, agent: Assistant, connection: Connection) {
+        self.connection.insert(agent.name(), connection);
     }
 
     #[instrument(level = "trace", skip(self))]
     pub fn get_connection(&self, agent: &Assistant) -> Option<&Connection> {
-        self.connection.get(agent)
+        self.connection.get(&agent.name())
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -189,9 +197,10 @@ impl ConnectionManager {
         ConnectionDetails { agent, protocol }: ConnectionDetails,
     ) -> crate::acp::Result<&Connection> {
         let permissions = self.get_permissions().await;
+        let agent_name = agent.name();
 
         // Check if connection already exists without borrowing
-        let already_connected = self.connection.contains_key(&agent);
+        let already_connected = self.connection.contains_key(&agent_name);
         if already_connected {
             warn!(
                 "A connection already exists for '{}'. Returning existing connection",
@@ -199,7 +208,7 @@ impl ConnectionManager {
             );
             return self
                 .connection
-                .get(&agent)
+                .get(&agent_name)
                 .ok_or_else(|| Error::Internal("Connection not found".to_string()));
         }
 
@@ -227,9 +236,9 @@ impl ConnectionManager {
 
         let handle = std::thread::spawn(move || {
             let executor = std::rc::Rc::new(smol::LocalExecutor::new());
-            let agent_name = thread_agent.to_string();
+            let agent_display_name = thread_agent.to_string();
 
-            trace!("Starting smol executor for {}", agent_name);
+            trace!("Starting smol executor for {}", agent_display_name);
 
             // Run the connection in the executor.
             // smol::block_on drives the top-level future, while executor.run()
@@ -259,10 +268,10 @@ impl ConnectionManager {
             }));
 
             match &run_result {
-                Ok(()) => info!("Agent thread for '{}' exited normally", agent_name),
+                Ok(()) => info!("Agent thread for '{}' exited normally", agent_display_name),
                 Err(e) => error!(
                     "Agent thread for '{}' exited with error: {:?}",
-                    agent_name, e
+                    agent_display_name, e
                 ),
             }
 
@@ -279,8 +288,16 @@ impl ConnectionManager {
     }
 
     #[instrument(level = "trace", skip(self))]
+    pub fn connected_agents(&self) -> Vec<Assistant> {
+        self.connection
+            .keys()
+            .map(|key| Assistant::from(key.as_str()))
+            .collect()
+    }
+
+    #[instrument(level = "trace", skip(self))]
     pub fn close_all(&mut self) -> Result<(), Error> {
-        self.disconnect(self.connection.keys().cloned().collect())?;
+        self.disconnect(self.connected_agents())?;
         info!("Successfully disconnected from all agents");
         Ok(())
     }
@@ -306,7 +323,7 @@ impl ConnectionManager {
 
     #[instrument(level = "trace", skip(self))]
     fn disconnect_assistant(&mut self, assistant: &Assistant) -> Result<(), Error> {
-        let connection = self.connection.remove(assistant).ok_or_else(|| {
+        let connection = self.connection.remove(&assistant.name()).ok_or_else(|| {
             Error::Connection(format!("No connection found for assistant {}", assistant))
         })?;
         drop(connection);
@@ -409,6 +426,44 @@ mod tests {
         ];
 
         assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn connected_agents_returns_empty_when_no_connections() {
+        let manager = ConnectionManager::new(Arc::new(Mutex::new(PluginState::new())));
+        let agents = manager.connected_agents();
+        assert!(agents.is_empty());
+    }
+
+    #[test]
+    fn connected_agents_returns_single_agent() {
+        let mut manager = ConnectionManager::new(Arc::new(Mutex::new(PluginState::new())));
+        let (sender, _) = async_channel::unbounded();
+        let handle = std::thread::spawn(|| Ok(()));
+        let connection = Connection::new(sender, handle, None);
+        manager.add_connection(Assistant::Copilot, connection);
+        let agents = manager.connected_agents();
+        assert_eq!(agents.len(), 1);
+        assert_eq!(agents[0], Assistant::Copilot);
+    }
+
+    #[test]
+    fn connected_agents_returns_multiple_agents() {
+        let mut manager = ConnectionManager::new(Arc::new(Mutex::new(PluginState::new())));
+        let (sender1, _) = async_channel::unbounded();
+        let handle1 = std::thread::spawn(|| Ok(()));
+        let connection1 = Connection::new(sender1, handle1, None);
+        manager.add_connection(Assistant::Copilot, connection1);
+
+        let (sender2, _) = async_channel::unbounded();
+        let handle2 = std::thread::spawn(|| Ok(()));
+        let connection2 = Connection::new(sender2, handle2, None);
+        manager.add_connection(Assistant::Opencode, connection2);
+
+        let agents = manager.connected_agents();
+        assert_eq!(agents.len(), 2);
+        assert!(agents.contains(&Assistant::Copilot));
+        assert!(agents.contains(&Assistant::Opencode));
     }
 
     #[test]

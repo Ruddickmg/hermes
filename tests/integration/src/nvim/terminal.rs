@@ -18,7 +18,7 @@ fn terminal_info_report_exit_to_sends_exit_code_when_already_occurred() -> nvim_
         .expect("Failed to borrow exit_status for test setup") =
         Some((Some(5), Some("error".to_string())));
 
-    let (sender, mut receiver) = async_channel::bounded::<Result<(Option<u32>, Option<String>)>>(1);
+    let (sender, receiver) = async_channel::bounded::<Result<(Option<u32>, Option<String>)>>(1);
     terminal.report_exit_to(sender).expect("report failed");
 
     let received = receiver.try_recv().expect("Should receive message");
