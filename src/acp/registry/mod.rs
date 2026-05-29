@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use tracing::warn;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Registry {
     pub version: String,
     pub agents: Vec<AgentEntry>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct AgentEntry {
     pub id: String,
     pub name: String,
@@ -23,7 +23,7 @@ pub struct AgentEntry {
     pub distribution: Distribution,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum Distribution {
     Binary(HashMap<String, BinaryPlatformTarget>),
@@ -31,7 +31,7 @@ pub enum Distribution {
     Uvx(PackageDistribution),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct BinaryPlatformTarget {
     pub archive: String,
     pub cmd: String,
@@ -39,7 +39,7 @@ pub struct BinaryPlatformTarget {
     pub env: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct PackageDistribution {
     pub package: String,
     pub args: Option<Vec<String>>,

@@ -188,4 +188,23 @@ mod tests {
             .history
             .write_keyed("agent/session.jsonl", "test");
     }
+
+    #[test]
+    fn new_plugin_state_registry_is_none() {
+        let state = PluginState::new();
+        assert!(state.registry.is_none());
+    }
+
+    #[test]
+    fn with_registry_none_leaves_registry_unset() {
+        let state = PluginState::new().with_registry(None);
+        assert!(state.registry.is_none());
+    }
+
+    #[test]
+    fn with_registry_sets_bundled_registry() {
+        let registry = Registry::bundled().cloned();
+        let state = PluginState::new().with_registry(registry.clone());
+        assert_eq!(state.registry, registry);
+    }
 }
