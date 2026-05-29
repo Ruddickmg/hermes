@@ -106,7 +106,7 @@
 ---@class AgentsOptions
 ---Options for listing agents from the registry
 ---@field update? boolean Whether to fetch the latest registry before listing
----@field url? string url to fetch the ACP registry from
+---@field url? string Custom registry URL (default: official ACP registry)
 
 ---@class TextContent
 ---Text content for prompts

@@ -14,6 +14,7 @@ const DEFAULT_REGISTRY_URL: &str =
 #[derive(Debug, Clone, Default)]
 pub struct AgentsConfig {
     pub update: Option<bool>,
+    pub url: Option<String>,
 }
 
 impl nvim_oxi::conversion::FromObject for AgentsConfig {
@@ -29,7 +30,13 @@ impl nvim_oxi::conversion::FromObject for AgentsConfig {
             .map(|o| bool::from_object(o.clone()))
             .transpose()?;
 
-        Ok(Self { update })
+        let url: Option<String> = dict.get("url").and_then(|o| {
+            TryInto::<nvim_oxi::String>::try_into(o.clone())
+                .ok()
+                .map(|s: nvim_oxi::String| s.to_string())
+        });
+
+        Ok(Self { update, url })
     }
 }
 
@@ -93,7 +100,8 @@ impl Api {
         let mut state = self.state.lock().await;
 
         if config.update.unwrap_or(false) {
-            match Registry::fetch(DEFAULT_REGISTRY_URL).await {
+            let url = config.url.as_deref().unwrap_or(DEFAULT_REGISTRY_URL);
+            match Registry::fetch(url).await {
                 Ok(fetched) => {
                     state.registry = Some(fetched);
                 }
@@ -131,39 +139,62 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
 
-    fn create_update_dict(update: bool) -> Dictionary {
-        let mut dict = Dictionary::new();
-        dict.insert("update", update);
-        dict
-    }
-
     #[test]
     fn test_agents_config_from_object_nil() {
         let config = AgentsConfig::from_object(Object::nil()).unwrap();
-        assert!(config.update.is_none(), "Nil should produce default config");
+        assert!(
+            config.update.is_none() && config.url.is_none(),
+            "Nil should produce default config"
+        );
     }
 
     #[test]
     fn test_agents_config_from_object_empty_dict() {
         let config = AgentsConfig::from_object(Object::from(Dictionary::new())).unwrap();
         assert!(
-            config.update.is_none(),
+            config.update.is_none() && config.url.is_none(),
             "Empty dict should produce default config"
         );
     }
 
     #[test]
     fn test_agents_config_from_object_update_true() {
-        let dict = create_update_dict(true);
+        let mut dict = Dictionary::new();
+        dict.insert("update", true);
         let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
         assert_eq!(config.update, Some(true));
     }
 
     #[test]
     fn test_agents_config_from_object_update_false() {
-        let dict = create_update_dict(false);
+        let mut dict = Dictionary::new();
+        dict.insert("update", false);
         let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
         assert_eq!(config.update, Some(false));
+    }
+
+    #[test]
+    fn test_agents_config_from_object_url() {
+        let mut dict = Dictionary::new();
+        dict.insert("url", "https://example.com/registry.json");
+        let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(
+            config.url,
+            Some("https://example.com/registry.json".to_string())
+        );
+    }
+
+    #[test]
+    fn test_agents_config_from_object_update_and_url() {
+        let mut dict = Dictionary::new();
+        dict.insert("update", true);
+        dict.insert("url", "https://example.com/registry.json");
+        let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(config.update, Some(true));
+        assert_eq!(
+            config.url,
+            Some("https://example.com/registry.json".to_string())
+        );
     }
 
     #[test]

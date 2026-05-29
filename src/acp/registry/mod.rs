@@ -54,11 +54,13 @@ impl Registry {
     pub async fn fetch(url: &str) -> crate::acp::Result<Self> {
         let url = url.to_owned();
         let text = blocking::unblock(move || -> crate::acp::Result<String> {
-            Ok(ureq::get(&url)
+            let mut response = ureq::get(&url)
                 .call()
-                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))?
-                .into_string()
-                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))?)
+                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))?;
+            response
+                .body_mut()
+                .read_to_string()
+                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))
         })
         .await?;
         serde_json::from_str(&text).map_err(Into::into)
