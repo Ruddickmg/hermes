@@ -36,12 +36,11 @@ fn test_logout_function() -> Result<(), nvim_oxi::Error> {
     options.insert("host", "localhost");
     options.insert("port", mock_handle.port() as i64);
 
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
-
-    // Wait for initialization before logging out
     let wait_for_init = autocommand::listen_for_autocommand::<
         agent_client_protocol::schema::InitializeResponse,
     >(Commands::ConnectionInitialized);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
     let _ = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
     let wait_for_logout = autocommand::listen_for_autocommand::<
@@ -87,12 +86,11 @@ fn test_logout_single() -> Result<(), nvim_oxi::Error> {
     options.insert("host", "localhost");
     options.insert("port", mock_handle.port() as i64);
 
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
-
-    // Wait for initialization before logging out
     let wait_for_init = autocommand::listen_for_autocommand::<
         agent_client_protocol::schema::InitializeResponse,
     >(Commands::ConnectionInitialized);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
     let _ = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
     let wait_for_logout = autocommand::listen_for_autocommand::<
@@ -138,12 +136,11 @@ fn test_logout_multiple() -> Result<(), nvim_oxi::Error> {
     options.insert("host", "localhost");
     options.insert("port", mock_handle.port() as i64);
 
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
-
-    // Wait for initialization before logging out
     let wait_for_init = autocommand::listen_for_autocommand::<
         agent_client_protocol::schema::InitializeResponse,
     >(Commands::ConnectionInitialized);
+
+    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
     let _ = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
     let wait_for_logout = autocommand::listen_for_autocommand::<
