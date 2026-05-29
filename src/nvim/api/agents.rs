@@ -1,9 +1,13 @@
 use nvim_oxi::conversion::FromObject;
 use serde::Serialize;
-use tracing::warn;
 
 use crate::{
-    acp::registry::{AgentEntry, Distribution, Registry},
+    acp::{
+        self,
+        registry::{
+            AgentEntry, BinaryPlatformTarget, DistributionConfig, PackageDistribution, Registry,
+        },
+    },
     api::Api,
     nvim::autocommands::Commands,
 };
@@ -73,14 +77,8 @@ struct AgentListPayload {
 
 impl From<AgentEntry> for AgentListEntry {
     fn from(entry: AgentEntry) -> Self {
-        let distribution_label = match entry.distribution {
-            Distribution::Binary(_) => "binary",
-            Distribution::Npx(_) => "npx",
-            Distribution::Uvx(_) => "uvx",
-        };
-
         Self {
-            distributions: vec![distribution_label.to_string()],
+            distributions: entry.distribution.into_keys().collect(),
             id: entry.id,
             name: entry.name,
             version: entry.version,
@@ -97,31 +95,26 @@ impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn agents(&self, maybe_config: Option<AgentsConfig>) -> crate::acp::Result<()> {
         let config = maybe_config.unwrap_or_default();
-        let mut state = self.state.lock().await;
+        let url = config.url.as_deref().unwrap_or(DEFAULT_REGISTRY_URL);
+        let update = config.update.unwrap_or(false);
+        let state = self.state.lock().await;
+        let mut registry = state.registry.clone();
+        drop(state);
 
-        if config.update.unwrap_or(false) {
-            let url = config.url.as_deref().unwrap_or(DEFAULT_REGISTRY_URL);
-            match Registry::fetch(url).await {
-                Ok(fetched) => {
-                    state.registry = Some(fetched);
-                }
-                Err(e) => {
-                    if state.registry.is_some() {
-                        warn!("Failed to update agent registry (keeping existing): {}", e);
-                    } else {
-                        return Err(e);
-                    }
-                }
-            }
+        if update {
+            registry = Some(match Registry::fetch(url).await {
+                Err(e) => registry.ok_or(acp::error::Error::Network(e.to_string())),
+                success => success,
+            }?);
+            let mut state = self.state.lock().await;
+            state.registry = registry.clone();
+            drop(state);
         }
 
-        let agents: Vec<AgentListEntry> = state
-            .registry
+        let agents: Vec<AgentListEntry> = registry
             .as_ref()
-            .map(|r| r.agents.iter().cloned().map(Into::into).collect())
+            .map(|r| r.agents.values().cloned().map(Into::into).collect())
             .unwrap_or_default();
-
-        drop(state);
 
         let _ = self
             .response_handler
@@ -225,7 +218,10 @@ mod tests {
             authors: Some(vec!["test".to_string()]),
             license: Some("MIT".to_string()),
             icon: Some("https://test.dev/icon.png".to_string()),
-            distribution: Distribution::Binary(HashMap::new()),
+            distribution: HashMap::from([(
+                "binary".into(),
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
         };
 
         let list_entry = AgentListEntry::from(entry);
@@ -258,11 +254,14 @@ mod tests {
             authors: None,
             license: None,
             icon: None,
-            distribution: Distribution::Npx(crate::acp::registry::PackageDistribution {
-                package: "npx-pkg".to_string(),
-                args: None,
-                env: None,
-            }),
+            distribution: HashMap::from([(
+                "npx".into(),
+                DistributionConfig::Package(PackageDistribution {
+                    package: "npx-pkg".to_string(),
+                    args: None,
+                    env: None,
+                }),
+            )]),
         };
 
         let list_entry = AgentListEntry::from(entry);
@@ -287,11 +286,14 @@ mod tests {
             authors: Some(vec!["author".to_string()]),
             license: Some("Apache-2.0".to_string()),
             icon: None,
-            distribution: Distribution::Uvx(crate::acp::registry::PackageDistribution {
-                package: "uvx-pkg".to_string(),
-                args: None,
-                env: None,
-            }),
+            distribution: HashMap::from([(
+                "uvx".into(),
+                DistributionConfig::Package(PackageDistribution {
+                    package: "uvx-pkg".to_string(),
+                    args: None,
+                    env: None,
+                }),
+            )]),
         };
 
         let list_entry = AgentListEntry::from(entry);
@@ -311,7 +313,10 @@ mod tests {
             authors: None,
             license: Some("MIT".to_string()),
             icon: None,
-            distribution: Distribution::Binary(HashMap::new()),
+            distribution: HashMap::from([(
+                "binary".into(),
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
         };
         let payload = AgentListPayload {
             agents: vec![AgentListEntry::from(entry)],

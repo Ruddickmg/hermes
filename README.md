@@ -254,7 +254,7 @@ hermes.setup({
 
 ### Agents
 
-This method returns a list of available agents to chose from.
+This method returns a list of available agents to choose from.
 
 ```lua
 local hermes = require("hermes")
@@ -293,7 +293,7 @@ hermes.connect("opencode", {
 
 -- connect to custom agent (not pre-defined)
 hermes.connect(
-  "my-claude", -- this will be the key you use for other methods (disconnect for example) 
+  `"my-claude", -- this will be the key you use for other methods (disconnect for example) 
   {
     protocol = "socket", -- optional (Defaults to "stdio")
     command = "claude-acp",
@@ -1183,15 +1183,17 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>List of available agents</td>
       <td>⚡ <a href="#agents">agents()</a></td>
       <td><pre><code class="language-json">{
-  "id": "string",
-  "name": "string",
-  "version": "string",
-  "license": "string",
-  "description": "string",
-  "website": "url string",
-  "repository": "url string",
-  "icon": "url string",
-  "distributions": ["binary", "npx", "uvx"]
+  "agents": {
+    "id": "string",
+    "name": "string",
+    "version": "string",
+    "license": "string",
+    "description": "string",
+    "website": "url string",
+    "repository": "url string",
+    "icon": "url string",
+    "distributions": ["binary", "npx", "uvx"]
+  }
 }</code></pre></td>
     </tr>
     <tr>

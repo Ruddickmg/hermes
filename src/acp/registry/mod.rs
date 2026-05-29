@@ -6,7 +6,16 @@ use tracing::warn;
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Registry {
     pub version: String,
-    pub agents: Vec<AgentEntry>,
+    #[serde(deserialize_with = "deserialize_agents")]
+    pub agents: HashMap<String, AgentEntry>,
+}
+
+fn deserialize_agents<'de, D>(deserializer: D) -> Result<HashMap<String, AgentEntry>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let entries = Vec::<AgentEntry>::deserialize(deserializer)?;
+    Ok(entries.into_iter().map(|a| (a.id.clone(), a)).collect())
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -20,15 +29,14 @@ pub struct AgentEntry {
     pub authors: Option<Vec<String>>,
     pub license: Option<String>,
     pub icon: Option<String>,
-    pub distribution: Distribution,
+    pub distribution: HashMap<String, DistributionConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
-pub enum Distribution {
-    Binary(HashMap<String, BinaryPlatformTarget>),
-    Npx(PackageDistribution),
-    Uvx(PackageDistribution),
+pub enum DistributionConfig {
+    BinaryTargets(HashMap<String, BinaryPlatformTarget>),
+    Package(PackageDistribution),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -92,7 +100,7 @@ mod tests {
         let registry = Registry::bundled();
         // Stub has empty agents (local dev); real registry has 35+ agents (CI)
         // Both are valid — verify structure when agents exist
-        for agent in &registry.unwrap().agents {
+        for agent in registry.unwrap().agents.values() {
             assert!(!agent.id.is_empty(), "agent id should not be empty");
             assert!(!agent.name.is_empty(), "agent name should not be empty");
             assert!(

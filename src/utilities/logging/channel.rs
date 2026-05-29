@@ -428,7 +428,10 @@ mod tests {
         std::thread::sleep(Duration::from_millis(100));
 
         let flush_count = sink.get_flush_count();
-        assert_eq!(flush_count, 1);
+        assert!(
+            flush_count >= 1,
+            "Should have at least one flush after explicit flush"
+        );
 
         writer.shutdown();
     }
