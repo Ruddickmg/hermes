@@ -12,6 +12,9 @@ Hermes focuses on:
 - Autocommands for updates on communication between the user (client) and assistant (agent) 
 
 ## Installation
+```lua
+vim.add.pack("Ruddickmg/hermes.nvim")
+```
 
 **lazy.nvim**
 ```lua
@@ -305,6 +308,19 @@ hermes.connect(
     port = 8080,
   }
 )
+
+--example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "AgentList",
+  callback = function(args)
+    local agent = table.remove(args.data.agents) -- select auth method id somehow
+
+    hermes.connect(agent.id, {
+      distribution = table.remove(agent.distributions), -- select distriution somehow
+    })
+  end,
+})
 ```
 
 > **Triggers:** [ConnectionInitialized](#connectioninitialized) autocommand upon completion.
