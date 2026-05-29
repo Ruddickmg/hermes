@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod authenticate;
 pub mod cancel;
 pub mod close_session;
@@ -23,6 +24,7 @@ use std::sync::Arc;
 use std::{cell::RefCell, rc::Rc};
 
 use super::requests::Requests;
+pub use agents::*;
 use async_lock::Mutex;
 pub use connect::*;
 pub use create_session::*;
@@ -156,6 +158,14 @@ impl Hermes {
         })
     }
 
+    fn agents_method(&self) -> Object {
+        self.api_method(
+            |api: Rc<RefCell<Api>>, args: Option<AgentsConfig>| async move {
+                api.try_borrow()?.agents(args).await
+            },
+        )
+    }
+
     fn authenticate_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, id: String| async move {
             api.try_borrow()?.authenticate(id).await
@@ -222,6 +232,7 @@ impl Hermes {
 impl From<Hermes> for Dictionary {
     fn from(hermes: Hermes) -> Dictionary {
         Dictionary::from_iter([
+            ("agents", hermes.agents_method()),
             ("cancel", hermes.cancel_method()),
             ("close_session", hermes.close_session_method()),
             ("connect", hermes.connect_method()),

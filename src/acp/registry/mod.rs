@@ -50,6 +50,19 @@ impl Registry {
     pub fn bundled() -> Option<&'static Self> {
         REGISTRY.as_ref()
     }
+
+    pub async fn fetch(url: &str) -> crate::acp::Result<Self> {
+        let url = url.to_owned();
+        let text = blocking::unblock(move || -> crate::acp::Result<String> {
+            Ok(ureq::get(&url)
+                .call()
+                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))?
+                .into_string()
+                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))?)
+        })
+        .await?;
+        serde_json::from_str(&text).map_err(Into::into)
+    }
 }
 
 static REGISTRY: LazyLock<Option<Registry>> = LazyLock::new(|| {

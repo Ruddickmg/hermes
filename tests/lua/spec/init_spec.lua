@@ -166,6 +166,10 @@ describe("hermes.init (main API)", function()
 			native = result
 		end)
 		
+		it("exports agents from Rust", function()
+			assert.is_function(native.agents)
+		end)
+
 		it("exports setup from Rust", function()
 			assert.is_function(native.setup)
 		end)

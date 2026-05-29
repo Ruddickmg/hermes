@@ -103,6 +103,11 @@
 ---@field cwd? string Filter by working directory path
 ---@field cursor? string Pagination cursor for fetching next page
 
+---@class AgentsOptions
+---Options for listing agents from the registry
+---@field update? boolean Whether to fetch the latest registry before listing
+---@field url? string url to fetch the ACP registry from
+
 ---@class TextContent
 ---Text content for prompts
 ---@field type "text" Type identifier
@@ -606,6 +611,14 @@ end
 function M.list_sessions(opts)
 	execute_async(function()
 		M._load_native_sync().list_sessions(opts)
+	end)
+end
+
+---List agents from the agent registry
+---@param opts? AgentsOptions Options (update: boolean to fetch latest registry)
+function M.agents(opts)
+	execute_async(function()
+		M._load_native_sync().agents(opts)
 	end)
 end
 

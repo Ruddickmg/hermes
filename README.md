@@ -12,8 +12,10 @@ Hermes focuses on:
 - Autocommands for updates on communication between the user (client) and assistant (agent) 
 
 ## Installation
+
+**vim.pack** (v0.12+)
 ```lua
-vim.add.pack("Ruddickmg/hermes.nvim")
+vim.pack.add({ "Ruddickmg/hermes.nvim" })
 ```
 
 **lazy.nvim**
