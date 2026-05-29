@@ -8,6 +8,7 @@ pub mod terminal;
 
 use crate::{
     Handler,
+    acp::registry::Registry,
     api::{DisconnectArgs, Hermes},
     utilities::{Logger, NvimRuntime, detect_project_storage_path},
 };
@@ -25,9 +26,12 @@ pub const GROUP: &str = "hermes";
 pub fn hermes() -> nvim_oxi::Result<Dictionary> {
     let storage_path = detect_project_storage_path()?;
     let logger = Logger::inititalize(&storage_path)?;
+    let registry = Registry::bundled();
     let nvim_runtime = NvimRuntime::new();
     let plugin_state = Arc::new(Mutex::new(
-        state::PluginState::new().with_storage_path(std::path::PathBuf::from(&storage_path))?,
+        state::PluginState::new()
+            .with_storage_path(std::path::PathBuf::from(&storage_path))?
+            .with_registry(registry.cloned()),
     ));
     let request_handler = Rc::new(requests::Requests::new(
         nvim_runtime.clone(),

@@ -1,4 +1,5 @@
 use crate::acp::Result;
+use crate::acp::registry::Registry;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -17,6 +18,7 @@ pub struct PluginState {
     pub prompt: HashMap<String, String>,
     pub agent_info: AgentInfo,
     pub session_info: HashMap<String, SessionDetails>,
+    pub registry: Option<Registry>,
 }
 
 impl PluginState {
@@ -30,6 +32,12 @@ impl PluginState {
         let history_path = storage_path.join("history");
         self.agent_info.set_history(history_path)?;
         Ok(self)
+    }
+
+    #[instrument(level = "trace")]
+    pub fn with_registry(mut self, registry: Option<Registry>) -> Self {
+        self.registry = registry;
+        self
     }
 
     #[instrument(level = "trace")]
@@ -56,6 +64,7 @@ impl PluginState {
             prompt: HashMap::new(),
             session_info: HashMap::new(),
             agent_info: AgentInfo::default(),
+            registry: None,
         }
     }
 
