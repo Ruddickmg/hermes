@@ -247,6 +247,25 @@ hermes.setup({
 > - Multiple `setup()` calls merge configurations - only specified fields are updated
 > - All unspecified fields preserve their existing values
 
+### Agents
+
+This method returns a list of available agents to chose from.
+
+```lua
+local hermes = require("hermes")
+
+-- get list of agents
+hermes.agents()
+
+-- example with config options
+hermes.agents({
+  update = true, -- pull down the most up to date list from the ACP registry
+  url = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json", -- URL to pull ACP registry from
+})
+```
+
+> **Triggers:** [AgentList](#agentslist) autocommand upon completion.
+
 ### Connect
 
 This method allows you to connect to an agent, it takes the agent name and the protocol for the connection (defaults to `stdio`).
@@ -1139,6 +1158,22 @@ Below is a list of all autocommands and their associated data (passed to the cal
       "annotations": { "audience": [], "priority": 1 }
     }
   }
+}</code></pre></td>
+    </tr>
+    <tr id="agentslist">
+      <td><code>AgentList</code></td>
+      <td>List of available agents</td>
+      <td>⚡ <a href="#agents">agents()</a></td>
+      <td><pre><code class="language-json">{
+  "id": "string",
+  "name": "string",
+  "version": "string",
+  "license": "string",
+  "description": "string",
+  "website": "url string",
+  "repository": "url string",
+  "icon": "url string",
+  "distributions": ["binary", "npx", "uvx"]
 }</code></pre></td>
     </tr>
     <tr>
@@ -2184,7 +2219,7 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
+
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
