@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use tracing::info;
+
 use crate::acp::Result;
 use crate::acp::error::Error;
 use crate::acp::registry::BinaryPlatformTarget;
@@ -49,7 +51,6 @@ pub async fn get_binary(
     }
 
     let url = target.archive.clone();
-    let cache_dir = cache_dir;
     let cmd = target.cmd.clone();
     let agent_id = agent_id.to_owned();
 
@@ -58,6 +59,8 @@ pub async fn get_binary(
             .map_err(|e| Error::Network(format!("Failed to create cache dir: {e}")))?;
 
         let archive_path = cache_dir.join("archive.tmp");
+
+        info!("Downloading binary for {}", agent_id);
 
         // Download archive.
         let mut response = ureq::get(&url)
@@ -85,6 +88,8 @@ pub async fn get_binary(
         }
 
         make_executable(&binary_path)?;
+
+        info!("Finished downloading binary for {}", agent_id);
         Ok(binary_path)
     })
     .await

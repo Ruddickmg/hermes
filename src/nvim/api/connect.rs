@@ -183,23 +183,17 @@ impl Api {
     pub async fn connect(&mut self, (agent_name, options): ConnectionArgs) -> Result<()> {
         let opts = options.unwrap_or_default();
         let agent_id = agent_name.to_string();
+        let state = self.state.lock().await;
+        let registry = state.registry.clone();
+        drop(state);
 
-        let agent = {
-            let state = self.state.lock().await;
-            let entry = state
-                .registry
-                .as_ref()
-                .and_then(|r| r.agents.get(&agent_id))
-                .cloned();
-            drop(state);
-
-            match entry {
-                Some(agent) => Assistant::Registered {
-                    agent,
-                    distribution: opts.distribution,
-                },
-                None => opts.into_assistant(agent_id)?,
+        let agent = if let Some(Some(entry)) = registry.map(|r| r.get_entry(&agent_id).cloned()) {
+            Assistant::Registered {
+                agent: entry,
+                distribution: opts.distribution,
             }
+        } else {
+            opts.clone().into_assistant(agent_id)?
         };
 
         self.connection

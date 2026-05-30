@@ -291,6 +291,12 @@ hermes.connect("opencode", {
   protocol = "http",
 })
 
+-- configure distrubution
+hermes.connect("kilo", {
+    -- some agents have multiple different distributions, in those cases you may specify which you want to use
+   distrubution = "binary" -- (binary, npx, and/or uvx)
+});
+
 -- connect to custom agent (not pre-defined)
 hermes.connect(
   `"my-claude", -- this will be the key you use for other methods (disconnect for example) 
@@ -319,7 +325,7 @@ vim.api.nvim_create_autocmd("User", {
     local agent = table.remove(args.data.agents) -- select auth method id somehow
 
     hermes.connect(agent.id, {
-      distribution = table.remove(agent.distributions), -- select distriution somehow
+      distribution = table.remove(agent.distributions), -- select distribution somehow
     })
   end,
 })
@@ -2262,16 +2268,7 @@ Available formats:
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
-- [ ] Status bar integration
-  - [ ] Configurable
-  - [ ] Report mode
-  - [ ] Report model
-  - [ ] Report status
-    - [ ] waiting on user response
-    - [ ] thinking
-    - [ ] Finished/Responded
-    - [ ] etc?
-  - [ ] Update on events (no polling required)
+- [ ] Download progress updates
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 
   - [ ] add references made by agent to quickfix list

@@ -103,25 +103,33 @@ impl Assistant {
     /// executor (the one whose reactor will handle the child's IO).
     #[instrument(level = "trace", skip(self))]
     pub async fn command(&self) -> crate::acp::Result<async_process::Command> {
+        let owned_command;
+        let owned_args;
         let (program, args) = match self {
-            Assistant::Copilot => ("copilot".to_string(), vec!["--acp".to_string()]),
-            Assistant::Opencode => ("opencode".to_string(), vec!["acp".to_string()]),
-            Assistant::Gemini => ("gemini".to_string(), vec!["--acp".to_string()]),
+            Assistant::Copilot => ("copilot", vec!["--acp"]),
+            Assistant::Opencode => ("opencode", vec!["acp"]),
+            Assistant::Gemini => ("gemini", vec!["--acp"]),
             Assistant::Registered {
                 agent,
                 distribution,
             } => {
-                if let Assistant::CustomStdio { command, args, .. } =
-                    fetch_agent_from_registry(agent, distribution.clone()).await?
-                {
-                    (command.clone(), args.clone())
-                } else {
+                let Assistant::CustomStdio { command, args, .. } =
+                    fetch_agent_from_registry(agent, *distribution).await?
+                else {
                     return Err(Error::Internal(
                         "agent registry should only return CustomStdio".to_string(),
                     ));
-                }
+                };
+                owned_command = command;
+                owned_args = args;
+                (
+                    owned_command.as_str(),
+                    owned_args.iter().map(|s| s.as_str()).collect(),
+                )
             }
-            Assistant::CustomStdio { command, args, .. } => (command.clone(), args.clone()),
+            Assistant::CustomStdio { command, args, .. } => {
+                (command.as_str(), args.iter().map(|s| s.as_str()).collect())
+            }
             Assistant::CustomUrl { .. } => {
                 return Err(Error::Connection(
                     "CustomUrl assistants do not use stdio connections".to_string(),

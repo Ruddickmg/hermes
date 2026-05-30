@@ -17,6 +17,12 @@ pub struct Registry {
     pub agents: HashMap<String, AgentEntry>,
 }
 
+impl Registry {
+    pub fn get_entry(&self, id: &str) -> Option<&AgentEntry> {
+        self.agents.get(id)
+    }
+}
+
 fn deserialize_agents<'de, D>(deserializer: D) -> Result<HashMap<String, AgentEntry>, D::Error>
 where
     D: serde::Deserializer<'de>,
