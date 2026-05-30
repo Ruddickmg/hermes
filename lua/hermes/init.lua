@@ -548,7 +548,7 @@ function M.setup(opts)
 end
 
 ---Connect to an ACP agent
----@param agent "opencode"|"copilot"|"gemini"|string Agent name (predefined or custom)
+---@param agent string Agent name, registry agent ID, or path to custom agent
 ---@param opts? ConnectionOptions Connection options
 function M.connect(agent, opts)
 	execute_async(function()
