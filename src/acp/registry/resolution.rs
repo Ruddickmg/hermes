@@ -237,6 +237,61 @@ mod tests {
         assert!(selection.is_none());
     }
 
+    #[test]
+    fn select_auto_falls_back_to_uvx_when_no_npx() {
+        let mut dist = HashMap::new();
+        dist.insert(
+            "uvx".into(),
+            DistributionConfig::Package(PackageDistribution {
+                package: "uvx-agent".into(),
+                args: None,
+                env: None,
+            }),
+        );
+        let selection = select_distribution(&dist, None);
+        assert!(matches!(selection, Some(DistributionSelection::Uvx(_))));
+    }
+
+    #[test]
+    fn select_auto_falls_back_to_binary_when_no_package() {
+        let os = std::env::consts::OS.replace("macos", "darwin");
+        let mut targets = HashMap::new();
+        targets.insert(
+            format!("{}-{}", std::env::consts::ARCH, os),
+            BinaryPlatformTarget {
+                archive: "https://example.com/agent.tar.gz".into(),
+                cmd: "agent".into(),
+                args: None,
+                env: None,
+            },
+        );
+        let mut dist = HashMap::new();
+        dist.insert("binary".into(), DistributionConfig::BinaryTargets(targets));
+        let selection = select_distribution(&dist, None);
+        assert!(matches!(selection, Some(DistributionSelection::Binary(_))));
+    }
+
+    #[test]
+    fn select_auto_returns_none_when_no_distributions() {
+        let dist = HashMap::new();
+        let selection = select_distribution(&dist, None);
+        assert!(selection.is_none());
+    }
+
+    #[test]
+    fn select_preference_npx_on_uvx_only_returns_none() {
+        let dist = uvx_dist("uvx-agent");
+        let selection = select_distribution(&dist, Some("npx"));
+        assert!(selection.is_none());
+    }
+
+    #[test]
+    fn select_preference_uvx_on_npx_only_returns_none() {
+        let dist = npx_dist("npx-agent", None);
+        let selection = select_distribution(&dist, Some("uvx"));
+        assert!(selection.is_none());
+    }
+
     // -----------------------------------------------------------------------
     // Tests for resolve_agent_from_registry (async, preference skips I/O)
     // -----------------------------------------------------------------------
@@ -331,5 +386,30 @@ mod tests {
             Some("binary"),
         ));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn resolve_nonexistent_preference_error_mentions_agent_id() {
+        let entry = entry_with_distribution("my-agent", npx_dist("my-agent", None));
+        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+            "my-agent",
+            &entry,
+            Some("bad-dist"),
+        ));
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("my-agent"), "Error should mention agent id");
+    }
+
+    #[test]
+    fn resolve_no_supported_distribution_error_mentions_agent_id() {
+        let entry = entry_with_distribution("my-agent", HashMap::new());
+        let result =
+            futures_lite::future::block_on(resolve_agent_from_registry("my-agent", &entry, None));
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("my-agent"), "Error should mention agent id");
+        assert!(
+            err.contains("no supported distribution"),
+            "Error should describe no supported distribution"
+        );
     }
 }

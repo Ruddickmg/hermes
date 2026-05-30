@@ -17,3 +17,27 @@ pub async fn command_available(cmd: &str) -> bool {
     })
     .await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_available_known_command_returns_true() {
+        let result = futures_lite::future::block_on(command_available("sh"));
+        assert!(result);
+    }
+
+    #[test]
+    fn command_available_nonexistent_command_returns_false() {
+        let result =
+            futures_lite::future::block_on(command_available("nonexistent-command-xyz-999"));
+        assert!(!result);
+    }
+
+    #[test]
+    fn command_available_empty_string_returns_false() {
+        let result = futures_lite::future::block_on(command_available(""));
+        assert!(!result);
+    }
+}

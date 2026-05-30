@@ -89,6 +89,25 @@ pub fn parse_agent_connection(
     }
 }
 
+fn parse_distribution(dict: &Dictionary) -> Result<Option<String>> {
+    match dict.get("distribution") {
+        Some(obj) => {
+            let s: nvim_oxi::String = obj
+                .clone()
+                .try_into()
+                .map_err(|_| Error::InvalidInput("'distribution' must be a string".into()))?;
+            let lower = s.to_string().to_lowercase();
+            if !["npx", "uvx", "binary"].contains(&lower.as_str()) {
+                return Err(Error::InvalidInput(format!(
+                    "Unknown distribution '{lower}'. Must be one of: npx, uvx, binary"
+                )));
+            }
+            Ok(Some(lower))
+        }
+        None => Ok(None),
+    }
+}
+
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn connect(&mut self, (agent_name, options): ConnectionArgs) -> Result<()> {
@@ -101,19 +120,7 @@ impl Api {
                     .try_into()
                     .map(|s: nvim_oxi::String| Protocol::from(s.to_string()))?;
             }
-            if let Some(obj) = dict.get("distribution") {
-                let s: nvim_oxi::String = obj
-                    .clone()
-                    .try_into()
-                    .map_err(|_| Error::InvalidInput("'distribution' must be a string".into()))?;
-                let lower = s.to_string().to_lowercase();
-                if !["npx", "uvx", "binary"].contains(&lower.as_str()) {
-                    return Err(Error::InvalidInput(format!(
-                        "Unknown distribution '{lower}'. Must be one of: npx, uvx, binary"
-                    )));
-                }
-                preference = Some(lower);
-            }
+            preference = parse_distribution(dict)?;
         }
         let agent_id = agent_name.to_string();
 
@@ -415,5 +422,72 @@ mod tests {
         let mut dict = Dictionary::new();
         dict.insert("protocol", "socket");
         let _: ConnectionArgs = (nvim_oxi::String::from("test"), Some(dict));
+    }
+
+    // Tests for parse_distribution
+    #[test]
+    fn parse_distribution_npx() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "npx");
+        let result = parse_distribution(&dict);
+        assert_eq!(result.unwrap(), Some("npx".to_string()));
+    }
+
+    #[test]
+    fn parse_distribution_uvx() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "uvx");
+        let result = parse_distribution(&dict);
+        assert_eq!(result.unwrap(), Some("uvx".to_string()));
+    }
+
+    #[test]
+    fn parse_distribution_binary() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "binary");
+        let result = parse_distribution(&dict);
+        assert_eq!(result.unwrap(), Some("binary".to_string()));
+    }
+
+    #[test]
+    fn parse_distribution_case_insensitive() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "NPX");
+        let result = parse_distribution(&dict);
+        assert_eq!(result.unwrap(), Some("npx".to_string()));
+    }
+
+    #[test]
+    fn parse_distribution_missing() {
+        let dict = Dictionary::new();
+        let result = parse_distribution(&dict);
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn parse_distribution_invalid_value() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "bad");
+        let result = parse_distribution(&dict);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Unknown distribution"),
+            "Error should describe unknown distribution"
+        );
+    }
+
+    #[test]
+    fn parse_distribution_non_string() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", 42i64);
+        let result = parse_distribution(&dict);
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().to_string().contains("must be a string"),
+            "Error should indicate distribution must be a string"
+        );
     }
 }
