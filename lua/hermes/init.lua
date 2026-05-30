@@ -77,6 +77,7 @@
 ---@field command? string Command to run for stdio connections
 ---@field args? string[] Command arguments for stdio connections
 ---@field url? string URL for http/sse connections
+---@field distribution? "npx"|"uvx"|"binary" Preferred distribution type for registry agents (default: auto-select npx > uvx > binary)
 
 ---@class EnvVar
 ---Environment variable entry

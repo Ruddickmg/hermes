@@ -4,9 +4,7 @@ use serde::Serialize;
 use crate::{
     acp::{
         self,
-        registry::{
-            AgentEntry, BinaryPlatformTarget, DistributionConfig, PackageDistribution, Registry,
-        },
+        registry::{AgentEntry, DistributionConfig, PackageDistribution, Registry},
     },
     api::Api,
     nvim::autocommands::Commands,

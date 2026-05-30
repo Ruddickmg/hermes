@@ -1,3 +1,6 @@
+pub mod binary;
+pub mod resolution;
+
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::LazyLock;

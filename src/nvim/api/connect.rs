@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use crate::{
     acp::{
         Result,
         connection::{Assistant, ConnectionDetails, Protocol},
         error::Error,
-        registry::{DistributionConfig, PackageDistribution},
+        registry::resolution::resolve_agent_from_registry,
     },
     api::Api,
 };
@@ -91,73 +89,47 @@ pub fn parse_agent_connection(
     }
 }
 
-fn registry_agent_to_assistant(
-    agent_id: &str,
-    distribution: &HashMap<String, DistributionConfig>,
-) -> Result<Assistant> {
-    let mut npx = None;
-    let mut uvx = None;
-
-    for (dist_type, config) in distribution {
-        match (dist_type.as_str(), config) {
-            ("npx", DistributionConfig::Package(pkg)) => {
-                let mut args = vec![pkg.package.clone()];
-                if let Some(dist_args) = &pkg.args {
-                    args.extend(dist_args.clone());
-                }
-                npx = Some(Assistant::CustomStdio {
-                    name: agent_id.to_string(),
-                    command: "npx".to_string(),
-                    args,
-                });
-            }
-            ("uvx", DistributionConfig::Package(pkg)) => {
-                let mut args = vec![pkg.package.clone()];
-                if let Some(dist_args) = &pkg.args {
-                    args.extend(dist_args.clone());
-                }
-                uvx = Some(Assistant::CustomStdio {
-                    name: agent_id.to_string(),
-                    command: "uvx".to_string(),
-                    args,
-                });
-            }
-            _ => {}
-        }
-    }
-
-    npx.or(uvx).ok_or_else(|| {
-        Error::InvalidInput(format!(
-            "Agent '{agent_id}' has no supported distribution (npx/uvx)"
-        ))
-    })
-}
-
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn connect(&mut self, (agent_name, options): ConnectionArgs) -> Result<()> {
         let mut protocol = Protocol::default();
-        if let Some(ref dict) = options
-            && let Some(obj) = dict.get("protocol")
-        {
-            protocol = obj
-                .clone()
-                .try_into()
-                .map(|s: nvim_oxi::String| Protocol::from(s.to_string()))?;
+        let mut preference = None;
+        if let Some(ref dict) = options {
+            if let Some(obj) = dict.get("protocol") {
+                protocol = obj
+                    .clone()
+                    .try_into()
+                    .map(|s: nvim_oxi::String| Protocol::from(s.to_string()))?;
+            }
+            if let Some(obj) = dict.get("distribution") {
+                let s: nvim_oxi::String = obj
+                    .clone()
+                    .try_into()
+                    .map_err(|_| Error::InvalidInput("'distribution' must be a string".into()))?;
+                let lower = s.to_string().to_lowercase();
+                if !["npx", "uvx", "binary"].contains(&lower.as_str()) {
+                    return Err(Error::InvalidInput(format!(
+                        "Unknown distribution '{lower}'. Must be one of: npx, uvx, binary"
+                    )));
+                }
+                preference = Some(lower);
+            }
         }
         let agent_id = agent_name.to_string();
 
         let agent = {
             let state = self.state.lock().await;
-            let dist = state
+            let entry = state
                 .registry
                 .as_ref()
                 .and_then(|r| r.agents.get(&agent_id))
-                .map(|e| e.distribution.clone());
+                .cloned();
             drop(state);
 
-            match dist {
-                Some(distribution) => registry_agent_to_assistant(&agent_id, &distribution)?,
+            match entry {
+                Some(entry) => {
+                    resolve_agent_from_registry(&agent_id, &entry, preference.as_deref()).await?
+                }
                 None => parse_agent_connection(agent_id, protocol, options)?,
             }
         };
@@ -432,88 +404,6 @@ mod tests {
             let protocol = Protocol::from(variant.as_str());
             prop_assert!(matches!(protocol, Protocol::Http));
         }
-    }
-
-    // Tests for registry_agent_to_assistant
-    #[test]
-    fn registry_npx_creates_custom_stdio() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "npx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: "my-agent".into(),
-                args: None,
-                env: None,
-            }),
-        );
-
-        let result = registry_agent_to_assistant("test-agent", &dist);
-        let assistant = result.unwrap();
-        assert!(
-            matches!(&assistant, Assistant::CustomStdio { name, command, args }
-                if name == "test-agent" && command == "npx" && args == &vec!["my-agent"])
-        );
-    }
-
-    #[test]
-    fn registry_uvx_creates_custom_stdio() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "uvx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: "uvx-agent".into(),
-                args: None,
-                env: None,
-            }),
-        );
-
-        let result = registry_agent_to_assistant("test-agent", &dist);
-        let assistant = result.unwrap();
-        assert!(
-            matches!(&assistant, Assistant::CustomStdio { name, command, args }
-                if name == "test-agent" && command == "uvx" && args == &vec!["uvx-agent"])
-        );
-    }
-
-    #[test]
-    fn registry_npx_with_dist_args_includes_them() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "npx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: "my-agent".into(),
-                args: Some(vec!["--verbose".into(), "--port".into(), "8080".into()]),
-                env: None,
-            }),
-        );
-
-        let result = registry_agent_to_assistant("test-agent", &dist);
-        let assistant = result.unwrap();
-        assert!(
-            matches!(&assistant, Assistant::CustomStdio { name, command, args }
-                if name == "test-agent"
-                   && command == "npx"
-                   && args == &vec!["my-agent", "--verbose", "--port", "8080"])
-        );
-    }
-
-    #[test]
-    fn registry_binary_only_distribution_errors() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "binary".into(),
-            DistributionConfig::BinaryTargets(HashMap::new()),
-        );
-
-        let result = registry_agent_to_assistant("test-agent", &dist);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn registry_empty_distribution_errors() {
-        let dist = HashMap::new();
-        let result = registry_agent_to_assistant("test-agent", &dist);
-        assert!(result.is_err());
     }
 
     // Integration-style tests for the connect function
