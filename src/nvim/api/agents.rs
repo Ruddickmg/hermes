@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::{
     acp::{
         self,
-        registry::{AgentEntry, DistributionConfig, PackageDistribution, Registry},
+        registry::{Registry, distribution::Distribution, entry::AgentEntry},
     },
     api::Api,
     nvim::autocommands::Commands,
@@ -65,7 +65,7 @@ pub struct AgentListEntry {
     pub repository: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
-    pub distributions: Vec<String>,
+    pub distributions: Vec<Distribution>,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,7 +76,7 @@ struct AgentListPayload {
 impl From<AgentEntry> for AgentListEntry {
     fn from(entry: AgentEntry) -> Self {
         Self {
-            distributions: entry.distribution.into_keys().collect(),
+            distributions: entry.distributions(),
             id: entry.id,
             name: entry.name,
             version: entry.version,

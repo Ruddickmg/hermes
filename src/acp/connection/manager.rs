@@ -1,7 +1,7 @@
 use crate::PluginState;
 use crate::acp::connection::{Connection, stdio, tcp};
-use crate::acp::registry::AgentEntry;
 use crate::acp::registry::distribution::Distribution;
+use crate::acp::registry::entry::AgentEntry;
 use crate::acp::registry::resolution::fetch_agent_from_registry;
 use crate::nvim::configuration::Permissions;
 use crate::{Handler, acp::error::Error};
@@ -11,7 +11,6 @@ use agent_client_protocol::schema::{
 use async_lock::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::default;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -105,9 +104,9 @@ impl Assistant {
     #[instrument(level = "trace", skip(self))]
     pub async fn command(&self) -> crate::acp::Result<async_process::Command> {
         let (program, args) = match self {
-            Assistant::Copilot => ("copilot", vec!["--acp"]),
-            Assistant::Opencode => ("opencode", vec!["acp"]),
-            Assistant::Gemini => ("gemini", vec!["--acp"]),
+            Assistant::Copilot => ("copilot".to_string(), vec!["--acp".to_string()]),
+            Assistant::Opencode => ("opencode".to_string(), vec!["acp".to_string()]),
+            Assistant::Gemini => ("gemini".to_string(), vec!["--acp".to_string()]),
             Assistant::Registered {
                 agent,
                 distribution,
@@ -115,16 +114,14 @@ impl Assistant {
                 if let Assistant::CustomStdio { command, args, .. } =
                     fetch_agent_from_registry(agent, distribution.clone()).await?
                 {
-                    (command.as_str(), args.iter().map(|s| s.as_str()).collect())
+                    (command.clone(), args.clone())
                 } else {
                     return Err(Error::Internal(
                         "agent registry should only return CustomStdio".to_string(),
                     ));
                 }
             }
-            Assistant::CustomStdio { command, args, .. } => {
-                (command.as_str(), args.iter().map(|s| s.as_str()).collect())
-            }
+            Assistant::CustomStdio { command, args, .. } => (command.clone(), args.clone()),
             Assistant::CustomUrl { .. } => {
                 return Err(Error::Connection(
                     "CustomUrl assistants do not use stdio connections".to_string(),
