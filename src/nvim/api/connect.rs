@@ -3,13 +3,14 @@ use crate::{
         Result,
         connection::{Assistant, ConnectionDetails, Protocol},
         error::Error,
-        registry::resolution::resolve_agent_from_registry,
+        registry::distribution::Distribution,
     },
     api::Api,
 };
-use nvim_oxi::{Dictionary, ObjectKind};
-
-pub type ConnectionArgs = (nvim_oxi::String, Option<Dictionary>);
+use nvim_oxi::{
+    Dictionary, ObjectKind,
+    lua::{Poppable, Pushable},
+};
 
 pub fn parse_agent_connection(
     name: String,
@@ -89,7 +90,7 @@ pub fn parse_agent_connection(
     }
 }
 
-fn parse_distribution(dict: &Dictionary) -> Result<Option<String>> {
+fn parse_distribution(dict: &Dictionary) -> Result<Option<Distribution>> {
     match dict.get("distribution") {
         Some(obj) => {
             let s: nvim_oxi::String = obj
@@ -97,16 +98,28 @@ fn parse_distribution(dict: &Dictionary) -> Result<Option<String>> {
                 .try_into()
                 .map_err(|_| Error::InvalidInput("'distribution' must be a string".into()))?;
             let lower = s.to_string().to_lowercase();
-            if !["npx", "uvx", "binary"].contains(&lower.as_str()) {
-                return Err(Error::InvalidInput(format!(
+            match Distribution::from(lower) {
+                Distribution::Invalid => Err(Error::InvalidInput(format!(
                     "Unknown distribution '{lower}'. Must be one of: npx, uvx, binary"
-                )));
+                ))),
+                valid => Ok(Some(valid)),
             }
-            Ok(Some(lower))
         }
         None => Ok(None),
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct ConnectionOptions {
+    protocol: Protocol,
+    distribution: Option<Distribution>,
+}
+
+impl Poppable for ConnectionOptions {}
+
+impl Pushable for ConnectionOptions {}
+
+pub type ConnectionArgs = (nvim_oxi::String, Option<ConnectionOptions>);
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
@@ -134,9 +147,10 @@ impl Api {
             drop(state);
 
             match entry {
-                Some(entry) => {
-                    resolve_agent_from_registry(&agent_id, &entry, preference.as_deref()).await?
-                }
+                Some(agent) => Assistant::Registered {
+                    agent,
+                    distribution: preference,
+                },
                 None => parse_agent_connection(agent_id, protocol, options)?,
             }
         };

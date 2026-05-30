@@ -1,10 +1,14 @@
 pub mod binary;
+pub mod distribution;
+pub mod entry;
 pub mod resolution;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use tracing::warn;
+
+use crate::acp::registry::entry::AgentEntry;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Registry {
@@ -21,28 +25,14 @@ where
     Ok(entries.into_iter().map(|a| (a.id.clone(), a)).collect())
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct AgentEntry {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    pub description: String,
-    pub repository: Option<String>,
-    pub website: Option<String>,
-    pub authors: Option<Vec<String>>,
-    pub license: Option<String>,
-    pub icon: Option<String>,
-    pub distribution: HashMap<String, DistributionConfig>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(untagged)]
 pub enum DistributionConfig {
     BinaryTargets(HashMap<String, BinaryPlatformTarget>),
     Package(PackageDistribution),
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct BinaryPlatformTarget {
     pub archive: String,
     pub cmd: String,
@@ -50,7 +40,7 @@ pub struct BinaryPlatformTarget {
     pub env: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PackageDistribution {
     pub package: String,
     pub args: Option<Vec<String>>,

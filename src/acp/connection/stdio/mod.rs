@@ -29,7 +29,7 @@ pub async fn connect(
     stdio: Arc<Child>,
 ) -> Result<(), Error> {
     trace!("Starting stdio connection for '{}'", agent);
-    stdio.initialize(&mut agent.command()?).await?;
+    stdio.initialize(&mut agent.command().await?).await?;
 
     let outgoing = stdio
         .take_stdin()

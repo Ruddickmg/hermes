@@ -1,48 +1,13 @@
-use std::collections::HashMap;
-
 use crate::acp::{
     Result,
     connection::Assistant,
     error::Error,
-    registry::{BinaryPlatformTarget, DistributionConfig, PackageDistribution, binary},
+    registry::{
+        BinaryPlatformTarget, DistributionConfig, PackageDistribution, binary,
+        distribution::Distribution,
+    },
     utilities::command::command_available,
 };
-
-pub enum DistributionSelection<'a> {
-    Npx(&'a PackageDistribution),
-    Uvx(&'a PackageDistribution),
-    Binary(&'a BinaryPlatformTarget),
-}
-
-pub fn select_distribution<'a>(
-    distribution: &'a HashMap<String, DistributionConfig>,
-    preference: Option<&str>,
-) -> Option<DistributionSelection<'a>> {
-    let candidates: Vec<&str> = if let Some(pref) = preference {
-        vec![pref]
-    } else {
-        vec!["npx", "uvx", "binary"]
-    };
-
-    for dist_type in &candidates {
-        match (*dist_type, distribution.get(*dist_type)) {
-            ("npx", Some(DistributionConfig::Package(pkg))) => {
-                return Some(DistributionSelection::Npx(pkg));
-            }
-            ("uvx", Some(DistributionConfig::Package(pkg))) => {
-                return Some(DistributionSelection::Uvx(pkg));
-            }
-            ("binary", Some(DistributionConfig::BinaryTargets(targets))) => {
-                if let Some(target) = binary::platform_target(targets) {
-                    return Some(DistributionSelection::Binary(target));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    None
-}
 
 fn make_package_assistant(agent_id: &str, command: &str, pkg: &PackageDistribution) -> Assistant {
     let mut args = vec![pkg.package.clone()];
@@ -56,30 +21,30 @@ fn make_package_assistant(agent_id: &str, command: &str, pkg: &PackageDistributi
     }
 }
 
-pub async fn resolve_agent_from_registry(
-    agent_id: &str,
+pub async fn fetch_agent_from_registry(
     entry: &crate::acp::registry::AgentEntry,
-    preference: Option<&str>,
+    preference: Option<Distribution>,
 ) -> Result<Assistant> {
-    let candidates: Vec<&str> = if let Some(pref) = preference {
-        vec![pref]
-    } else {
-        vec!["npx", "uvx", "binary"]
-    };
+    let agent_id = &entry.id;
+    let candidates: Vec<Distribution> = preference
+        .map(|p| vec![p])
+        .unwrap_or_else(|| entry.distributions())
+        .into_iter()
+        .filter(|distribution| entry.has_distribution(distribution))
+        .collect();
 
     for dist_type in &candidates {
-        match (*dist_type, entry.distribution.get(*dist_type)) {
-            ("npx", Some(DistributionConfig::Package(pkg))) => {
-                if preference.is_some() || command_available("npx").await {
-                    return Ok(make_package_assistant(agent_id, "npx", pkg));
+        match entry.get_distribution(dist_type) {
+            Some(DistributionConfig::Package(pkg)) => {
+                if command_available(&dist_type.to_string()).await {
+                    return Ok(make_package_assistant(
+                        agent_id,
+                        &dist_type.to_string(),
+                        pkg,
+                    ));
                 }
             }
-            ("uvx", Some(DistributionConfig::Package(pkg))) => {
-                if preference.is_some() || command_available("uvx").await {
-                    return Ok(make_package_assistant(agent_id, "uvx", pkg));
-                }
-            }
-            ("binary", Some(DistributionConfig::BinaryTargets(targets))) => {
+            Some(DistributionConfig::BinaryTargets(targets)) => {
                 if let Some(target) = binary::platform_target(targets) {
                     let path = binary::get_binary(agent_id, &entry.version, target).await?;
                     return Ok(Assistant::CustomStdio {
@@ -93,24 +58,21 @@ pub async fn resolve_agent_from_registry(
         }
     }
 
-    if let Some(pref) = preference {
-        Err(Error::InvalidInput(format!(
-            "Agent '{agent_id}' has no '{pref}' distribution"
-        )))
-    } else {
-        Err(Error::InvalidInput(format!(
-            "Agent '{agent_id}' has no supported distribution for this platform"
-        )))
-    }
+    Err(Error::InvalidInput(format!(
+        "Agent '{}' has no supported distribution for this platform",
+        entry.id
+    )))
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     fn entry_with_distribution(
         id: &str,
-        distribution: HashMap<String, DistributionConfig>,
+        distribution: HashMap<Distribution, DistributionConfig>,
     ) -> crate::acp::registry::AgentEntry {
         crate::acp::registry::AgentEntry {
             id: id.to_string(),
@@ -153,153 +115,13 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Tests for select_distribution (pure, no I/O)
-    // -----------------------------------------------------------------------
-
-    #[test]
-    fn select_npx_with_preference() {
-        let dist = npx_dist("my-agent", None);
-        let selection = select_distribution(&dist, Some("npx"));
-        assert!(matches!(selection, Some(DistributionSelection::Npx(_))));
-    }
-
-    #[test]
-    fn select_uvx_with_preference() {
-        let dist = uvx_dist("uvx-agent");
-        let selection = select_distribution(&dist, Some("uvx"));
-        assert!(matches!(selection, Some(DistributionSelection::Uvx(_))));
-    }
-
-    #[test]
-    fn select_binary_with_platform_match() {
-        let os = std::env::consts::OS.replace("macos", "darwin");
-        let mut targets = HashMap::new();
-        targets.insert(
-            format!("{}-{}", std::env::consts::ARCH, os),
-            BinaryPlatformTarget {
-                archive: "https://example.com/agent.tar.gz".into(),
-                cmd: "agent".into(),
-                args: None,
-                env: None,
-            },
-        );
-        let mut dist = HashMap::new();
-        dist.insert("binary".into(), DistributionConfig::BinaryTargets(targets));
-        let selection = select_distribution(&dist, Some("binary"));
-        assert!(matches!(selection, Some(DistributionSelection::Binary(_))));
-    }
-
-    #[test]
-    fn select_nonexistent_preference_returns_none() {
-        let dist = npx_dist("my-agent", None);
-        let selection = select_distribution(&dist, Some("bad-dist"));
-        assert!(selection.is_none());
-    }
-
-    #[test]
-    fn select_empty_distribution_returns_none() {
-        let dist = HashMap::new();
-        let selection = select_distribution(&dist, Some("npx"));
-        assert!(selection.is_none());
-    }
-
-    #[test]
-    fn select_auto_prioritizes_npx() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "npx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: "agent".into(),
-                args: None,
-                env: None,
-            }),
-        );
-        dist.insert(
-            "uvx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: "agent".into(),
-                args: None,
-                env: None,
-            }),
-        );
-        let selection = select_distribution(&dist, None);
-        assert!(matches!(selection, Some(DistributionSelection::Npx(_))));
-    }
-
-    #[test]
-    fn select_binary_no_platform_match_returns_none() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "binary".into(),
-            DistributionConfig::BinaryTargets(HashMap::new()),
-        );
-        let selection = select_distribution(&dist, Some("binary"));
-        assert!(selection.is_none());
-    }
-
-    #[test]
-    fn select_auto_falls_back_to_uvx_when_no_npx() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "uvx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: "uvx-agent".into(),
-                args: None,
-                env: None,
-            }),
-        );
-        let selection = select_distribution(&dist, None);
-        assert!(matches!(selection, Some(DistributionSelection::Uvx(_))));
-    }
-
-    #[test]
-    fn select_auto_falls_back_to_binary_when_no_package() {
-        let os = std::env::consts::OS.replace("macos", "darwin");
-        let mut targets = HashMap::new();
-        targets.insert(
-            format!("{}-{}", std::env::consts::ARCH, os),
-            BinaryPlatformTarget {
-                archive: "https://example.com/agent.tar.gz".into(),
-                cmd: "agent".into(),
-                args: None,
-                env: None,
-            },
-        );
-        let mut dist = HashMap::new();
-        dist.insert("binary".into(), DistributionConfig::BinaryTargets(targets));
-        let selection = select_distribution(&dist, None);
-        assert!(matches!(selection, Some(DistributionSelection::Binary(_))));
-    }
-
-    #[test]
-    fn select_auto_returns_none_when_no_distributions() {
-        let dist = HashMap::new();
-        let selection = select_distribution(&dist, None);
-        assert!(selection.is_none());
-    }
-
-    #[test]
-    fn select_preference_npx_on_uvx_only_returns_none() {
-        let dist = uvx_dist("uvx-agent");
-        let selection = select_distribution(&dist, Some("npx"));
-        assert!(selection.is_none());
-    }
-
-    #[test]
-    fn select_preference_uvx_on_npx_only_returns_none() {
-        let dist = npx_dist("npx-agent", None);
-        let selection = select_distribution(&dist, Some("uvx"));
-        assert!(selection.is_none());
-    }
-
-    // -----------------------------------------------------------------------
     // Tests for resolve_agent_from_registry (async, preference skips I/O)
     // -----------------------------------------------------------------------
 
     #[test]
     fn resolve_npx_with_preference() {
         let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "test-agent",
             &entry,
             Some("npx"),
@@ -314,7 +136,7 @@ mod tests {
     #[test]
     fn resolve_uvx_with_preference() {
         let entry = entry_with_distribution("test-agent", uvx_dist("uvx-agent"));
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "test-agent",
             &entry,
             Some("uvx"),
@@ -335,7 +157,7 @@ mod tests {
                 Some(vec!["--verbose".into(), "--port".into(), "8080".into()]),
             ),
         );
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "test-agent",
             &entry,
             Some("npx"),
@@ -352,7 +174,7 @@ mod tests {
     #[test]
     fn resolve_nonexistent_preference_errors() {
         let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "test-agent",
             &entry,
             Some("bad-dist"),
@@ -364,7 +186,7 @@ mod tests {
     #[test]
     fn resolve_empty_distribution_errors() {
         let entry = entry_with_distribution("test-agent", HashMap::new());
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "test-agent",
             &entry,
             Some("npx"),
@@ -380,7 +202,7 @@ mod tests {
             DistributionConfig::BinaryTargets(HashMap::new()),
         );
         let entry = entry_with_distribution("test-agent", dist);
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "test-agent",
             &entry,
             Some("binary"),
@@ -391,7 +213,7 @@ mod tests {
     #[test]
     fn resolve_nonexistent_preference_error_mentions_agent_id() {
         let entry = entry_with_distribution("my-agent", npx_dist("my-agent", None));
-        let result = futures_lite::future::block_on(resolve_agent_from_registry(
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
             "my-agent",
             &entry,
             Some("bad-dist"),
@@ -404,7 +226,7 @@ mod tests {
     fn resolve_no_supported_distribution_error_mentions_agent_id() {
         let entry = entry_with_distribution("my-agent", HashMap::new());
         let result =
-            futures_lite::future::block_on(resolve_agent_from_registry("my-agent", &entry, None));
+            futures_lite::future::block_on(fetch_agent_from_registry("my-agent", &entry, None));
         let err = result.unwrap_err().to_string();
         assert!(err.contains("my-agent"), "Error should mention agent id");
         assert!(

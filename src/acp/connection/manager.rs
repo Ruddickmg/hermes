@@ -1,5 +1,8 @@
 use crate::PluginState;
 use crate::acp::connection::{Connection, stdio, tcp};
+use crate::acp::registry::AgentEntry;
+use crate::acp::registry::distribution::Distribution;
+use crate::acp::registry::resolution::fetch_agent_from_registry;
 use crate::nvim::configuration::Permissions;
 use crate::{Handler, acp::error::Error};
 use agent_client_protocol::schema::{
@@ -8,6 +11,7 @@ use agent_client_protocol::schema::{
 use async_lock::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::default;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -55,6 +59,10 @@ pub enum Assistant {
     Copilot,
     Opencode,
     Gemini,
+    Registered {
+        agent: AgentEntry,
+        distribution: Option<Distribution>,
+    },
     CustomStdio {
         name: String,
         command: String,
@@ -75,6 +83,16 @@ impl std::fmt::Display for Assistant {
             Assistant::Gemini => write!(f, "gemini"),
             Assistant::CustomStdio { name, .. } => write!(f, "{}", name),
             Assistant::CustomUrl { name, host, port } => write!(f, "{} ({}:{})", name, host, port),
+            Assistant::Registered {
+                agent,
+                distribution,
+            } => {
+                if let Some(dist) = distribution {
+                    write!(f, "{} ({})", agent.name, dist)
+                } else {
+                    write!(f, "{}", agent.name)
+                }
+            }
         }
     }
 }
@@ -85,11 +103,25 @@ impl Assistant {
     /// The caller is responsible for spawning the command on the correct
     /// executor (the one whose reactor will handle the child's IO).
     #[instrument(level = "trace", skip(self))]
-    pub fn command(&self) -> crate::acp::Result<async_process::Command> {
+    pub async fn command(&self) -> crate::acp::Result<async_process::Command> {
         let (program, args) = match self {
             Assistant::Copilot => ("copilot", vec!["--acp"]),
             Assistant::Opencode => ("opencode", vec!["acp"]),
             Assistant::Gemini => ("gemini", vec!["--acp"]),
+            Assistant::Registered {
+                agent,
+                distribution,
+            } => {
+                if let Assistant::CustomStdio { command, args, .. } =
+                    fetch_agent_from_registry(agent, distribution.clone()).await?
+                {
+                    (command.as_str(), args.iter().map(|s| s.as_str()).collect())
+                } else {
+                    return Err(Error::Internal(
+                        "agent registry should only return CustomStdio".to_string(),
+                    ));
+                }
+            }
             Assistant::CustomStdio { command, args, .. } => {
                 (command.as_str(), args.iter().map(|s| s.as_str()).collect())
             }
