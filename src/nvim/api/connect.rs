@@ -351,6 +351,22 @@ mod tests {
     }
 
     #[test]
+    fn connection_options_into_assistant_tcp_with_host_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Tcp,
+            host: Some("tcp.example.com".to_string()),
+            port: Some(9090),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("tcp-agent".to_string());
+        let assistant = result.unwrap();
+        assert!(
+            matches!(assistant, Assistant::CustomUrl { name, host, port } 
+            if name == "tcp-agent" && host == "tcp.example.com" && port == 9090)
+        );
+    }
+
+    #[test]
     fn connection_options_into_assistant_socket_missing_port() {
         let opts = ConnectionOptions {
             protocol: Protocol::Tcp,
@@ -474,6 +490,16 @@ mod tests {
         let result = ConnectionOptions::from_object(Object::from(dict));
         let opts = result.unwrap();
         assert_eq!(opts.command.as_deref(), Some("my-agent"));
+    }
+
+    #[test]
+    fn connection_options_from_object_args_non_array_sets_args_to_none() {
+        let mut dict = Dictionary::new();
+        dict.insert("command", "my-agent");
+        dict.insert("args", "not-an-array");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        let opts = result.unwrap();
+        assert!(opts.args.is_none());
     }
 
     #[test]

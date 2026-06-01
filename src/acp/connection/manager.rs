@@ -391,6 +391,7 @@ impl Drop for ConnectionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::acp::registry::{DistributionConfig, PackageDistribution};
     use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
@@ -552,6 +553,59 @@ mod tests {
     fn test_assistant_gemini_display() {
         let assistant = Assistant::Gemini;
         assert_eq!(format!("{}", assistant), "gemini");
+    }
+
+    #[test]
+    fn test_assistant_registered_display_with_distribution() {
+        let entry = AgentEntry {
+            id: "test-agent".to_string(),
+            name: "Test Agent".to_string(),
+            version: "1.0.0".to_string(),
+            description: String::new(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Npx,
+                DistributionConfig::Package(PackageDistribution {
+                    package: "test-agent".to_string(),
+                    args: None,
+                    env: None,
+                }),
+            )]),
+        };
+        let assistant = Assistant::Registered {
+            agent: entry,
+            distribution: Some(Distribution::Npx),
+            command: None,
+            args: None,
+        };
+        assert_eq!(format!("{}", assistant), "test-agent (npx)");
+    }
+
+    #[test]
+    fn test_assistant_registered_display_without_distribution() {
+        let entry = AgentEntry {
+            id: "test-agent".to_string(),
+            name: "Test Agent".to_string(),
+            version: "1.0.0".to_string(),
+            description: String::new(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::new(),
+        };
+        let assistant = Assistant::Registered {
+            agent: entry,
+            distribution: None,
+            command: None,
+            args: None,
+        };
+        assert_eq!(format!("{}", assistant), "test-agent");
     }
 
     #[test]
