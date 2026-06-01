@@ -21,15 +21,6 @@ fn make_package_assistant(agent_id: &str, command: &str, pkg: &PackageDistributi
     }
 }
 
-fn is_distribution_enabled(dist: &Distribution, config: &DistributionsConfig) -> bool {
-    match dist {
-        Distribution::Npx => config.npx,
-        Distribution::Uvx => config.uvx,
-        Distribution::Binary => config.binary.enabled,
-        Distribution::Invalid => false,
-    }
-}
-
 pub async fn fetch_agent_from_registry(
     entry: &crate::acp::registry::AgentEntry,
     preference: Option<Distribution>,
@@ -38,10 +29,10 @@ pub async fn fetch_agent_from_registry(
     let agent_id = &entry.id;
 
     if let Some(pref) = preference {
-        if !is_distribution_enabled(&pref, distributions_config) {
+        if !pref.is_enabled(distributions_config) {
             return Err(Error::InvalidInput(format!(
-                "Distribution '{}' is disabled for agent '{}'",
-                pref, agent_id
+                "Distibution '{}' was selected but is disabled",
+                pref
             )));
         }
     }
@@ -56,7 +47,7 @@ pub async fn fetch_agent_from_registry(
     let candidates: Vec<Distribution> = considered_distributions
         .clone()
         .into_iter()
-        .filter(|distribution| is_distribution_enabled(distribution, distributions_config))
+        .filter(|distribution| distribution.is_enabled(distributions_config))
         .collect();
 
     for dist_type in &candidates {

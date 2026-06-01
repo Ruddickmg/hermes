@@ -97,6 +97,7 @@ impl Api {
         let update = config.update.unwrap_or(false);
         let state = self.state.lock().await;
         let mut registry = state.registry.clone();
+        let config_distributions = state.config.distributions.clone();
         drop(state);
 
         if update {
@@ -111,7 +112,20 @@ impl Api {
 
         let agents: Vec<AgentListEntry> = registry
             .as_ref()
-            .map(|r| r.agents.values().cloned().map(Into::into).collect())
+            .map(|r| {
+                r.agents
+                    .values()
+                    .cloned()
+                    .map(|agent| AgentListEntry {
+                        distributions: agent
+                            .distributions()
+                            .into_iter()
+                            .filter(|distribution| distribution.is_enabled(&config_distributions))
+                            .collect(),
+                        ..agent.into()
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         let _ = self
@@ -127,9 +141,57 @@ impl Api {
 mod tests {
     use super::*;
     use crate::acp::registry::{DistributionCommand, PackageDistribution};
+    use crate::nvim::configuration::{BinaryConfig, DistributionsConfig};
     use nvim_oxi::{Dictionary, Object};
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
+
+    fn filtered_distributions(
+        entry: &AgentEntry,
+        config: &DistributionsConfig,
+    ) -> Vec<Distribution> {
+        entry
+            .distributions()
+            .into_iter()
+            .filter(|d| d.is_enabled(config))
+            .collect()
+    }
+
+    fn make_multi_distribution_entry() -> AgentEntry {
+        AgentEntry {
+            id: "multi-agent".to_string(),
+            name: "Multi Agent".to_string(),
+            version: "1.0.0".to_string(),
+            description: "An agent with multiple distributions".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::from([
+                (
+                    Distribution::Npx,
+                    DistributionCommand::Package(PackageDistribution {
+                        package: "npx-pkg".to_string(),
+                        args: None,
+                        env: None,
+                    }),
+                ),
+                (
+                    Distribution::Uvx,
+                    DistributionCommand::Package(PackageDistribution {
+                        package: "uvx-pkg".to_string(),
+                        args: None,
+                        env: None,
+                    }),
+                ),
+                (
+                    Distribution::Binary,
+                    DistributionCommand::BinaryTargets(HashMap::new()),
+                ),
+            ]),
+        }
+    }
 
     #[test]
     fn test_agents_config_from_object_nil() {
@@ -531,5 +593,135 @@ mod tests {
         };
         let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0]["version"], "1.0");
+    }
+
+    #[test]
+    fn filter_keeps_enabled_npx() {
+        let entry = make_npx_distribution_entry();
+        let config = DistributionsConfig {
+            npx: true,
+            ..Default::default()
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert_eq!(result, vec![Distribution::Npx]);
+    }
+
+    #[test]
+    fn filter_removes_disabled_npx() {
+        let entry = make_npx_distribution_entry();
+        let config = DistributionsConfig {
+            npx: false,
+            ..Default::default()
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_keeps_enabled_uvx() {
+        let entry = make_uvx_distribution_entry();
+        let config = DistributionsConfig {
+            uvx: true,
+            ..Default::default()
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert_eq!(result, vec![Distribution::Uvx]);
+    }
+
+    #[test]
+    fn filter_removes_disabled_uvx() {
+        let entry = make_uvx_distribution_entry();
+        let config = DistributionsConfig {
+            uvx: false,
+            ..Default::default()
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_keeps_enabled_binary() {
+        let entry = make_binary_distribution_entry();
+        let config = DistributionsConfig {
+            binary: BinaryConfig {
+                enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert_eq!(result, vec![Distribution::Binary]);
+    }
+
+    #[test]
+    fn filter_removes_disabled_binary() {
+        let entry = make_binary_distribution_entry();
+        let config = DistributionsConfig {
+            binary: BinaryConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_mixed_distributions() {
+        let entry = make_multi_distribution_entry();
+        let config = DistributionsConfig {
+            npx: true,
+            uvx: false,
+            binary: BinaryConfig {
+                enabled: true,
+                ..Default::default()
+            },
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&Distribution::Npx));
+        assert!(result.contains(&Distribution::Binary));
+    }
+
+    #[test]
+    fn filter_all_disabled_returns_empty() {
+        let entry = make_multi_distribution_entry();
+        let config = DistributionsConfig {
+            npx: false,
+            uvx: false,
+            binary: BinaryConfig {
+                enabled: false,
+                ..Default::default()
+            },
+        };
+        let result = filtered_distributions(&entry, &config);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_removes_invalid() {
+        let entry = AgentEntry {
+            id: "invalid-dist".to_string(),
+            name: "Invalid".to_string(),
+            version: "1.0".to_string(),
+            description: "".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Invalid,
+                DistributionCommand::Package(PackageDistribution {
+                    package: "pkg".to_string(),
+                    args: None,
+                    env: None,
+                }),
+            )]),
+        };
+        let config = DistributionsConfig::default();
+        let result = filtered_distributions(&entry, &config);
+        assert!(result.is_empty());
     }
 }

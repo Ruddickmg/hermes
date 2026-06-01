@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
+use crate::nvim::configuration::DistributionsConfig;
+
 #[derive(Deserialize, Serialize, std::hash::Hash, PartialEq, Eq, Debug, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Distribution {
@@ -8,6 +10,17 @@ pub enum Distribution {
     Npx,
     Binary,
     Invalid,
+}
+
+impl Distribution {
+    pub fn is_enabled(self, config: &DistributionsConfig) -> bool {
+        match self {
+            Distribution::Npx => config.npx,
+            Distribution::Uvx => config.uvx,
+            Distribution::Binary => config.binary.enabled,
+            Distribution::Invalid => false,
+        }
+    }
 }
 
 impl Display for Distribution {

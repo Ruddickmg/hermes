@@ -580,7 +580,7 @@ mod tests {
         };
         let assistant = Assistant::Registered {
             agent: entry,
-
+            configuration: Default::default(),
             distribution: Some(Distribution::Npx),
             command: None,
             args: None,
