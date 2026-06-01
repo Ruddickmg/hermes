@@ -194,7 +194,8 @@ fn extract_tar(archive_path: &Path, dest: &Path) -> Result<()> {
         .entries()
         .map_err(|e| Error::Network(format!("Failed to read tar entries: {e}")))?
     {
-        let mut entry = entry.map_err(|e| Error::Network(format!("Failed to read tar entry: {e}")))?;
+        let mut entry =
+            entry.map_err(|e| Error::Network(format!("Failed to read tar entry: {e}")))?;
         entry
             .unpack_in(dest)
             .map_err(|e| Error::Network(format!("Failed to extract tar archive: {e}")))?;
