@@ -205,6 +205,14 @@ hermes.setup({
     request_permissions = true,  -- Allow agent to send permission requests 
     send_notifications = true,  -- Allow the agent to send notifications 
   },
+  distributions = { -- path to distributions
+    uvx = true, -- allows installing agents via UVX
+    npx = true, -- allows installing agents via NPX
+    binary = { -- configuration for binary behavior
+      path = vim.fn.stdpath('state') .. "/nvim/hermes/binaries", -- path where binaries will be downloaded to
+      enabled = true, -- allows installing agents via binary
+    },
+  },
   terminal = {
     delete = true,    -- Auto-delete terminals on exit
     enabled = true,    -- Enable terminal functionality
@@ -238,7 +246,7 @@ hermes.setup({
     file = {
       level = vim.log.levels.OFF or "off",
       format = "json",
-      path = vim.fn.stdpath('state') .. "/nvim/hermes/", -- path to log file(s)
+      path = vim.fn.stdpath('state') .. "/nvim/hermes/logs", -- path to log file(s)
       name = "hermes.log", -- name of log file
       max_size = 10485760, -- 10mb in bytes
       max_files = 5, -- Max log files to generate

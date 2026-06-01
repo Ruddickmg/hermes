@@ -1,9 +1,12 @@
-use crate::acp::{
-    Result,
-    connection::Assistant,
-    error::Error,
-    registry::{DistributionConfig, PackageDistribution, binary, distribution::Distribution},
-    utilities::command::command_available,
+use crate::{
+    acp::{
+        Result,
+        connection::Assistant,
+        error::Error,
+        registry::{DistributionCommand, PackageDistribution, binary, distribution::Distribution},
+        utilities::command::command_available,
+    },
+    nvim::configuration::DistributionsConfig,
 };
 
 fn make_package_assistant(agent_id: &str, command: &str, pkg: &PackageDistribution) -> Assistant {
@@ -18,21 +21,47 @@ fn make_package_assistant(agent_id: &str, command: &str, pkg: &PackageDistributi
     }
 }
 
+fn is_distribution_enabled(dist: &Distribution, config: &DistributionsConfig) -> bool {
+    match dist {
+        Distribution::Npx => config.npx,
+        Distribution::Uvx => config.uvx,
+        Distribution::Binary => config.binary.enabled,
+        Distribution::Invalid => false,
+    }
+}
+
 pub async fn fetch_agent_from_registry(
     entry: &crate::acp::registry::AgentEntry,
     preference: Option<Distribution>,
+    distributions_config: &DistributionsConfig,
 ) -> Result<Assistant> {
     let agent_id = &entry.id;
-    let candidates: Vec<Distribution> = preference
+
+    if let Some(pref) = preference {
+        if !is_distribution_enabled(&pref, distributions_config) {
+            return Err(Error::InvalidInput(format!(
+                "Distribution '{}' is disabled for agent '{}'",
+                pref, agent_id
+            )));
+        }
+    }
+
+    let considered_distributions: Vec<Distribution> = preference
         .map(|p| vec![p])
         .unwrap_or_else(|| entry.distributions())
         .into_iter()
         .filter(|distribution| entry.has_distribution(distribution))
         .collect();
 
+    let candidates: Vec<Distribution> = considered_distributions
+        .clone()
+        .into_iter()
+        .filter(|distribution| is_distribution_enabled(distribution, distributions_config))
+        .collect();
+
     for dist_type in &candidates {
         match entry.get_distribution(dist_type) {
-            Some(DistributionConfig::Package(pkg)) => {
+            Some(DistributionCommand::Package(pkg)) => {
                 if command_available(&dist_type.to_string()).await {
                     return Ok(make_package_assistant(
                         agent_id,
@@ -41,9 +70,20 @@ pub async fn fetch_agent_from_registry(
                     ));
                 }
             }
-            Some(DistributionConfig::BinaryTargets(targets)) => {
+            Some(DistributionCommand::BinaryTargets(targets)) => {
                 if let Some(target) = binary::platform_target(targets) {
-                    let path = binary::get_binary(agent_id, &entry.version, target).await?;
+                    let cache_dir_override = if distributions_config.binary.path.is_empty() {
+                        None
+                    } else {
+                        Some(distributions_config.binary.path.as_str())
+                    };
+                    let path = binary::get_binary(
+                        agent_id,
+                        &entry.version,
+                        target,
+                        cache_dir_override.map(std::path::Path::new),
+                    )
+                    .await?;
                     return Ok(Assistant::CustomStdio {
                         name: agent_id.to_string(),
                         command: path.to_string_lossy().to_string(),
@@ -55,21 +95,33 @@ pub async fn fetch_agent_from_registry(
         }
     }
 
-    Err(Error::InvalidInput(format!(
-        "Agent '{}' has no supported distribution for this platform",
-        entry.id
-    )))
+    if candidates.is_empty() && !considered_distributions.is_empty() {
+        Err(Error::InvalidInput(format!(
+            "Agent '{}' has all distribution methods disabled. Set at least one of \
+             'distributions.uvx', 'distributions.npx', or 'distributions.binary.enabled' to true.",
+            entry.id
+        )))
+    } else {
+        Err(Error::InvalidInput(format!(
+            "Agent '{}' has no supported distribution for this platform",
+            entry.id
+        )))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
+
+    use async_lock::Mutex;
+
+    use crate::PluginState;
 
     use super::*;
 
     fn entry_with_distribution(
         id: &str,
-        distribution: HashMap<Distribution, DistributionConfig>,
+        distribution: HashMap<Distribution, DistributionCommand>,
     ) -> crate::acp::registry::AgentEntry {
         crate::acp::registry::AgentEntry {
             id: id.to_string(),
@@ -88,11 +140,11 @@ mod tests {
     fn npx_dist(
         package: &str,
         args: Option<Vec<String>>,
-    ) -> HashMap<Distribution, DistributionConfig> {
+    ) -> HashMap<Distribution, DistributionCommand> {
         let mut dist = HashMap::new();
         dist.insert(
             Distribution::Npx,
-            DistributionConfig::Package(PackageDistribution {
+            DistributionCommand::Package(PackageDistribution {
                 package: package.into(),
                 args,
                 env: None,
@@ -101,16 +153,22 @@ mod tests {
         dist
     }
 
+    fn test_state() -> Arc<Mutex<PluginState>> {
+        Arc::new(Mutex::new(PluginState::new()))
+    }
+
     // -----------------------------------------------------------------------
-    // Tests for resolve_agent_from_registry (async, preference skips I/O)
+    // Tests for fetch_agent_from_registry (async, preference skips I/O)
     // -----------------------------------------------------------------------
 
     #[test]
     fn resolve_npx_with_preference() {
         let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
+        let config = DistributionsConfig::default();
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
             &entry,
             Some(Distribution::Npx),
+            &config,
         ));
         let assistant = result.unwrap();
         assert!(
@@ -128,9 +186,11 @@ mod tests {
                 Some(vec!["--verbose".into(), "--port".into(), "8080".into()]),
             ),
         );
+        let config = DistributionsConfig::default();
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
             &entry,
             Some(Distribution::Npx),
+            &config,
         ));
         let assistant = result.unwrap();
         assert!(
@@ -144,17 +204,60 @@ mod tests {
     #[test]
     fn resolve_nonexistent_preference_returns_error() {
         let entry = entry_with_distribution("test-agent", HashMap::new());
+        let config = DistributionsConfig::default();
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
             &entry,
             Some(Distribution::Npx),
+            &config,
         ));
         assert!(result.is_err());
     }
 
     #[test]
+    fn resolve_disabled_distribution_returns_error() {
+        let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
+        let config = DistributionsConfig {
+            npx: false,
+            ..Default::default()
+        };
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
+            &entry,
+            Some(Distribution::Npx),
+            &config,
+        ));
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().to_string().contains("disabled"),
+            "Error should mention distribution is disabled"
+        );
+    }
+
+    #[test]
+    fn resolve_all_disabled_error_mentions_toggle() {
+        let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
+        let config = DistributionsConfig {
+            npx: false,
+            uvx: false,
+            binary: crate::nvim::configuration::BinaryConfig {
+                enabled: false,
+                ..Default::default()
+            },
+        };
+        let result =
+            futures_lite::future::block_on(fetch_agent_from_registry(&entry, None, &config));
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("disabled"),
+            "Error should mention distributions are disabled"
+        );
+    }
+
+    #[test]
     fn resolve_no_supported_distribution_error_mentions_agent_id() {
         let entry = entry_with_distribution("my-agent", HashMap::new());
-        let result = futures_lite::future::block_on(fetch_agent_from_registry(&entry, None));
+        let config = DistributionsConfig::default();
+        let result =
+            futures_lite::future::block_on(fetch_agent_from_registry(&entry, None, &config));
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("no supported distribution"),
@@ -167,12 +270,14 @@ mod tests {
         let mut dist = HashMap::new();
         dist.insert(
             Distribution::Binary,
-            DistributionConfig::BinaryTargets(HashMap::new()),
+            DistributionCommand::BinaryTargets(HashMap::new()),
         );
         let entry = entry_with_distribution("test-agent", dist);
+        let config = DistributionsConfig::default();
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
             &entry,
             Some(Distribution::Binary),
+            &config,
         ));
         assert!(result.is_err());
     }

@@ -1,4 +1,5 @@
 mod buffer;
+mod distribution;
 mod log;
 mod permissions;
 mod session;
@@ -7,6 +8,9 @@ mod terminal;
 use std::path::PathBuf;
 
 pub use buffer::{BufferConfig, BufferConfigPartial};
+pub use distribution::{
+    BinaryConfig, BinaryConfigPartial, DistributionsConfig, DistributionsConfigPartial,
+};
 pub use log::{
     LOG_FILE_NAME, LogConfig, LogConfigPartial, LogFileConfig, LogFileConfigPartial,
     LogTargetConfig, LogTargetConfigPartial,
@@ -53,6 +57,7 @@ pub struct ClientConfig {
     pub buffer: BufferConfig,
     pub log: LogConfig,
     pub session: SessionConfig,
+    pub distributions: DistributionsConfig,
     pub root_markers: Vec<String>,
     pub project_root: PathBuf,
 }
@@ -73,6 +78,7 @@ pub struct ClientConfigPartial {
     pub buffer: Option<BufferConfigPartial>,
     pub log: Option<LogConfigPartial>,
     pub session: Option<SessionConfigPartial>,
+    pub distributions: Option<DistributionsConfigPartial>,
     pub root_markers: Option<Vec<String>>,
 }
 
@@ -85,6 +91,7 @@ impl Default for ClientConfig {
             buffer: Default::default(),
             log: Default::default(),
             session: Default::default(),
+            distributions: Default::default(),
             project_root: default_project_root(root_markers.clone()),
             root_markers,
         }
@@ -108,6 +115,9 @@ impl ClientConfigPartial {
         }
         if let Some(session) = self.session {
             session.apply_to(&mut config.session);
+        }
+        if let Some(distributions) = self.distributions {
+            distributions.apply_to(&mut config.distributions);
         }
         if let Some(root_markers) = self.root_markers {
             config.project_root = default_project_root(root_markers.clone());
@@ -145,6 +155,11 @@ impl FromObject for ClientConfigPartial {
             .map(|o| SessionConfigPartial::from_object(o.clone()))
             .transpose()?;
 
+        let distributions = dict
+            .get("distributions")
+            .map(|o| DistributionsConfigPartial::from_object(o.clone()))
+            .transpose()?;
+
         let root_markers = dict
             .get("root_markers")
             .map(|o| Vec::<String>::from_object(o.clone()))
@@ -157,6 +172,7 @@ impl FromObject for ClientConfigPartial {
             buffer,
             log,
             session,
+            distributions,
         })
     }
 }
@@ -269,6 +285,27 @@ impl nvim_oxi::lua::Pushable for ClientConfigPartial {
             dict.insert("session", session_dict);
         }
 
+        if let Some(distributions) = self.distributions {
+            let mut dist_dict = Dictionary::new();
+            if let Some(binary) = distributions.binary {
+                let mut bin_dict = Dictionary::new();
+                if let Some(ref val) = binary.path {
+                    bin_dict.insert("path", val.as_str());
+                }
+                if let Some(val) = binary.enabled {
+                    bin_dict.insert("enabled", val);
+                }
+                dist_dict.insert("binary", bin_dict);
+            }
+            if let Some(val) = distributions.uvx {
+                dist_dict.insert("uvx", val);
+            }
+            if let Some(val) = distributions.npx {
+                dist_dict.insert("npx", val);
+            }
+            dict.insert("distributions", dist_dict);
+        }
+
         unsafe { dict.push(lua_state) }
     }
 }
@@ -286,6 +323,7 @@ mod tests {
         let partial = ClientConfigPartial {
             root_markers: Default::default(),
             session: Default::default(),
+            distributions: Default::default(),
             permissions: Some(PermissionsPartial {
                 fs_write_access: Some(false),
                 ..Default::default()
@@ -324,6 +362,7 @@ mod tests {
             root_markers: vec![".git".to_string()],
             project_root: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             session: SessionConfig::default(),
+            distributions: Default::default(),
             permissions: Permissions {
                 fs_write_access: false,
                 fs_read_access: false,

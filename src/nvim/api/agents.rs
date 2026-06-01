@@ -126,7 +126,7 @@ impl Api {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::acp::registry::{DistributionConfig, PackageDistribution};
+    use crate::acp::registry::{DistributionCommand, PackageDistribution};
     use nvim_oxi::{Dictionary, Object};
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
@@ -226,7 +226,7 @@ mod tests {
             icon: Some("https://test.dev/icon.png".to_string()),
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         }
     }
@@ -304,7 +304,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Npx,
-                DistributionConfig::Package(PackageDistribution {
+                DistributionCommand::Package(PackageDistribution {
                     package: "npx-pkg".to_string(),
                     args: None,
                     env: None,
@@ -368,7 +368,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Uvx,
-                DistributionConfig::Package(PackageDistribution {
+                DistributionCommand::Package(PackageDistribution {
                     package: "uvx-pkg".to_string(),
                     args: None,
                     env: None,
@@ -403,7 +403,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         };
         let payload = AgentListPayload {
@@ -427,7 +427,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         };
         let payload = AgentListPayload {
@@ -451,7 +451,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         };
         let payload = AgentListPayload {
@@ -475,7 +475,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         };
         let payload = AgentListPayload {
@@ -499,7 +499,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         };
         let payload = AgentListPayload {
@@ -523,7 +523,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Binary,
-                DistributionConfig::BinaryTargets(HashMap::new()),
+                DistributionCommand::BinaryTargets(HashMap::new()),
             )]),
         };
         let payload = AgentListPayload {

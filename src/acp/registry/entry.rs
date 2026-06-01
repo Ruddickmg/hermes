@@ -1,4 +1,4 @@
-use crate::acp::registry::{DistributionConfig, distribution::Distribution};
+use crate::acp::registry::{DistributionCommand, distribution::Distribution};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -13,7 +13,7 @@ pub struct AgentEntry {
     pub authors: Option<Vec<String>>,
     pub license: Option<String>,
     pub icon: Option<String>,
-    pub distribution: HashMap<Distribution, DistributionConfig>,
+    pub distribution: HashMap<Distribution, DistributionCommand>,
 }
 
 impl AgentEntry {
@@ -21,7 +21,7 @@ impl AgentEntry {
         self.distribution.keys().cloned().collect()
     }
 
-    pub fn get_distribution(&self, distribution: &Distribution) -> Option<&DistributionConfig> {
+    pub fn get_distribution(&self, distribution: &Distribution) -> Option<&DistributionCommand> {
         self.distribution.get(distribution)
     }
 

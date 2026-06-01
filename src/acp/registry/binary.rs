@@ -29,7 +29,12 @@ pub fn platform_target(
 /// Return the cached binary path for *agent_id*`/`*version*, downloading and
 /// extracting the archive on cache miss.
 ///
-/// Cache layout (XDG data home):
+/// When `cache_dir_override` is `Some`, it replaces the default XDG data
+/// home as the base directory for caching (the `hermes/agents/<id>/<version>/`
+/// suffix is still appended). This is used by tests to isolate concurrent
+/// cache directories and avoid races.
+///
+/// Default cache layout (XDG data home):
 /// ```text
 /// $XDG_DATA_HOME/hermes/agents/<agent-id>/<version>/<cmd>
 /// ```
@@ -40,8 +45,9 @@ pub async fn get_binary(
     agent_id: &str,
     version: &str,
     target: &BinaryPlatformTarget,
+    cache_dir_override: Option<&Path>,
 ) -> Result<PathBuf> {
-    let cache_dir = cache_dir_for(agent_id, version);
+    let cache_dir = cache_dir_for(agent_id, version, cache_dir_override);
     let binary_path = cache_dir.join(&target.cmd);
 
     if binary_path.is_file() {
@@ -123,20 +129,22 @@ fn current_os() -> &'static str {
     }
 }
 
-fn cache_dir_for(agent_id: &str, version: &str) -> PathBuf {
-    let base = if cfg!(target_os = "windows") {
-        std::env::var("APPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("."))
-    } else {
-        std::env::var("XDG_DATA_HOME")
-            .ok()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| {
-                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                PathBuf::from(home).join(".local").join("share")
-            })
-    };
+fn cache_dir_for(agent_id: &str, version: &str, base_override: Option<&Path>) -> PathBuf {
+    let base = base_override.map(PathBuf::from).unwrap_or_else(|| {
+        if cfg!(target_os = "windows") {
+            std::env::var("APPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("."))
+        } else {
+            std::env::var("XDG_DATA_HOME")
+                .ok()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                    PathBuf::from(home).join(".local").join("share")
+                })
+        }
+    });
     base.join("hermes")
         .join("agents")
         .join(agent_id)
@@ -227,6 +235,7 @@ fn ensure_executable(_path: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::path::Path;
     use tempfile::TempDir;
 
     #[test]
@@ -243,7 +252,7 @@ mod tests {
     fn cache_dir_ends_with_expected_suffix() {
         // The base directory depends on env vars that may be shared across
         // parallel tests, so only verify the suffix (agent-id / version).
-        let dir = cache_dir_for("my-agent", "1.2.3");
+        let dir = cache_dir_for("my-agent", "1.2.3", None);
         assert!(
             dir.ends_with("hermes/agents/my-agent/1.2.3")
                 || dir.ends_with("hermes\\agents\\my-agent\\1.2.3")
@@ -252,7 +261,7 @@ mod tests {
 
     #[test]
     fn cache_dir_includes_cmd_name() {
-        let dir = cache_dir_for("agent-x", "0.0.1");
+        let dir = cache_dir_for("agent-x", "0.0.1", None);
         assert!(
             dir.to_string_lossy().contains("agent-x"),
             "cache dir should contain agent id"
@@ -261,6 +270,17 @@ mod tests {
             dir.to_string_lossy().contains("0.0.1"),
             "cache dir should contain version"
         );
+    }
+
+    #[test]
+    fn cache_dir_override_replaces_base() {
+        let dir = cache_dir_for("my-agent", "1.2.3", Some(Path::new("/tmp/cache")));
+        let expected = Path::new("/tmp/cache")
+            .join("hermes")
+            .join("agents")
+            .join("my-agent")
+            .join("1.2.3");
+        assert_eq!(dir, expected);
     }
 
     #[test]
@@ -322,7 +342,7 @@ mod tests {
             .expect("opencode should have a 'binary' distribution");
 
         match binary_config {
-            super::super::DistributionConfig::BinaryTargets(targets) => {
+            super::super::DistributionCommand::BinaryTargets(targets) => {
                 let key = format!("{}-{}", super::current_os(), std::env::consts::ARCH);
                 assert!(
                     targets.contains_key(&key),
@@ -344,7 +364,7 @@ mod tests {
         let mut checked = 0u32;
         for (agent_id, entry) in &registry.agents {
             for (_dist, config) in &entry.distribution {
-                if let super::super::DistributionConfig::BinaryTargets(targets) = config {
+                if let super::super::DistributionCommand::BinaryTargets(targets) = config {
                     for key in targets.keys() {
                         checked += 1;
                         let parts: Vec<&str> = key.splitn(2, '-').collect();

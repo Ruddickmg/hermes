@@ -3,7 +3,7 @@ use crate::acp::connection::{Connection, stdio, tcp};
 use crate::acp::registry::distribution::Distribution;
 use crate::acp::registry::entry::AgentEntry;
 use crate::acp::registry::resolution::fetch_agent_from_registry;
-use crate::nvim::configuration::Permissions;
+use crate::nvim::configuration::{DistributionsConfig, Permissions};
 use crate::{Handler, acp::error::Error};
 use agent_client_protocol::schema::{
     ClientCapabilities, FileSystemCapabilities, Implementation, InitializeRequest, ProtocolVersion,
@@ -61,6 +61,7 @@ pub enum Assistant {
     Registered {
         agent: AgentEntry,
         distribution: Option<Distribution>,
+        configuration: DistributionsConfig,
         command: Option<String>,
         args: Option<Vec<String>>,
     },
@@ -115,6 +116,7 @@ impl Assistant {
             Assistant::Registered {
                 agent,
                 distribution,
+                configuration,
                 command,
                 args,
             } => {
@@ -122,7 +124,7 @@ impl Assistant {
                     command: registry_command,
                     args: registry_args,
                     ..
-                } = fetch_agent_from_registry(agent, *distribution).await?
+                } = fetch_agent_from_registry(agent, *distribution, configuration).await?
                 else {
                     return Err(Error::Internal(
                         "agent registry should only return CustomStdio".to_string(),
@@ -391,7 +393,7 @@ impl Drop for ConnectionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::acp::registry::{DistributionConfig, PackageDistribution};
+    use crate::acp::registry::{DistributionCommand, PackageDistribution};
     use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
@@ -569,7 +571,7 @@ mod tests {
             icon: None,
             distribution: HashMap::from([(
                 Distribution::Npx,
-                DistributionConfig::Package(PackageDistribution {
+                DistributionCommand::Package(PackageDistribution {
                     package: "test-agent".to_string(),
                     args: None,
                     env: None,
@@ -578,6 +580,7 @@ mod tests {
         };
         let assistant = Assistant::Registered {
             agent: entry,
+
             distribution: Some(Distribution::Npx),
             command: None,
             args: None,
@@ -601,6 +604,7 @@ mod tests {
         };
         let assistant = Assistant::Registered {
             agent: entry,
+            configuration: Default::default(),
             distribution: None,
             command: None,
             args: None,

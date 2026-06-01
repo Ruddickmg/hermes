@@ -185,11 +185,13 @@ impl Api {
         let agent_id = agent_name.to_string();
         let state = self.state.lock().await;
         let registry = state.registry.clone();
+        let distribution_config = state.config.distributions.clone();
         drop(state);
 
         let agent = if let Some(Some(entry)) = registry.map(|r| r.get_entry(&agent_id).cloned()) {
             Assistant::Registered {
                 agent: entry,
+                configuration: distribution_config,
                 distribution: opts.distribution,
                 command: opts.command,
                 args: opts.args,

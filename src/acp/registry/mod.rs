@@ -33,7 +33,7 @@ where
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(untagged)]
-pub enum DistributionConfig {
+pub enum DistributionCommand {
     BinaryTargets(HashMap<String, BinaryPlatformTarget>),
     Package(PackageDistribution),
 }
