@@ -7,15 +7,22 @@ use crate::acp::Result;
 use crate::acp::error::Error;
 use crate::acp::registry::BinaryPlatformTarget;
 
-/// Map the current platform (`std::env::consts::{ARCH, OS}`) to a registry
-/// platform key (e.g. `"x86_64-linux"`) and look up the corresponding
+/// Maximum response body size for agent binary downloads (500 MiB).
+/// Agent release archives (e.g. opencode ~50 MiB) are well under this limit.
+const MAX_ARCHIVE_DOWNLOAD_SIZE: u64 = 500 * 1024 * 1024;
+
+/// Map the current platform (`std::env::consts::{OS, ARCH}`) to a registry
+/// platform key (e.g. `"linux-x86_64"`) and look up the corresponding
 /// [`BinaryPlatformTarget`].
+///
+/// Keys in the registry JSON use the `{os}-{arch}` convention (e.g.
+/// `"linux-x86_64"`, `"darwin-aarch64"`) which is the format produced here.
 ///
 /// Returns `None` when no target matches the current platform.
 pub fn platform_target(
     targets: &HashMap<String, BinaryPlatformTarget>,
 ) -> Option<&BinaryPlatformTarget> {
-    let key = format!("{}-{}", std::env::consts::ARCH, current_os());
+    let key = format!("{}-{}", current_os(), std::env::consts::ARCH);
     targets.get(&key)
 }
 
@@ -68,6 +75,8 @@ pub async fn get_binary(
             .map_err(|e| Error::Network(format!("Failed to download {url}: {e}")))?;
         let data = response
             .body_mut()
+            .with_config()
+            .limit(MAX_ARCHIVE_DOWNLOAD_SIZE)
             .read_to_vec()
             .map_err(|e| Error::Network(format!("Failed to read response body: {e}")))?;
         std::fs::write(&archive_path, &data)
@@ -248,10 +257,10 @@ mod tests {
 
     #[test]
     fn platform_key_format() {
-        // Verify the platform key is built as expected.
+        // Verify the platform key is built as expected (os-arch order).
         let mut targets = HashMap::new();
         targets.insert(
-            format!("{}-{}", std::env::consts::ARCH, super::current_os()),
+            format!("{}-{}", super::current_os(), std::env::consts::ARCH),
             BinaryPlatformTarget {
                 archive: "https://example.com/agent.tar.gz".into(),
                 cmd: "agent".into(),
@@ -278,6 +287,80 @@ mod tests {
         assert!(
             result.unwrap_err().to_string().contains("Unsupported"),
             "Should mention unsupported format"
+        );
+    }
+
+    #[test]
+    fn bundled_registry_opencode_has_binary_target_for_current_platform() {
+        let json = include_str!("registry.json");
+        let registry: super::super::Registry =
+            serde_json::from_str(json).expect("Bundled registry should parse");
+
+        let opencode = registry
+            .agents
+            .get("opencode")
+            .expect("Bundled registry should contain 'opencode'");
+
+        let binary_config = opencode
+            .distribution
+            .iter()
+            .find_map(|(dist, config)| {
+                if matches!(dist, super::super::distribution::Distribution::Binary) {
+                    Some(config)
+                } else {
+                    None
+                }
+            })
+            .expect("opencode should have a 'binary' distribution");
+
+        match binary_config {
+            super::super::DistributionConfig::BinaryTargets(targets) => {
+                let key = format!("{}-{}", super::current_os(), std::env::consts::ARCH);
+                assert!(
+                    targets.contains_key(&key),
+                    "opencode bundled registry should have a binary target \
+                     for current platform ({key}). Available keys: {:?}",
+                    targets.keys().collect::<Vec<_>>()
+                );
+            }
+            _ => panic!("opencode distribution should be BinaryTargets"),
+        }
+    }
+
+    #[test]
+    fn bundled_registry_all_binary_keys_follow_os_arch_format() {
+        let json = include_str!("registry.json");
+        let registry: super::super::Registry =
+            serde_json::from_str(json).expect("Bundled registry should parse");
+
+        let mut checked = 0u32;
+        for (agent_id, entry) in &registry.agents {
+            for (_dist, config) in &entry.distribution {
+                if let super::super::DistributionConfig::BinaryTargets(targets) = config {
+                    for key in targets.keys() {
+                        checked += 1;
+                        let parts: Vec<&str> = key.splitn(2, '-').collect();
+                        assert_eq!(
+                            parts.len(),
+                            2,
+                            "Agent '{agent_id}' binary target key '{key}' \
+                             must be in '{{os}}-{{arch}}' format"
+                        );
+                        assert!(
+                            !parts[0].is_empty(),
+                            "Agent '{agent_id}' binary target key '{key}' has empty os part"
+                        );
+                        assert!(
+                            !parts[1].is_empty(),
+                            "Agent '{agent_id}' binary target key '{key}' has empty arch part"
+                        );
+                    }
+                }
+            }
+        }
+        assert!(
+            checked > 3,
+            "Should have checked multiple binary target keys (checked: {checked})"
         );
     }
 }
