@@ -161,6 +161,7 @@ Shows current Hermes configuration settings.
 ## Features
 
 - [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
+- [x] Support for all registered ACP Agents ([Full list here]())
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
 
@@ -275,16 +276,11 @@ hermes.agents({
 
 This method allows you to connect to an agent, it takes the agent name and the protocol for the connection (defaults to `stdio`).
 
-supported agents:
-- opencode
-- copilot
-- gemini
-
 ```lua
 local hermes = require("hermes")
 
 -- connect to pre-defined agent
-hermes.connect("copilot")
+hermes.connect("github-copilot-cli")
 
 -- configure protocol
 hermes.connect("opencode", {

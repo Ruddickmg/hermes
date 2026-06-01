@@ -191,6 +191,8 @@ impl Api {
             Assistant::Registered {
                 agent: entry,
                 distribution: opts.distribution,
+                command: opts.command,
+                args: opts.args,
             }
         } else {
             opts.clone().into_assistant(agent_id)?

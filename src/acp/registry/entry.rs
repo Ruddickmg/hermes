@@ -18,11 +18,7 @@ pub struct AgentEntry {
 
 impl AgentEntry {
     pub fn distributions(&self) -> Vec<Distribution> {
-        self.distribution
-            .keys()
-            .cloned()
-            .map(Distribution::from)
-            .collect()
+        self.distribution.keys().cloned().collect()
     }
 
     pub fn get_distribution(&self, distribution: &Distribution) -> Option<&DistributionConfig> {

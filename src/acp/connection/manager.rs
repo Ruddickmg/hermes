@@ -61,6 +61,8 @@ pub enum Assistant {
     Registered {
         agent: AgentEntry,
         distribution: Option<Distribution>,
+        command: Option<String>,
+        args: Option<Vec<String>>,
     },
     CustomStdio {
         name: String,
@@ -85,6 +87,7 @@ impl std::fmt::Display for Assistant {
             Assistant::Registered {
                 agent,
                 distribution,
+                ..
             } => {
                 if let Some(dist) = distribution {
                     write!(f, "{} ({})", agent.name, dist)
@@ -112,16 +115,21 @@ impl Assistant {
             Assistant::Registered {
                 agent,
                 distribution,
+                command,
+                args,
             } => {
-                let Assistant::CustomStdio { command, args, .. } =
-                    fetch_agent_from_registry(agent, *distribution).await?
+                let Assistant::CustomStdio {
+                    command: registry_command,
+                    args: registry_args,
+                    ..
+                } = fetch_agent_from_registry(agent, *distribution).await?
                 else {
                     return Err(Error::Internal(
                         "agent registry should only return CustomStdio".to_string(),
                     ));
                 };
-                owned_command = command;
-                owned_args = args;
+                owned_command = command.clone().unwrap_or(registry_command);
+                owned_args = args.clone().unwrap_or(registry_args);
                 (
                     owned_command.as_str(),
                     owned_args.iter().map(|s| s.as_str()).collect(),
