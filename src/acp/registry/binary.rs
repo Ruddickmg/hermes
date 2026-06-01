@@ -65,7 +65,15 @@ pub async fn get_binary(
         std::fs::create_dir_all(&cache_dir)
             .map_err(|e| Error::Network(format!("Failed to create cache dir: {e}")))?;
 
-        let archive_path = cache_dir.join("archive.tmp");
+        let archive_name = url
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(&url)
+            .rsplit('/')
+            .next()
+            .unwrap_or("archive")
+            .to_string();
+        let archive_path = cache_dir.join(&archive_name);
 
         info!("Downloading binary for {}", agent_id);
 
