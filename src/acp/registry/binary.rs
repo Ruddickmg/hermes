@@ -189,9 +189,18 @@ fn extract_tar_gz(archive_path: &Path, dest: &Path) -> Result<()> {
 fn extract_tar(archive_path: &Path, dest: &Path) -> Result<()> {
     let file = std::fs::File::open(archive_path).map_err(|e| Error::Network(format!("{e}")))?;
     let mut archive = tar::Archive::new(file);
-    archive
-        .unpack(dest)
-        .map_err(|e| Error::Network(format!("Failed to extract tar archive: {e}")))
+
+    for entry in archive
+        .entries()
+        .map_err(|e| Error::Network(format!("Failed to read tar entries: {e}")))?
+    {
+        let mut entry = entry.map_err(|e| Error::Network(format!("Failed to read tar entry: {e}")))?;
+        entry
+            .unpack_in(dest)
+            .map_err(|e| Error::Network(format!("Failed to extract tar archive: {e}")))?;
+    }
+
+    Ok(())
 }
 
 fn extract_zip(archive_path: &Path, dest: &Path) -> Result<()> {

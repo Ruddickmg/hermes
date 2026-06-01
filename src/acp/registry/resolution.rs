@@ -31,22 +31,30 @@ pub async fn fetch_agent_from_registry(
     if let Some(pref) = preference {
         if !pref.is_enabled(distributions_config) {
             return Err(Error::InvalidInput(format!(
-                "Distibution '{}' was selected but is disabled",
+                "Distribution '{}' was selected but is disabled",
                 pref
             )));
         }
     }
 
-    let considered_distributions: Vec<Distribution> = preference
+    let mut considered_distributions: Vec<Distribution> = preference
         .map(|p| vec![p])
-        .unwrap_or_else(|| entry.distributions())
-        .into_iter()
-        .filter(|distribution| entry.has_distribution(distribution))
-        .collect();
+        .unwrap_or_else(|| entry.distributions());
+    considered_distributions.retain(|distribution| entry.has_distribution(distribution));
+
+    // Ensure deterministic auto-selection order when no explicit preference is provided.
+    if preference.is_none() {
+        considered_distributions.sort_by_key(|d| match d {
+            Distribution::Npx => 0,
+            Distribution::Uvx => 1,
+            Distribution::Binary => 2,
+            Distribution::Invalid => 3,
+        });
+    }
 
     let candidates: Vec<Distribution> = considered_distributions
-        .clone()
-        .into_iter()
+        .iter()
+        .copied()
         .filter(|distribution| distribution.is_enabled(distributions_config))
         .collect();
 

@@ -25,7 +25,7 @@ impl nvim_oxi::conversion::FromObject for AgentsConfig {
             return Ok(Self::default());
         }
 
-        let dict: nvim_oxi::Dictionary = obj.try_into()?;
+        let dict: nvim_oxi::Dictionary = crate::nvim::configuration::dict_from_object(obj)?;
 
         let update: Option<bool> = dict
             .get("update")

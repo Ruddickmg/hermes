@@ -295,11 +295,11 @@ hermes.connect("opencode", {
   protocol = "http",
 })
 
--- configure distrubution
+-- configure distribution
 hermes.connect("kilo", {
-    -- some agents have multiple different distributions, in those cases you may specify which you want to use
-   distrubution = "binary" -- (binary, npx, and/or uvx)
-});
+  -- Some agents have multiple different distributions; you can specify which to use.
+  distribution = "binary", -- "binary", "npx", and/or "uvx"
+})
 
 -- connect to custom agent (not pre-defined)
 hermes.connect(
@@ -1193,17 +1193,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td>List of available agents</td>
       <td>⚡ <a href="#agents">agents()</a></td>
       <td><pre><code class="language-json">{
-  "agents": {
-    "id": "string",
-    "name": "string",
-    "version": "string",
-    "license": "string",
-    "description": "string",
-    "website": "url string",
-    "repository": "url string",
-    "icon": "url string",
-    "distributions": ["binary", "npx", "uvx"]
-  }
+  "agents": [
+    {
+      "id": "string",
+      "name": "string",
+      "version": "string",
+      "license": "string",
+      "description": "string",
+      "website": "url string",
+      "repository": "url string",
+      "icon": "url string",
+      "distributions": ["binary", "npx", "uvx"]
+    }
+  ]
 }</code></pre></td>
     </tr>
     <tr>

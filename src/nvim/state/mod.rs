@@ -31,8 +31,8 @@ impl PluginState {
     pub fn with_storage_path(mut self, storage_path: PathBuf) -> Result<Self> {
         let history_path = storage_path.join("history");
         self.agent_info.set_history(history_path)?;
-        let binary_path = format!("{}/binaries", storage_path.display());
-        self.config.distributions.binary.path = binary_path;
+        let binary_path = storage_path.join("binaries");
+        self.config.distributions.binary.path = binary_path.to_string_lossy().to_string();
         Ok(self)
     }
 
