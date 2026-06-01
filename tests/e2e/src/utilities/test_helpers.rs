@@ -7,7 +7,7 @@ use crate::{
 use agent_client_protocol::schema::{InitializeResponse, NewSessionResponse};
 use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs},
-    nvim::{autocommands::Commands, hermes},
+    nvim::{api::connect::ConnectionOptions, autocommands::Commands, hermes},
 };
 use nvim_oxi::lua::Pushable;
 use nvim_oxi::{Dictionary, Function, conversion::FromObject};
@@ -48,12 +48,7 @@ pub fn setup_mock_agent() -> Result<MockAgentSetup, nvim_oxi::Error> {
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     // Wait for initialization
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
@@ -65,6 +60,26 @@ pub fn setup_mock_agent() -> Result<MockAgentSetup, nvim_oxi::Error> {
         disconnect,
         create_session,
     })
+}
+
+/// Connect to a mock agent, converting Dictionary options to ConnectionOptions
+pub fn connect_to_mock_agent(
+    connect: &Function<ConnectionArgs, ()>,
+    mock_handle: &MockAgentHandle,
+) -> Result<(), nvim_oxi::Error> {
+    let mut options = Dictionary::new();
+    options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+    let connection_options: ConnectionOptions =
+        FromObject::from_object(nvim_oxi::Object::from(options))
+            .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))?;
+    connect
+        .call((
+            nvim_oxi::String::from("mock-agent"),
+            Some(connection_options),
+        ))
+        .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))
 }
 
 /// Setup result containing session-related resources

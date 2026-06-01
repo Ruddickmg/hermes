@@ -4,6 +4,7 @@ use crate::{
         autocommand,
         mock_agent::MockAgent,
         mock_config::{MockConfig, create_test_permission_request},
+        test_helpers::connect_to_mock_agent,
     },
 };
 use agent_client_protocol::schema::{
@@ -69,12 +70,7 @@ fn test_permission_request_fires_with_mock_agent() -> Result<(), nvim_oxi::Error
         autocommand::listen_for_autocommand::<PermissionRequestData>(Commands::PermissionRequest);
 
     // 2. Connect to mock agent via socket protocol
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     let init_response = wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     info!("Mock agent initialized: {:?}", init_response);

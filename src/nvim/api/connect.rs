@@ -3,110 +3,210 @@ use crate::{
         Result,
         connection::{Assistant, ConnectionDetails, Protocol},
         error::Error,
+        registry::distribution::Distribution,
     },
     api::Api,
+    nvim::configuration::dict_from_object,
 };
-use nvim_oxi::{Dictionary, ObjectKind};
+use nvim_oxi::{
+    Dictionary, Object, ObjectKind,
+    conversion::FromObject,
+    lua::{self, Error as LuaError, Poppable, Pushable},
+};
+use tracing::error;
 
-pub type ConnectionArgs = (nvim_oxi::String, Option<Dictionary>);
-
-pub fn parse_agent_connection(
-    name: String,
+#[derive(Clone, Debug, Default)]
+pub struct ConnectionOptions {
     protocol: Protocol,
-    options: Option<Dictionary>,
-) -> Result<Assistant> {
-    if let Some(dict) = options {
-        Ok(match protocol {
-            Protocol::Stdio => {
-                if let (Some(command), args) = (dict.get("command"), dict.get("args")) {
-                    let command_str: nvim_oxi::String = command.clone().try_into()?;
-                    let args_arr: nvim_oxi::Array = match args {
-                        Some(a) => {
-                            if a.kind() == ObjectKind::Array {
-                                unsafe { a.clone().into_array_unchecked() }
-                            } else {
-                                return Err(Error::InvalidInput(
-                                    "Expected 'args' to be an array of strings".into(),
-                                ));
-                            }
-                        }
-                        None => nvim_oxi::Array::default(),
-                    };
-                    let parsed_args: Vec<String> = args_arr
-                        .into_iter()
-                        .map(|v| {
-                            v.try_into()
-                                .map_err(|e| {
-                                    Error::InvalidInput(format!(
-                                        "Error occurred parsing stdio arguments: {:?}",
-                                        e
-                                    ))
-                                })
-                                .map(|s: nvim_oxi::String| s.to_string())
-                        })
-                        .collect::<Result<Vec<String>>>()?;
-                    if command_str.is_empty() {
+    distribution: Option<Distribution>,
+    command: Option<String>,
+    args: Option<Vec<String>>,
+    host: Option<String>,
+    port: Option<u16>,
+}
+
+impl ConnectionOptions {
+    fn into_assistant(self, name: String) -> Result<Assistant> {
+        match self.protocol {
+            Protocol::Stdio => match self.command {
+                Some(command) => {
+                    if command.is_empty() {
                         return Err(Error::InvalidInput(
                             "Command cannot be empty for custom stdio connections".into(),
                         ));
                     }
-                    Assistant::CustomStdio {
+                    Ok(Assistant::CustomStdio {
                         name,
-                        command: command_str.to_string(),
-                        args: parsed_args,
+                        command,
+                        args: self.args.unwrap_or_default(),
+                    })
+                }
+                None => {
+                    let assistant = Assistant::from(name);
+                    if matches!(assistant, Assistant::CustomStdio { .. }) {
+                        return Err(Error::InvalidInput(
+                            "Custom stdio connections require options with a 'command' field"
+                                .into(),
+                        ));
                     }
-                } else {
-                    Assistant::from(name.clone())
+                    Ok(assistant)
+                }
+            },
+            _ => match (self.host, self.port) {
+                (Some(host), Some(port)) => Ok(Assistant::CustomUrl { name, host, port }),
+                _ => Err(Error::InvalidInput(format!(
+                    "Host and port must be provided for {} connections",
+                    self.protocol
+                ))),
+            },
+        }
+    }
+}
+
+impl FromObject for ConnectionOptions {
+    fn from_object(obj: Object) -> std::result::Result<Self, nvim_oxi::conversion::Error> {
+        if obj.is_nil() {
+            return Ok(Self::default());
+        }
+
+        let dict = dict_from_object(obj)?;
+
+        let protocol: Protocol = dict
+            .get("protocol")
+            .and_then(|o| {
+                o.clone()
+                    .try_into()
+                    .ok()
+                    .map(|s: nvim_oxi::String| Protocol::from(s.to_string()))
+            })
+            .unwrap_or_default();
+
+        let distribution: Option<Distribution> = match dict.get("distribution") {
+            Some(obj) => {
+                let s: nvim_oxi::String = obj.clone().try_into().map_err(|_| {
+                    nvim_oxi::conversion::Error::FromWrongType {
+                        expected: "string",
+                        actual: obj.kind().as_static(),
+                    }
+                })?;
+                let lower = s.to_string().to_lowercase();
+                match Distribution::from(lower) {
+                    Distribution::Invalid => {
+                        return Err(nvim_oxi::conversion::Error::FromWrongType {
+                            expected: "one of: npx, uvx, binary",
+                            actual: obj.kind().as_static(),
+                        });
+                    }
+                    valid => Some(valid),
                 }
             }
-            _ => {
-                if let (Some(host), Some(port)) = (dict.get("host"), dict.get("port")) {
-                    let host_value: nvim_oxi::String = host.clone().try_into()?;
-                    let port_value: u16 = port.clone().try_into()?;
-                    Assistant::CustomUrl {
-                        name,
-                        host: host_value.to_string(),
-                        port: port_value,
-                    }
-                } else {
-                    return Err(Error::InvalidInput(format!(
-                        "Host and port must be provided for {} connections",
-                        protocol
-                    )));
-                }
+            None => None,
+        };
+
+        let command: Option<String> = dict.get("command").and_then(|o| {
+            o.clone()
+                .try_into()
+                .ok()
+                .map(|s: nvim_oxi::String| s.to_string())
+        });
+
+        let args: Option<Vec<String>> = dict.get("args").and_then(|o| {
+            if o.kind() == ObjectKind::Array {
+                let arr: nvim_oxi::Array = unsafe { o.clone().into_array_unchecked() };
+                Some(
+                    arr.into_iter()
+                        .filter_map(|v| v.try_into().ok().map(|s: nvim_oxi::String| s.to_string()))
+                        .collect(),
+                )
+            } else {
+                None
             }
-        })
-    } else {
-        Ok(match Assistant::from(name) {
-            Assistant::CustomStdio { .. } => {
-                return Err(Error::InvalidInput(
-                    "Custom stdio connections require options with a 'command' field".into(),
-                ));
-            }
-            assistant => assistant,
+        });
+
+        let host: Option<String> = dict.get("host").and_then(|o| {
+            o.clone()
+                .try_into()
+                .ok()
+                .map(|s: nvim_oxi::String| s.to_string())
+        });
+
+        let port: Option<u16> = dict.get("port").and_then(|o| o.clone().try_into().ok());
+
+        Ok(Self {
+            protocol,
+            distribution,
+            command,
+            args,
+            host,
+            port,
         })
     }
 }
 
+impl Poppable for ConnectionOptions {
+    unsafe fn pop(lua_state: *mut lua::ffi::State) -> std::result::Result<Self, LuaError> {
+        let obj = unsafe { Object::pop(lua_state)? };
+        Ok(Self::from_object(obj)
+            .inspect_err(|e| error!("Error occurred while parsing connection options: {:?}", e))
+            .unwrap_or_default())
+    }
+}
+
+impl Pushable for ConnectionOptions {
+    unsafe fn push(self, lua_state: *mut lua::ffi::State) -> std::result::Result<i32, LuaError> {
+        let mut dict = Dictionary::new();
+        dict.insert("protocol", self.protocol.to_string());
+        if let Some(distribution) = self.distribution {
+            dict.insert("distribution", distribution.to_string());
+        }
+        if let Some(command) = self.command {
+            dict.insert("command", command);
+        }
+        if let Some(args) = self.args {
+            let arr: nvim_oxi::Array = args.into_iter().collect();
+            dict.insert("args", arr);
+        }
+        if let Some(host) = self.host {
+            dict.insert("host", host);
+        }
+        if let Some(port) = self.port {
+            dict.insert("port", port);
+        }
+        unsafe { Object::from(dict).push(lua_state) }
+    }
+}
+
+pub type ConnectionArgs = (nvim_oxi::String, Option<ConnectionOptions>);
+
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn connect(&mut self, (agent_name, options): ConnectionArgs) -> Result<()> {
-        let mut protocol = Protocol::default();
-        if let Some(ref dict) = options
-            && let Some(obj) = dict.get("protocol")
-        {
-            protocol = obj
-                .clone()
-                .try_into()
-                .map(|s: nvim_oxi::String| Protocol::from(s.to_string()))?;
-        }
-        let agent_name_str = agent_name.to_string();
-        let agent = parse_agent_connection(agent_name_str, protocol, options)?;
+        let opts = options.unwrap_or_default();
+        let agent_id = agent_name.to_string();
+        let state = self.state.lock().await;
+        let registry = state.registry.clone();
+        let distribution_config = state.config.distributions.clone();
+        drop(state);
+
+        let agent = if let Some(Some(entry)) = registry.map(|r| r.get_entry(&agent_id).cloned()) {
+            Assistant::Registered {
+                agent: entry,
+                configuration: distribution_config,
+                distribution: opts.distribution,
+                command: opts.command,
+                args: opts.args,
+            }
+        } else {
+            opts.clone().into_assistant(agent_id)?
+        };
 
         self.connection
             .connect(
                 self.response_handler.clone(),
-                ConnectionDetails { agent, protocol },
+                ConnectionDetails {
+                    agent,
+                    protocol: opts.protocol,
+                },
             )
             .await?;
         Ok(())
@@ -179,16 +279,29 @@ mod tests {
         assert!(matches!(assistant, Assistant::CustomStdio { name, .. } if name == "custom-agent"));
     }
 
-    // Tests for parse_agent_connection function
+    // Tests for ConnectionOptions into_assistant
     #[test]
-    fn test_parse_agent_connection_stdio_with_command() {
-        let mut dict = Dictionary::new();
-        dict.insert("command", "my-agent");
-        dict.insert("args", nvim_oxi::Array::from_iter(["arg1", "arg2"]));
+    fn connection_options_into_assistant_copilot() {
+        let opts = ConnectionOptions::default();
+        let result = opts.into_assistant("copilot".to_string());
+        assert!(matches!(result.unwrap(), Assistant::Copilot));
+    }
 
-        let result = parse_agent_connection("test-agent".to_string(), Protocol::Stdio, Some(dict));
-        assert!(result.is_ok());
+    #[test]
+    fn connection_options_into_assistant_opencode() {
+        let opts = ConnectionOptions::default();
+        let result = opts.into_assistant("opencode".to_string());
+        assert!(matches!(result.unwrap(), Assistant::Opencode));
+    }
 
+    #[test]
+    fn connection_options_into_assistant_custom_stdio() {
+        let opts = ConnectionOptions {
+            command: Some("my-agent".to_string()),
+            args: Some(vec!["arg1".to_string(), "arg2".to_string()]),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("test-agent".to_string());
         let assistant = result.unwrap();
         assert!(
             matches!(assistant, Assistant::CustomStdio { name, command, args } 
@@ -197,30 +310,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_agent_connection_stdio_without_options() {
-        let result = parse_agent_connection("copilot".to_string(), Protocol::Stdio, None);
-        assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), Assistant::Copilot));
-    }
-
-    #[test]
-    fn test_parse_agent_connection_stdio_without_command() {
-        let dict = Dictionary::new();
-        let result = parse_agent_connection("opencode".to_string(), Protocol::Stdio, Some(dict));
-        assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), Assistant::Opencode));
-    }
-
-    #[test]
-    fn test_parse_agent_connection_socket_with_host_port() {
-        let mut dict = Dictionary::new();
-        dict.insert("host", "localhost");
-        dict.insert("port", 8080i64);
-
-        let result =
-            parse_agent_connection("socket-agent".to_string(), Protocol::Socket, Some(dict));
-        assert!(result.is_ok());
-
+    fn connection_options_into_assistant_socket_with_host_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Socket,
+            host: Some("localhost".to_string()),
+            port: Some(8080),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("socket-agent".to_string());
         let assistant = result.unwrap();
         assert!(
             matches!(assistant, Assistant::CustomUrl { name, host, port } 
@@ -229,14 +326,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_agent_connection_http_with_host_port() {
-        let mut dict = Dictionary::new();
-        dict.insert("host", "api.example.com");
-        dict.insert("port", 443i64);
-
-        let result = parse_agent_connection("http-agent".to_string(), Protocol::Http, Some(dict));
-        assert!(result.is_ok());
-
+    fn connection_options_into_assistant_http_with_host_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Http,
+            host: Some("api.example.com".to_string()),
+            port: Some(443),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("http-agent".to_string());
         let assistant = result.unwrap();
         assert!(
             matches!(assistant, Assistant::CustomUrl { name: _, host, port } 
@@ -245,21 +342,40 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_agent_connection_socket_missing_host() {
-        let mut dict = Dictionary::new();
-        dict.insert("port", 8080i64);
-
-        let result =
-            parse_agent_connection("socket-agent".to_string(), Protocol::Socket, Some(dict));
+    fn connection_options_into_assistant_socket_missing_host() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Socket,
+            port: Some(8080),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("socket-agent".to_string());
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_parse_agent_connection_socket_missing_port() {
-        let mut dict = Dictionary::new();
-        dict.insert("host", "localhost");
+    fn connection_options_into_assistant_tcp_with_host_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Tcp,
+            host: Some("tcp.example.com".to_string()),
+            port: Some(9090),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("tcp-agent".to_string());
+        let assistant = result.unwrap();
+        assert!(
+            matches!(assistant, Assistant::CustomUrl { name, host, port } 
+            if name == "tcp-agent" && host == "tcp.example.com" && port == 9090)
+        );
+    }
 
-        let result = parse_agent_connection("socket-agent".to_string(), Protocol::Tcp, Some(dict));
+    #[test]
+    fn connection_options_into_assistant_socket_missing_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Tcp,
+            host: Some("localhost".to_string()),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("tcp-agent".to_string());
         assert!(result.is_err());
         assert!(
             result
@@ -270,11 +386,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_agent_connection_stdio_empty_command() {
-        let mut dict = Dictionary::new();
-        dict.insert("command", "");
-
-        let result = parse_agent_connection("test-agent".to_string(), Protocol::Stdio, Some(dict));
+    fn connection_options_into_assistant_empty_command() {
+        let opts = ConnectionOptions {
+            command: Some(String::new()),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("test-agent".to_string());
         assert!(result.is_err());
         assert!(
             result
@@ -285,19 +402,123 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_agent_connection_stdio_invalid_args_type() {
-        let mut dict = Dictionary::new();
-        dict.insert("command", "my-agent");
-        dict.insert("args", "not-an-array");
-
-        let result = parse_agent_connection("test-agent".to_string(), Protocol::Stdio, Some(dict));
+    fn connection_options_into_assistant_custom_stdio_without_command() {
+        let opts = ConnectionOptions::default();
+        let result = opts.into_assistant("custom-agent".to_string());
         assert!(result.is_err());
         assert!(
             result
                 .unwrap_err()
                 .to_string()
-                .contains("Expected 'args' to be an array")
+                .contains("require options with a 'command' field")
         );
+    }
+
+    // Tests for ConnectionOptions FromObject
+    #[test]
+    fn connection_options_from_object_nil() {
+        let result = ConnectionOptions::from_object(Object::nil());
+        assert!(result.unwrap().protocol == Protocol::Stdio);
+    }
+
+    #[test]
+    fn connection_options_from_object_protocol() {
+        let mut dict = Dictionary::new();
+        dict.insert("protocol", "socket");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().protocol, Protocol::Socket);
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_npx() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "npx");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().distribution, Some(Distribution::Npx));
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_uvx() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "uvx");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().distribution, Some(Distribution::Uvx));
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_binary() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "binary");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().distribution, Some(Distribution::Binary));
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_case_insensitive() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "NPX");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().distribution, Some(Distribution::Npx));
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_missing() {
+        let dict = Dictionary::new();
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert!(result.unwrap().distribution.is_none());
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_invalid() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", "bad");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn connection_options_from_object_distribution_non_string() {
+        let mut dict = Dictionary::new();
+        dict.insert("distribution", 42i64);
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn connection_options_from_object_with_command_and_args() {
+        let mut dict = Dictionary::new();
+        dict.insert("command", "my-agent");
+        dict.insert("args", nvim_oxi::Array::from_iter(["arg1", "arg2"]));
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        let opts = result.unwrap();
+        assert_eq!(opts.command.as_deref(), Some("my-agent"));
+    }
+
+    #[test]
+    fn connection_options_from_object_args_non_array_sets_args_to_none() {
+        let mut dict = Dictionary::new();
+        dict.insert("command", "my-agent");
+        dict.insert("args", "not-an-array");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        let opts = result.unwrap();
+        assert!(opts.args.is_none());
+    }
+
+    #[test]
+    fn connection_options_from_object_with_host_port() {
+        let mut dict = Dictionary::new();
+        dict.insert("host", "localhost");
+        dict.insert("port", 8080i64);
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        let opts = result.unwrap();
+        assert_eq!(opts.host.as_deref(), Some("localhost"));
+    }
+
+    #[test]
+    fn connection_options_from_object_protocol_defaults_to_stdio() {
+        let dict = Dictionary::new();
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().protocol, Protocol::Stdio);
     }
 
     // Tests for Protocol parsing
@@ -373,16 +594,5 @@ mod tests {
             let protocol = Protocol::from(variant.as_str());
             prop_assert!(matches!(protocol, Protocol::Http));
         }
-    }
-
-    // Integration-style tests for the connect function
-    // Note: These would require mocking the ConnectionManager in integration tests
-    #[test]
-    fn test_connection_args_type() {
-        // Verify the ConnectionArgs type is correctly defined
-        let _: ConnectionArgs = (nvim_oxi::String::from("copilot"), None);
-        let mut dict = Dictionary::new();
-        dict.insert("protocol", "socket");
-        let _: ConnectionArgs = (nvim_oxi::String::from("test"), Some(dict));
     }
 }

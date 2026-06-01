@@ -45,11 +45,22 @@ workflows:
   ci_cd:
     jobs:
       - check_formatting
-      - lua_tests
-      - check_license
-      - integration_tests
-      - unit_tests
-      - e2e_tests
+      - lua_tests:
+          requires:
+            - fetch-registry
+      - check_license:
+          requires:
+            - fetch-registry
+      - fetch-registry
+      - integration_tests:
+          requires:
+            - fetch-registry
+      - unit_tests:
+          requires:
+            - fetch-registry
+      - e2e_tests:
+          requires:
+            - fetch-registry
       - update-cargo-version:
           filters:
             branches:
@@ -57,20 +68,50 @@ workflows:
                 - main
                 - development
       - build-windows-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
+            - fetch-registry
       - build-linux-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
+            - fetch-registry
       - build-linux-aarch64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
+            - fetch-registry
       - build-mac-aarch64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
+            - fetch-registry
       - build-mac-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
+            - fetch-registry
 
       - release:
           filters:
@@ -148,12 +189,29 @@ jobs:
     executor: rust-linux-x86_64
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - run:
           name: Install cargo-deny
           command: cargo install --locked cargo-deny
       - run:
           name: Check for license
           command: cargo deny check licenses
+
+  fetch-registry:
+    executor: rust-linux-x86_64
+    steps:
+      - checkout
+      - run:
+          name: Download ACP Agent Registry
+          command: |
+            mkdir -p src/acp/registry
+            curl -fsSL https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json \
+              -o src/acp/registry/registry.json
+      - persist_to_workspace:
+          root: .
+          paths:
+            - src/acp/registry/registry.json
 
   build-linux-x86_64:
     executor: rust-linux-x86_64
@@ -295,6 +353,8 @@ jobs:
     executor: ubuntu
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - rust/install
       - run:
           name: Install coverage tool
@@ -319,6 +379,8 @@ jobs:
     executor: ubuntu
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - rust/install
       - run:
           name: Install Neovim from tarball
@@ -351,6 +413,8 @@ jobs:
     executor: ubuntu
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - rust/install
       - run:
           name: Install Neovim from tarball
@@ -389,6 +453,8 @@ jobs:
     executor: ubuntu
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - rust/install
       - run:
           name: Install Neovim from tarball

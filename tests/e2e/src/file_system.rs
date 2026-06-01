@@ -3,7 +3,10 @@ use std::time::Duration;
 
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent, mock_config::MockConfig},
+    utilities::{
+        autocommand, mock_agent::MockAgent, mock_config::MockConfig,
+        test_helpers::connect_to_mock_agent,
+    },
 };
 use agent_client_protocol::schema::{
     InitializeResponse, NewSessionResponse, PromptResponse, ReadTextFileRequest, SessionId,
@@ -86,12 +89,7 @@ fn test_read_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<ReadTextFileData>(Commands::ReadTextFile);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -162,12 +160,7 @@ fn test_write_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<WriteTextFileData>(Commands::WriteTextFile);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -237,12 +230,7 @@ fn test_write_file_default_handler_writes_to_disk() -> Result<(), nvim_oxi::Erro
     // so Hermes uses the default handler which writes the file to disk
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -308,12 +296,7 @@ fn test_read_file_default_handler_reads_from_disk() -> Result<(), nvim_oxi::Erro
     // so Hermes uses the default handler which reads the file from disk
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;

@@ -1,4 +1,5 @@
 use crate::acp::Result;
+use crate::acp::registry::Registry;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -17,6 +18,7 @@ pub struct PluginState {
     pub prompt: HashMap<String, String>,
     pub agent_info: AgentInfo,
     pub session_info: HashMap<String, SessionDetails>,
+    pub registry: Option<Registry>,
 }
 
 impl PluginState {
@@ -29,7 +31,15 @@ impl PluginState {
     pub fn with_storage_path(mut self, storage_path: PathBuf) -> Result<Self> {
         let history_path = storage_path.join("history");
         self.agent_info.set_history(history_path)?;
+        let binary_path = storage_path.join("binaries");
+        self.config.distributions.binary.path = binary_path.to_string_lossy().to_string();
         Ok(self)
+    }
+
+    #[instrument(level = "trace")]
+    pub fn with_registry(mut self, registry: Option<Registry>) -> Self {
+        self.registry = registry;
+        self
     }
 
     #[instrument(level = "trace")]
@@ -56,6 +66,7 @@ impl PluginState {
             prompt: HashMap::new(),
             session_info: HashMap::new(),
             agent_info: AgentInfo::default(),
+            registry: None,
         }
     }
 
@@ -178,5 +189,24 @@ mod tests {
             .agent_info
             .history
             .write_keyed("agent/session.jsonl", "test");
+    }
+
+    #[test]
+    fn new_plugin_state_registry_is_none() {
+        let state = PluginState::new();
+        assert!(state.registry.is_none());
+    }
+
+    #[test]
+    fn with_registry_none_leaves_registry_unset() {
+        let state = PluginState::new().with_registry(None);
+        assert!(state.registry.is_none());
+    }
+
+    #[test]
+    fn with_registry_sets_bundled_registry() {
+        let registry = Registry::bundled().cloned();
+        let state = PluginState::new().with_registry(registry.clone());
+        assert_eq!(state.registry, registry);
     }
 }

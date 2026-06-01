@@ -13,6 +13,11 @@ Hermes focuses on:
 
 ## Installation
 
+**vim.pack** (v0.12+)
+```lua
+vim.pack.add({ "Ruddickmg/hermes.nvim" })
+```
+
 **lazy.nvim**
 ```lua
 {
@@ -156,6 +161,7 @@ Shows current Hermes configuration settings.
 ## Features
 
 - [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
+- [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
 
@@ -199,6 +205,14 @@ hermes.setup({
     request_permissions = true,  -- Allow agent to send permission requests 
     send_notifications = true,  -- Allow the agent to send notifications 
   },
+  distributions = { -- path to distributions
+    uvx = true, -- allows installing agents via UVX
+    npx = true, -- allows installing agents via NPX
+    binary = { -- configuration for binary behavior
+      path = vim.fn.stdpath('state') .. "/nvim/hermes/binaries", -- path where binaries will be downloaded to
+      enabled = true, -- allows installing agents via binary
+    },
+  },
   terminal = {
     delete = true,    -- Auto-delete terminals on exit
     enabled = true,    -- Enable terminal functionality
@@ -232,7 +246,7 @@ hermes.setup({
     file = {
       level = vim.log.levels.OFF or "off",
       format = "json",
-      path = vim.fn.stdpath('state') .. "/nvim/hermes/", -- path to log file(s)
+      path = vim.fn.stdpath('state') .. "/nvim/hermes/logs", -- path to log file(s)
       name = "hermes.log", -- name of log file
       max_size = 10485760, -- 10mb in bytes
       max_files = 5, -- Max log files to generate
@@ -247,24 +261,44 @@ hermes.setup({
 > - Multiple `setup()` calls merge configurations - only specified fields are updated
 > - All unspecified fields preserve their existing values
 
+### Agents
+
+This method returns a list of available agents to choose from.
+
+```lua
+local hermes = require("hermes")
+
+-- get list of agents
+hermes.agents()
+
+-- example with config options
+hermes.agents({
+  update = true, -- pull down the most up to date list from the ACP registry
+  url = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json", -- URL to pull ACP registry from
+})
+```
+
+> **Triggers:** [AgentList](#agentslist) autocommand upon completion.
+
 ### Connect
 
 This method allows you to connect to an agent, it takes the agent name and the protocol for the connection (defaults to `stdio`).
-
-supported agents:
-- opencode
-- copilot
-- gemini
 
 ```lua
 local hermes = require("hermes")
 
 -- connect to pre-defined agent
-hermes.connect("copilot")
+hermes.connect("github-copilot-cli")
 
 -- configure protocol
 hermes.connect("opencode", {
   protocol = "http",
+})
+
+-- configure distribution
+hermes.connect("kilo", {
+  -- Some agents have multiple different distributions; you can specify which to use.
+  distribution = "binary", -- "binary", "npx", and/or "uvx"
 })
 
 -- connect to custom agent (not pre-defined)
@@ -286,6 +320,19 @@ hermes.connect(
     port = 8080,
   }
 )
+
+--example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "AgentList",
+  callback = function(args)
+    local agent = table.remove(args.data.agents) -- select auth method id somehow
+
+    hermes.connect(agent.id, {
+      distribution = table.remove(agent.distributions), -- select distribution somehow
+    })
+  end,
+})
 ```
 
 > **Triggers:** [ConnectionInitialized](#connectioninitialized) autocommand upon completion.
@@ -1139,6 +1186,26 @@ Below is a list of all autocommands and their associated data (passed to the cal
       "annotations": { "audience": [], "priority": 1 }
     }
   }
+}</code></pre></td>
+    </tr>
+    <tr id="agentslist">
+      <td><code>AgentList</code></td>
+      <td>List of available agents</td>
+      <td>⚡ <a href="#agents">agents()</a></td>
+      <td><pre><code class="language-json">{
+  "agents": [
+    {
+      "id": "string",
+      "name": "string",
+      "version": "string",
+      "license": "string",
+      "description": "string",
+      "website": "url string",
+      "repository": "url string",
+      "icon": "url string",
+      "distributions": ["binary", "npx", "uvx"]
+    }
+  ]
 }</code></pre></td>
     </tr>
     <tr>
@@ -2184,7 +2251,7 @@ Available formats:
 ## TODO:
 
 -- functionality
-- [ ] [Use ACP registry for supported agents](https://agentclientprotocol.com/rfds/acp-agent-registry)
+
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
@@ -2207,16 +2274,7 @@ Available formats:
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
-- [ ] Status bar integration
-  - [ ] Configurable
-  - [ ] Report mode
-  - [ ] Report model
-  - [ ] Report status
-    - [ ] waiting on user response
-    - [ ] thinking
-    - [ ] Finished/Responded
-    - [ ] etc?
-  - [ ] Update on events (no polling required)
+- [ ] Download progress updates
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 
   - [ ] add references made by agent to quickfix list
