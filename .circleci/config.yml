@@ -68,22 +68,47 @@ workflows:
                 - main
                 - development
       - build-windows-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
             - fetch-registry
       - build-linux-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
             - fetch-registry
       - build-linux-aarch64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
             - fetch-registry
       - build-mac-aarch64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
             - fetch-registry
       - build-mac-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
           requires:
             - update-cargo-version
             - fetch-registry
