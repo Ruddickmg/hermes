@@ -10,7 +10,7 @@ use tracing::warn;
 
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent},
+    utilities::{autocommand, mock_agent::MockAgent, test_helpers::connect_to_mock_agent},
 };
 
 #[nvim_oxi::test]
@@ -36,12 +36,7 @@ async fn test_connect_function() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     // Cleanup
     let disconnect: Function<DisconnectArgs, ()> =
@@ -67,12 +62,7 @@ fn test_initialization() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     let response = wait_for_response(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
@@ -107,12 +97,7 @@ fn test_authenticate_flow() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     let mut init_response = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 

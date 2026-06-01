@@ -90,9 +90,9 @@ impl std::fmt::Display for Assistant {
                 ..
             } => {
                 if let Some(dist) = distribution {
-                    write!(f, "{} ({})", agent.name, dist)
+                    write!(f, "{} ({})", agent.id, dist)
                 } else {
-                    write!(f, "{}", agent.name)
+                    write!(f, "{}", agent.id)
                 }
             }
         }

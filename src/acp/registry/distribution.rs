@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 #[derive(Deserialize, Serialize, std::hash::Hash, PartialEq, Eq, Debug, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
 pub enum Distribution {
     Uvx,
     Npx,

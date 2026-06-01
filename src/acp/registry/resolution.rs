@@ -2,10 +2,7 @@ use crate::acp::{
     Result,
     connection::Assistant,
     error::Error,
-    registry::{
-        BinaryPlatformTarget, DistributionConfig, PackageDistribution, binary,
-        distribution::Distribution,
-    },
+    registry::{DistributionConfig, PackageDistribution, binary, distribution::Distribution},
     utilities::command::command_available,
 };
 
@@ -88,26 +85,16 @@ mod tests {
         }
     }
 
-    fn npx_dist(package: &str, args: Option<Vec<String>>) -> HashMap<String, DistributionConfig> {
+    fn npx_dist(
+        package: &str,
+        args: Option<Vec<String>>,
+    ) -> HashMap<Distribution, DistributionConfig> {
         let mut dist = HashMap::new();
         dist.insert(
-            "npx".into(),
+            Distribution::Npx,
             DistributionConfig::Package(PackageDistribution {
                 package: package.into(),
                 args,
-                env: None,
-            }),
-        );
-        dist
-    }
-
-    fn uvx_dist(package: &str) -> HashMap<String, DistributionConfig> {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "uvx".into(),
-            DistributionConfig::Package(PackageDistribution {
-                package: package.into(),
-                args: None,
                 env: None,
             }),
         );
@@ -122,29 +109,13 @@ mod tests {
     fn resolve_npx_with_preference() {
         let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "test-agent",
             &entry,
-            Some("npx"),
+            Some(Distribution::Npx),
         ));
         let assistant = result.unwrap();
         assert!(
             matches!(&assistant, Assistant::CustomStdio { name, command, args }
                 if name == "test-agent" && command == "npx" && args == &vec!["my-agent"])
-        );
-    }
-
-    #[test]
-    fn resolve_uvx_with_preference() {
-        let entry = entry_with_distribution("test-agent", uvx_dist("uvx-agent"));
-        let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "test-agent",
-            &entry,
-            Some("uvx"),
-        ));
-        let assistant = result.unwrap();
-        assert!(
-            matches!(&assistant, Assistant::CustomStdio { name, command, args }
-                if name == "test-agent" && command == "uvx" && args == &vec!["uvx-agent"])
         );
     }
 
@@ -158,9 +129,8 @@ mod tests {
             ),
         );
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "test-agent",
             &entry,
-            Some("npx"),
+            Some(Distribution::Npx),
         ));
         let assistant = result.unwrap();
         assert!(
@@ -172,66 +142,38 @@ mod tests {
     }
 
     #[test]
-    fn resolve_nonexistent_preference_errors() {
-        let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
-        let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "test-agent",
-            &entry,
-            Some("bad-dist"),
-        ));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("bad-dist"));
-    }
-
-    #[test]
-    fn resolve_empty_distribution_errors() {
+    fn resolve_nonexistent_preference_returns_error() {
         let entry = entry_with_distribution("test-agent", HashMap::new());
         let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "test-agent",
             &entry,
-            Some("npx"),
+            Some(Distribution::Npx),
         ));
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn resolve_binary_no_platform_match_errors() {
-        let mut dist = HashMap::new();
-        dist.insert(
-            "binary".into(),
-            DistributionConfig::BinaryTargets(HashMap::new()),
-        );
-        let entry = entry_with_distribution("test-agent", dist);
-        let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "test-agent",
-            &entry,
-            Some("binary"),
-        ));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn resolve_nonexistent_preference_error_mentions_agent_id() {
-        let entry = entry_with_distribution("my-agent", npx_dist("my-agent", None));
-        let result = futures_lite::future::block_on(fetch_agent_from_registry(
-            "my-agent",
-            &entry,
-            Some("bad-dist"),
-        ));
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("my-agent"), "Error should mention agent id");
     }
 
     #[test]
     fn resolve_no_supported_distribution_error_mentions_agent_id() {
         let entry = entry_with_distribution("my-agent", HashMap::new());
-        let result =
-            futures_lite::future::block_on(fetch_agent_from_registry("my-agent", &entry, None));
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(&entry, None));
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("my-agent"), "Error should mention agent id");
         assert!(
             err.contains("no supported distribution"),
             "Error should describe no supported distribution"
         );
+    }
+
+    #[test]
+    fn resolve_binary_no_platform_match_returns_error() {
+        let mut dist = HashMap::new();
+        dist.insert(
+            Distribution::Binary,
+            DistributionConfig::BinaryTargets(HashMap::new()),
+        );
+        let entry = entry_with_distribution("test-agent", dist);
+        let result = futures_lite::future::block_on(fetch_agent_from_registry(
+            &entry,
+            Some(Distribution::Binary),
+        ));
+        assert!(result.is_err());
     }
 }

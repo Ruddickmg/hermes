@@ -126,6 +126,7 @@ impl Api {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::acp::registry::{DistributionConfig, PackageDistribution};
     use nvim_oxi::{Dictionary, Object};
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
@@ -176,12 +177,20 @@ mod tests {
     }
 
     #[test]
-    fn test_agents_config_from_object_update_and_url() {
+    fn test_agents_config_from_object_update_and_url_parses_update() {
         let mut dict = Dictionary::new();
         dict.insert("update", true);
         dict.insert("url", "https://example.com/registry.json");
         let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
         assert_eq!(config.update, Some(true));
+    }
+
+    #[test]
+    fn test_agents_config_from_object_update_and_url_parses_url() {
+        let mut dict = Dictionary::new();
+        dict.insert("update", true);
+        dict.insert("url", "https://example.com/registry.json");
+        let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
         assert_eq!(
             config.url,
             Some("https://example.com/registry.json".to_string())
@@ -204,9 +213,8 @@ mod tests {
         assert!(result.is_err(), "Array should not be a valid AgentsConfig");
     }
 
-    #[test]
-    fn test_agent_list_entry_from_binary_distribution() {
-        let entry = AgentEntry {
+    fn make_binary_distribution_entry() -> AgentEntry {
+        AgentEntry {
             id: "test-agent".to_string(),
             name: "Test Agent".to_string(),
             version: "1.0.0".to_string(),
@@ -217,32 +225,74 @@ mod tests {
             license: Some("MIT".to_string()),
             icon: Some("https://test.dev/icon.png".to_string()),
             distribution: HashMap::from([(
-                "binary".into(),
+                Distribution::Binary,
                 DistributionConfig::BinaryTargets(HashMap::new()),
             )]),
-        };
+        }
+    }
 
-        let list_entry = AgentListEntry::from(entry);
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_id() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(list_entry.id, "test-agent");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_name() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(list_entry.name, "Test Agent");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_version() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(list_entry.version, "1.0.0");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_description() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(list_entry.description, "A test agent");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_repository() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(
             list_entry.repository,
             Some("https://github.com/test/repo".to_string())
         );
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_website() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(list_entry.website, Some("https://test.dev".to_string()));
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_license() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(list_entry.license, Some("MIT".to_string()));
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_binary_distribution_preserves_icon() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
         assert_eq!(
             list_entry.icon,
             Some("https://test.dev/icon.png".to_string())
         );
-        assert_eq!(list_entry.distributions, vec!["binary"]);
     }
 
     #[test]
-    fn test_agent_list_entry_from_npx_distribution() {
-        let entry = AgentEntry {
+    fn test_agent_list_entry_from_binary_distribution_computes_distributions() {
+        let list_entry = AgentListEntry::from(make_binary_distribution_entry());
+        assert_eq!(list_entry.distributions, vec![Distribution::Binary]);
+    }
+
+    fn make_npx_distribution_entry() -> AgentEntry {
+        AgentEntry {
             id: "npx-agent".to_string(),
             name: "NPX Agent".to_string(),
             version: "2.0.0".to_string(),
@@ -253,28 +303,60 @@ mod tests {
             license: None,
             icon: None,
             distribution: HashMap::from([(
-                "npx".into(),
+                Distribution::Npx,
                 DistributionConfig::Package(PackageDistribution {
                     package: "npx-pkg".to_string(),
                     args: None,
                     env: None,
                 }),
             )]),
-        };
-
-        let list_entry = AgentListEntry::from(entry);
-        assert_eq!(list_entry.id, "npx-agent");
-        assert_eq!(list_entry.name, "NPX Agent");
-        assert!(list_entry.repository.is_none());
-        assert!(list_entry.website.is_none());
-        assert!(list_entry.license.is_none());
-        assert!(list_entry.icon.is_none());
-        assert_eq!(list_entry.distributions, vec!["npx"]);
+        }
     }
 
     #[test]
-    fn test_agent_list_entry_from_uvx_distribution() {
-        let entry = AgentEntry {
+    fn test_agent_list_entry_from_npx_distribution_preserves_id() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert_eq!(list_entry.id, "npx-agent");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_npx_distribution_preserves_name() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert_eq!(list_entry.name, "NPX Agent");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_npx_distribution_repository_is_none() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert!(list_entry.repository.is_none());
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_npx_distribution_website_is_none() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert!(list_entry.website.is_none());
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_npx_distribution_license_is_none() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert!(list_entry.license.is_none());
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_npx_distribution_icon_is_none() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert!(list_entry.icon.is_none());
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_npx_distribution_computes_distributions() {
+        let list_entry = AgentListEntry::from(make_npx_distribution_entry());
+        assert_eq!(list_entry.distributions, vec![Distribution::Npx]);
+    }
+
+    fn make_uvx_distribution_entry() -> AgentEntry {
+        AgentEntry {
             id: "uvx-agent".to_string(),
             name: "UVX Agent".to_string(),
             version: "3.0.0".to_string(),
@@ -285,22 +367,30 @@ mod tests {
             license: Some("Apache-2.0".to_string()),
             icon: None,
             distribution: HashMap::from([(
-                "uvx".into(),
+                Distribution::Uvx,
                 DistributionConfig::Package(PackageDistribution {
                     package: "uvx-pkg".to_string(),
                     args: None,
                     env: None,
                 }),
             )]),
-        };
-
-        let list_entry = AgentListEntry::from(entry);
-        assert_eq!(list_entry.id, "uvx-agent");
-        assert_eq!(list_entry.distributions, vec!["uvx"]);
+        }
     }
 
     #[test]
-    fn test_agent_list_payload_serialization() {
+    fn test_agent_list_entry_from_uvx_distribution_preserves_id() {
+        let list_entry = AgentListEntry::from(make_uvx_distribution_entry());
+        assert_eq!(list_entry.id, "uvx-agent");
+    }
+
+    #[test]
+    fn test_agent_list_entry_from_uvx_distribution_computes_distributions() {
+        let list_entry = AgentListEntry::from(make_uvx_distribution_entry());
+        assert_eq!(list_entry.distributions, vec![Distribution::Uvx]);
+    }
+
+    #[test]
+    fn test_agent_list_payload_serialization_serializes_id() {
         let entry = AgentEntry {
             id: "test".to_string(),
             name: "Test".to_string(),
@@ -312,7 +402,7 @@ mod tests {
             license: Some("MIT".to_string()),
             icon: None,
             distribution: HashMap::from([(
-                "binary".into(),
+                Distribution::Binary,
                 DistributionConfig::BinaryTargets(HashMap::new()),
             )]),
         };
@@ -321,10 +411,125 @@ mod tests {
         };
         let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0]["id"], "test");
+    }
+
+    #[test]
+    fn test_agent_list_payload_serialization_serializes_distributions() {
+        let entry = AgentEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            description: "desc".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: Some("MIT".to_string()),
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Binary,
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
+        };
+        let payload = AgentListPayload {
+            agents: vec![AgentListEntry::from(entry)],
+        };
+        let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0]["distributions"][0], "binary");
+    }
+
+    #[test]
+    fn test_agent_list_payload_serialization_serializes_license() {
+        let entry = AgentEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            description: "desc".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: Some("MIT".to_string()),
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Binary,
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
+        };
+        let payload = AgentListPayload {
+            agents: vec![AgentListEntry::from(entry)],
+        };
+        let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0].get("license").unwrap(), "MIT");
+    }
+
+    #[test]
+    fn test_agent_list_payload_serialization_serializes_description() {
+        let entry = AgentEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            description: "desc".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: Some("MIT".to_string()),
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Binary,
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
+        };
+        let payload = AgentListPayload {
+            agents: vec![AgentListEntry::from(entry)],
+        };
+        let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0]["description"], "desc");
+    }
+
+    #[test]
+    fn test_agent_list_payload_serialization_serializes_name() {
+        let entry = AgentEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            description: "desc".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: Some("MIT".to_string()),
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Binary,
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
+        };
+        let payload = AgentListPayload {
+            agents: vec![AgentListEntry::from(entry)],
+        };
+        let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0]["name"], "Test");
+    }
+
+    #[test]
+    fn test_agent_list_payload_serialization_serializes_version() {
+        let entry = AgentEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            description: "desc".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: Some("MIT".to_string()),
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Binary,
+                DistributionConfig::BinaryTargets(HashMap::new()),
+            )]),
+        };
+        let payload = AgentListPayload {
+            agents: vec![AgentListEntry::from(entry)],
+        };
+        let json = serde_json::to_value(payload).unwrap();
         assert_eq!(json["agents"][0]["version"], "1.0");
     }
 }

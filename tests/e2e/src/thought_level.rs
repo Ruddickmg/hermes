@@ -1,6 +1,9 @@
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent, mock_config::generate_session_id},
+    utilities::{
+        autocommand, mock_agent::MockAgent, mock_config::generate_session_id,
+        test_helpers::connect_to_mock_agent,
+    },
 };
 use agent_client_protocol::schema::{
     InitializeResponse, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
@@ -45,12 +48,7 @@ fn test_set_thought_level_no_thought_levels_does_not_crash() -> Result<(), nvim_
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
@@ -106,12 +104,7 @@ fn test_set_thought_level_with_config_options() -> Result<(), nvim_oxi::Error> {
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
