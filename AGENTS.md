@@ -1273,6 +1273,49 @@ assert!("something" == "something");
 assert_eq!("something", "something");
 ```
 
+### Patch Coverage Workflow
+
+When making changes to the codebase, follow this workflow to ensure proper patch coverage:
+
+1. **Run unit tests with coverage first** (fastest feedback):
+   ```bash
+   cargo llvm-cov --bins --lib --all-features --lcov --output-path coverage_unit.info
+   ```
+
+2. **Run integration tests:**
+   ```bash
+   cargo nextest run --package hermes-integration
+   ```
+
+3. **Run E2E tests:**
+   ```bash
+   cd tests/e2e && cargo nextest run
+   ```
+
+4. **Run Lua tests with coverage:**
+   ```bash
+   eval $(luarocks path --lua-version 5.1 --bin)
+   vusted --coverage -e "package.path = package.path .. ';./tests/lua/?.lua'; package.path = package.path .. ';./tests/lua/spec/?.lua'; package.path = package.path .. ';./lua/?.lua'; package.path = package.path .. ';./lua/?/init.lua'" tests/lua/spec/
+   ```
+
+5. **Generate coverage report:**
+   ```bash
+   cargo llvm-cov --bins --lib --all-features --html
+   ```
+
+6. **Analyze uncovered lines** (use `coverage_unit.info` or HTML report):
+   - Focus on **production code** (not `#[cfg(test)]` modules)
+   - Distinguish between:
+     - **Unit-testable**: Pure functions, FromObject conversions, parsing logic, error handling — these SHOULD be covered
+     - **Integration-bound**: Poppable/Pushable impls (require Lua stack), async API methods (require Neovim), plugin init — these will NOT be covered by unit tests
+   - Accept uncovered integration-bound lines as expected per architecture
+   - Add unit tests for uncovered unit-testable production code
+
+**Coverage limitations:**
+- Integration and E2E tests run in a separate Neovim process and do not contribute to `cargo llvm-cov` metrics
+- Lua coverage (`luacov`) does not track code inside `vim.schedule()` callbacks
+- Focusing on unit test coverage gives the fastest feedback loop for patch coverage
+
 ## Agent Behavior
 
 ### Don't do things you are not asked to Do

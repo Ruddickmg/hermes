@@ -77,6 +77,7 @@
 ---@field command? string Command to run for stdio connections
 ---@field args? string[] Command arguments for stdio connections
 ---@field url? string URL for http/sse connections
+---@field distribution? "npx"|"uvx"|"binary" Preferred distribution type for registry agents (default: auto-select npx > uvx > binary)
 
 ---@class EnvVar
 ---Environment variable entry
@@ -102,6 +103,11 @@
 ---Options for listing sessions
 ---@field cwd? string Filter by working directory path
 ---@field cursor? string Pagination cursor for fetching next page
+
+---@class AgentsOptions
+---Options for listing agents from the registry
+---@field update? boolean Whether to fetch the latest registry before listing
+---@field url? string Custom registry URL (default: official ACP registry)
 
 ---@class TextContent
 ---Text content for prompts
@@ -543,7 +549,7 @@ function M.setup(opts)
 end
 
 ---Connect to an ACP agent
----@param agent "opencode"|"copilot"|"gemini"|string Agent name (predefined or custom)
+---@param agent string Agent name, registry agent ID, or path to custom agent
 ---@param opts? ConnectionOptions Connection options
 function M.connect(agent, opts)
 	execute_async(function()
@@ -606,6 +612,14 @@ end
 function M.list_sessions(opts)
 	execute_async(function()
 		M._load_native_sync().list_sessions(opts)
+	end)
+end
+
+---List agents from the agent registry
+---@param opts? AgentsOptions Options (update: boolean to fetch latest registry)
+function M.agents(opts)
+	execute_async(function()
+		M._load_native_sync().agents(opts)
 	end)
 end
 

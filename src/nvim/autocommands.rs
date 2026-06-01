@@ -61,6 +61,9 @@ pub enum Commands {
     Models,
     Modes,
     ThoughtLevels,
+
+    // Agent registry
+    AgentList,
 }
 
 impl TryFrom<&str> for Commands {
@@ -125,6 +128,9 @@ impl TryFrom<&str> for Commands {
             "Models" => Ok(Commands::Models),
             "Modes" => Ok(Commands::Modes),
             "ThoughtLevels" => Ok(Commands::ThoughtLevels),
+
+            // Agent registry
+            "AgentList" => Ok(Commands::AgentList),
 
             _ => Err(Error::InvalidInput(format!("Unknown command: {}", value))),
         }
@@ -564,6 +570,14 @@ mod tests {
         assert_eq!(
             Commands::try_from("SessionClosed").unwrap(),
             Commands::SessionClosed
+        );
+    }
+
+    #[test]
+    fn test_commands_agent_list() {
+        assert_eq!(
+            Commands::try_from("AgentList").unwrap(),
+            Commands::AgentList
         );
     }
 }

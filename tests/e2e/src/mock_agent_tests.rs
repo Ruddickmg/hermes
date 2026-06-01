@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent},
+    utilities::{autocommand, mock_agent::MockAgent, test_helpers::connect_to_mock_agent},
 };
 
 fn create_func<A, R>(plugin: Dictionary, name: &str) -> Function<A, R> {
@@ -32,12 +32,7 @@ fn test_mock_agent_connection() -> Result<(), nvim_oxi::Error> {
 
     // 2. Connect to mock agent using socket protocol
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     // 3. Create a session
     let create_session: Function<CreateSessionArgs, ()> =
@@ -65,10 +60,6 @@ fn test_mock_agent_prompt() -> Result<(), nvim_oxi::Error> {
 
     // Connect
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
 
     // Set up autocommand listeners
     let wait_for_initialization =
@@ -76,7 +67,7 @@ fn test_mock_agent_prompt() -> Result<(), nvim_oxi::Error> {
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
-    connect.call((nvim_oxi::String::from("mock"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     // Wait for connection to be fully initialized before creating session
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;

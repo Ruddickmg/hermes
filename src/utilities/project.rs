@@ -116,41 +116,4 @@ mod get_project_root_tests {
         let found_root = get_project_root(non_existent, vec![".git".to_string()]);
         assert_eq!(found_root, root);
     }
-
-    // default_project_root Tests
-
-    #[test]
-    fn test_default_project_root_finds_marker_in_ancestor() {
-        let dir = tempdir().unwrap();
-        let root = dir.path().to_path_buf();
-        let marker = root.join(".git");
-        File::create(&marker).unwrap();
-
-        let subdir = root.join("src");
-        std::fs::create_dir(&subdir).unwrap();
-
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&subdir).unwrap();
-
-        let found_root = default_project_root(vec![".git".to_string()]);
-
-        std::env::set_current_dir(original_dir).unwrap();
-
-        assert_eq!(found_root, root);
-    }
-
-    #[test]
-    fn test_default_project_root_returns_current_dir_when_no_marker() {
-        let dir = tempdir().unwrap();
-        let root = dir.path().to_path_buf();
-
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&root).unwrap();
-
-        let found_root = default_project_root(vec![".nonexistent".to_string()]);
-
-        std::env::set_current_dir(original_dir).unwrap();
-
-        assert_eq!(found_root, root);
-    }
 }

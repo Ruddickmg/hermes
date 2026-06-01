@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent},
+    utilities::{autocommand, mock_agent::MockAgent, test_helpers::connect_to_mock_agent},
 };
 use agent_client_protocol::schema::{
     AgentCapabilities, InitializeResponse, NewSessionResponse, PromptResponse, ProtocolVersion,
@@ -49,12 +49,7 @@ fn test_prompt_single_content() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
@@ -104,12 +99,7 @@ fn test_prompt_multiple_content() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
@@ -190,12 +180,7 @@ fn test_prompt_returns_prompt_id() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
 
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
@@ -254,11 +239,7 @@ fn test_prompt_writes_history() -> Result<(), nvim_oxi::Error> {
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
     create_session.call(CreateSessionArgs::Default)?;

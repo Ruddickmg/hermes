@@ -5,15 +5,22 @@ use agent_client_protocol::schema::{
 };
 use hermes::{
     acp::connection::Assistant,
-    api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, PromptArgs, PromptContent},
-    nvim::{autocommands::Commands, hermes},
+    api::{
+        ConnectionArgs, CreateSessionArgs, DisconnectArgs, PromptArgs, PromptContent, SetupArgs,
+    },
+    nvim::{autocommands::Commands, configuration::ClientConfigPartial, hermes},
 };
 use nvim_oxi::{Dictionary, Function, Object, conversion::FromObject};
 
 use crate::{TIMEOUT_IN_SECONDS, utilities::autocommand};
 
-pub fn test_agent_prompt(agent: Assistant) -> Result<(), nvim_oxi::Error> {
+pub fn test_agent_prompt(
+    agent: Assistant,
+    setup_config: Option<Dictionary>,
+) -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
+    let setup: Function<SetupArgs, ()> =
+        FromObject::from_object(dict.get("setup").unwrap().clone())?;
     let connect: Function<ConnectionArgs, ()> =
         FromObject::from_object(dict.get("connect").unwrap().clone())?;
     let disconnect: Function<DisconnectArgs, ()> =
@@ -22,6 +29,13 @@ pub fn test_agent_prompt(agent: Assistant) -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
     let prompt: Function<PromptArgs, Option<nvim_oxi::String>> =
         FromObject::from_object(dict.get("prompt").unwrap().clone())?;
+
+    if let Some(config) = setup_config {
+        let obj = Object::from(config);
+        let partial =
+            ClientConfigPartial::from_object(obj).expect("Failed to parse setup config dictionary");
+        setup.call(SetupArgs(Some(partial)))?;
+    }
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
@@ -56,14 +70,26 @@ pub fn test_agent_prompt(agent: Assistant) -> Result<(), nvim_oxi::Error> {
     Ok(())
 }
 
-pub fn test_session_creation(agent: Assistant) -> Result<(), nvim_oxi::Error> {
+pub fn test_session_creation(
+    agent: Assistant,
+    setup_config: Option<Dictionary>,
+) -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
+    let setup: Function<SetupArgs, ()> =
+        FromObject::from_object(dict.get("setup").unwrap().clone())?;
     let connect: Function<ConnectionArgs, ()> =
         FromObject::from_object(dict.get("connect").unwrap().clone())?;
     let disconnect: Function<DisconnectArgs, ()> =
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+
+    if let Some(config) = setup_config {
+        let obj = Object::from(config);
+        let partial =
+            ClientConfigPartial::from_object(obj).expect("Failed to parse setup config dictionary");
+        setup.call(SetupArgs(Some(partial)))?;
+    }
 
     let wait_for_initialization =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);

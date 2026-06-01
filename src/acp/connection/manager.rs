@@ -1,6 +1,9 @@
 use crate::PluginState;
 use crate::acp::connection::{Connection, stdio, tcp};
-use crate::nvim::configuration::Permissions;
+use crate::acp::registry::distribution::Distribution;
+use crate::acp::registry::entry::AgentEntry;
+use crate::acp::registry::resolution::fetch_agent_from_registry;
+use crate::nvim::configuration::{DistributionsConfig, Permissions};
 use crate::{Handler, acp::error::Error};
 use agent_client_protocol::schema::{
     ClientCapabilities, FileSystemCapabilities, Implementation, InitializeRequest, ProtocolVersion,
@@ -55,6 +58,13 @@ pub enum Assistant {
     Copilot,
     Opencode,
     Gemini,
+    Registered {
+        agent: AgentEntry,
+        distribution: Option<Distribution>,
+        configuration: DistributionsConfig,
+        command: Option<String>,
+        args: Option<Vec<String>>,
+    },
     CustomStdio {
         name: String,
         command: String,
@@ -75,6 +85,17 @@ impl std::fmt::Display for Assistant {
             Assistant::Gemini => write!(f, "gemini"),
             Assistant::CustomStdio { name, .. } => write!(f, "{}", name),
             Assistant::CustomUrl { name, host, port } => write!(f, "{} ({}:{})", name, host, port),
+            Assistant::Registered {
+                agent,
+                distribution,
+                ..
+            } => {
+                if let Some(dist) = distribution {
+                    write!(f, "{} ({})", agent.id, dist)
+                } else {
+                    write!(f, "{}", agent.id)
+                }
+            }
         }
     }
 }
@@ -84,11 +105,38 @@ impl Assistant {
     ///
     /// The caller is responsible for spawning the command on the correct
     /// executor (the one whose reactor will handle the child's IO).
-    pub fn command(&self) -> crate::acp::Result<async_process::Command> {
+    #[instrument(level = "trace", skip(self))]
+    pub async fn command(&self) -> crate::acp::Result<async_process::Command> {
+        let owned_command;
+        let owned_args;
         let (program, args) = match self {
             Assistant::Copilot => ("copilot", vec!["--acp"]),
             Assistant::Opencode => ("opencode", vec!["acp"]),
             Assistant::Gemini => ("gemini", vec!["--acp"]),
+            Assistant::Registered {
+                agent,
+                distribution,
+                configuration,
+                command,
+                args,
+            } => {
+                let Assistant::CustomStdio {
+                    command: registry_command,
+                    args: registry_args,
+                    ..
+                } = fetch_agent_from_registry(agent, *distribution, configuration).await?
+                else {
+                    return Err(Error::Internal(
+                        "agent registry should only return CustomStdio".to_string(),
+                    ));
+                };
+                owned_command = command.clone().unwrap_or(registry_command);
+                owned_args = args.clone().unwrap_or(registry_args);
+                (
+                    owned_command.as_str(),
+                    owned_args.iter().map(|s| s.as_str()).collect(),
+                )
+            }
             Assistant::CustomStdio { command, args, .. } => {
                 (command.as_str(), args.iter().map(|s| s.as_str()).collect())
             }
@@ -103,6 +151,7 @@ impl Assistant {
         Ok(cmd)
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub fn name(&self) -> String {
         match self {
             Assistant::CustomStdio { name, .. } => name.clone(),
@@ -344,6 +393,7 @@ impl Drop for ConnectionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::acp::registry::{DistributionCommand, PackageDistribution};
     use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
@@ -505,6 +555,61 @@ mod tests {
     fn test_assistant_gemini_display() {
         let assistant = Assistant::Gemini;
         assert_eq!(format!("{}", assistant), "gemini");
+    }
+
+    #[test]
+    fn test_assistant_registered_display_with_distribution() {
+        let entry = AgentEntry {
+            id: "test-agent".to_string(),
+            name: "Test Agent".to_string(),
+            version: "1.0.0".to_string(),
+            description: String::new(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::from([(
+                Distribution::Npx,
+                DistributionCommand::Package(PackageDistribution {
+                    package: "test-agent".to_string(),
+                    args: None,
+                    env: None,
+                }),
+            )]),
+        };
+        let assistant = Assistant::Registered {
+            agent: entry,
+            configuration: Default::default(),
+            distribution: Some(Distribution::Npx),
+            command: None,
+            args: None,
+        };
+        assert_eq!(format!("{}", assistant), "test-agent (npx)");
+    }
+
+    #[test]
+    fn test_assistant_registered_display_without_distribution() {
+        let entry = AgentEntry {
+            id: "test-agent".to_string(),
+            name: "Test Agent".to_string(),
+            version: "1.0.0".to_string(),
+            description: String::new(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::new(),
+        };
+        let assistant = Assistant::Registered {
+            agent: entry,
+            configuration: Default::default(),
+            distribution: None,
+            command: None,
+            args: None,
+        };
+        assert_eq!(format!("{}", assistant), "test-agent");
     }
 
     #[test]

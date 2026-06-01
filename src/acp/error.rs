@@ -12,6 +12,7 @@ use std::{
 pub enum Error {
     Internal(String),
     Connection(String),
+    Network(String),
     Permissions(String),
     NoListenerAttached(Commands),
     SessionNotFound(String),
@@ -28,6 +29,7 @@ impl std::fmt::Display for Error {
                 feature
             ),
             Error::Connection(msg) => write!(f, "Connection error: {}", msg),
+            Error::Network(msg) => write!(f, "Network error: {}", msg),
             Error::Permissions(msg) => write!(f, "Permissions error: {}", msg),
             Error::Internal(msg) => write!(f, "Internal error: {}", msg),
             Error::InvalidInput(input) => write!(f, "Invalid input provided: {}", input),
@@ -127,6 +129,12 @@ mod tests {
     fn test_error_display_connection() {
         let err = Error::Connection("connection failed".to_string());
         assert_eq!(format!("{}", err), "Connection error: connection failed");
+    }
+
+    #[test]
+    fn test_error_display_network() {
+        let err = Error::Network("timeout".to_string());
+        assert_eq!(format!("{}", err), "Network error: timeout");
     }
 
     #[test]

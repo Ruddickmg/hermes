@@ -9,6 +9,7 @@ use crate::{
             MockConfig, create_test_create_terminal_request, create_test_terminal_output_request,
             create_test_wait_for_terminal_exit_request,
         },
+        test_helpers::connect_to_mock_agent,
     },
 };
 use agent_client_protocol::schema::{
@@ -107,12 +108,7 @@ fn test_terminal_create_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<TerminalCreateData>(Commands::TerminalCreate);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -191,12 +187,7 @@ fn test_terminal_output_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<TerminalOutputData>(Commands::TerminalOutput);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -285,12 +276,7 @@ fn test_terminal_exit_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<TerminalExitData>(Commands::TerminalExit);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -381,12 +367,7 @@ fn test_terminal_full_workflow_with_mock_agent() -> Result<(), nvim_oxi::Error> 
         autocommand::listen_for_autocommand::<TerminalExitData>(Commands::TerminalExit);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
@@ -470,12 +451,7 @@ fn test_terminal_release_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> 
         autocommand::listen_for_autocommand::<TerminalReleaseData>(Commands::TerminalRelease);
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
-    let mut options = Dictionary::new();
-    options.insert("protocol", "tcp");
-    options.insert("host", "localhost");
-    options.insert("port", mock_handle.port() as i64);
-
-    connect.call((nvim_oxi::String::from("mock-agent"), Some(options)))?;
+    connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS)).map_err(|_| make_err("init timeout"))?;
 
     create_session.call(CreateSessionArgs::Default)?;
