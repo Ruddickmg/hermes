@@ -161,7 +161,7 @@ Shows current Hermes configuration settings.
 ## Features
 
 - [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
-- [x] Support for all registered ACP Agents ([Full list here]())
+- [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
 
