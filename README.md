@@ -303,7 +303,7 @@ hermes.connect("kilo", {
 
 -- connect to custom agent (not pre-defined)
 hermes.connect(
-  `"my-claude", -- this will be the key you use for other methods (disconnect for example) 
+  "my-claude", -- this will be the key you use for other methods (disconnect for example) 
   {
     protocol = "socket", -- optional (Defaults to "stdio")
     command = "claude-acp",
