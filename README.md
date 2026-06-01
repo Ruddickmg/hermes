@@ -11,6 +11,13 @@ Hermes focuses on:
 - Hooks into requests from AI assistants that require responses (permission requests, access requests, etc)
 - Autocommands for updates on communication between the user (client) and assistant (agent) 
 
+## Features
+
+- [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
+- [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
+- [x] Configurable capabilities (filesystem, terminal, etc)
+- [x] Autocommands for messages/notifications
+
 ## Installation
 
 **vim.pack** (v0.12+)
@@ -157,13 +164,6 @@ Cancels an in-progress source build. Shows warning if no build is running.
 :Hermes setup
 ```
 Shows current Hermes configuration settings.
-
-## Features
-
-- [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
-- [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
-- [x] Configurable capabilities (filesystem, terminal, etc)
-- [x] Autocommands for messages/notifications
 
 ## API
 
