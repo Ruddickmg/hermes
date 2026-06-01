@@ -263,7 +263,7 @@ hermes.setup({
 
 ### Agents
 
-This method returns a list of available agents to choose from.
+This method retrieves a list of available agents to choose from.
 
 ```lua
 local hermes = require("hermes")
@@ -273,7 +273,7 @@ hermes.agents()
 
 -- example with config options
 hermes.agents({
-  update = true, -- pull down the most up to date list from the ACP registry
+  update = true, -- pull down the most up to date list from the ACP registry (will use last downloaded/pre-bundled registry if false)
   url = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json", -- URL to pull ACP registry from
 })
 ```
