@@ -9,7 +9,7 @@ pub fn get_random_element<T: Clone>(elements: &[T]) -> Option<T> {
     // Get current time in milliseconds since the epoch
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
+        .unwrap_or(std::time::Duration::ZERO);
     let seed = duration.as_millis() as u64;
 
     // A very simple pseudo-random number generation logic (LCG)

@@ -1121,7 +1121,7 @@ fn session_notification_writes_history_to_file() -> nvim_oxi::Result<()> {
 
     smol::block_on(async {
         let mut guard = state.lock().await;
-        guard.agent_info.history.flush().unwrap();
+        guard.agent_info.history.as_mut().unwrap().flush().unwrap();
     });
     std::thread::sleep(std::time::Duration::from_millis(200));
 
@@ -1173,7 +1173,7 @@ fn session_notification_skips_history_when_not_needed() -> nvim_oxi::Result<()> 
 
     smol::block_on(async {
         let mut guard = state.lock().await;
-        guard.agent_info.history.flush().unwrap();
+        guard.agent_info.history.as_mut().unwrap().flush().unwrap();
     });
     std::thread::sleep(std::time::Duration::from_millis(200));
 
@@ -1230,7 +1230,7 @@ fn session_notification_does_not_write_history_when_permissions_denied() -> nvim
 
     smol::block_on(async {
         let mut guard = state.lock().await;
-        guard.agent_info.history.flush().unwrap();
+        guard.agent_info.history.as_mut().unwrap().flush().unwrap();
     });
     std::thread::sleep(std::time::Duration::from_millis(200));
 

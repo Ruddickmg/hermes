@@ -392,9 +392,11 @@ impl Api {
         if !history.is_empty() {
             let key = format!("{}/{}.jsonl", agent_name, session_id);
             let state = self.state.lock().await;
-            history
-                .into_iter()
-                .for_each(|content| state.agent_info.history.write_keyed(key.clone(), content));
+            history.into_iter().for_each(|content| {
+                if let Some(history) = &state.agent_info.history {
+                    history.write_keyed(key.clone(), content);
+                }
+            });
             drop(state);
         }
 

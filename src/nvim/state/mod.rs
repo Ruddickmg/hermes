@@ -65,7 +65,7 @@ impl PluginState {
             config,
             prompt: HashMap::new(),
             session_info: HashMap::new(),
-            agent_info: AgentInfo::default(),
+            agent_info: AgentInfo::new(),
             registry: None,
         }
     }
@@ -188,7 +188,18 @@ mod tests {
         state
             .agent_info
             .history
+            .as_ref()
+            .unwrap()
             .write_keyed("agent/session.jsonl", "test");
+    }
+
+    #[test]
+    fn with_storage_path_returns_error_on_invalid_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("not_a_dir.txt");
+        std::fs::write(&file_path, "content").unwrap();
+        let result = PluginState::new().with_storage_path(file_path.join("history"));
+        assert!(result.is_err());
     }
 
     #[test]
