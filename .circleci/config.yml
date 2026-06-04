@@ -654,7 +654,7 @@ jobs:
           name: Run e2e tests (0.11)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov --package hermes-e2e --no-default-features --features neovim-0-11 --lcov --output-path e2e-0-11.coverage.info --ignore-filename-regex 'tests/.*'
+            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/integration/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
 
   lua_tests_0_12:
     environment:
