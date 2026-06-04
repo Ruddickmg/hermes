@@ -86,8 +86,7 @@ describe("hermes.binary", function()
 	describe("get_binary_path()", function()
 		it("includes platform-specific name", function()
 			local bin_path = binary.get_binary_path()
-			local platform = require("hermes.platform")
-			local expected_name = platform.get_binary_name()
+			local expected_name = binary.get_binary_name()
 
 			assert.truthy(bin_path:find(expected_name, 1, true), "Binary path should contain: " .. expected_name)
 		end)
@@ -198,7 +197,7 @@ describe("hermes.binary", function()
 			local target_dir = build_dir .. "/target/release"
 			local ext = platform.get_ext()
 			local mock_built_lib = target_dir .. "/libhermes." .. ext
-			local expected_bin_name = platform.get_binary_name()
+			local expected_bin_name = binary.get_binary_name()
 			local expected_final_path = temp_dir .. "/" .. expected_bin_name
 
 			-- Create directory structure and mock library file
@@ -211,7 +210,7 @@ describe("hermes.binary", function()
 			-- This bypasses the actual git clone and cargo build
 			local uv = vim.uv or vim.loop
 			local dest_dir = temp_dir
-			local bin_name = platform.get_binary_name()
+			local bin_name = binary.get_binary_name()
 			local final_path = dest_dir .. "/" .. bin_name
 
 			-- Manually copy the file to simulate what build_from_source should do

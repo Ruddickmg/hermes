@@ -21,7 +21,8 @@ describe("hermes.init (main API)", function()
 
 		-- Copy actual built binary to test directory using cross-platform API
 		local platform = require("hermes.platform")
-		local bin_name = "libhermes-" .. platform.get_platform_key() .. "." .. platform.get_ext()
+		local binary = require("hermes.binary")
+		local bin_name = binary.get_binary_name()
 		-- binary.get_data_dir() will return temp_path/hermes (same as temp_dir)
 		local bin_dir = temp_dir
 		vim.fn.mkdir(bin_dir, "p")
