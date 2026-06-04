@@ -13,10 +13,7 @@ use crate::{
     utilities::{Logger, NvimRuntime, detect_project_storage_path},
 };
 use async_lock::Mutex;
-use nvim_oxi::{
-    Dictionary,
-    api::opts::{CreateAugroupOpts, CreateAutocmdOpts},
-};
+use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 use tracing::error;
 
@@ -61,30 +58,45 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
                 )))
             })?;
 
-    // clean up on exit
-    nvim_oxi::api::create_autocmd(
-        ["VimLeavePre"],
-        &CreateAutocmdOpts::builder()
-            .group(group)
-            .callback(move |_| {
-                match cloned.try_borrow_mut() {
-                    Ok(mut app) => {
-                        shutdown_runtime.block_on_primary(async move {
-                            app.disconnect(DisconnectArgs::All)
-                                .await
-                                .inspect_err(|e| error!("Error disconnecting: {:?}", e))
-                                .ok();
-                        });
-                    }
-                    Err(e) => error!(
-                        "An error occurred while disconnecting sessions on exit: {:?}",
-                        e
-                    ),
-                };
-                true
-            })
-            .build(),
-    )?;
+    // Bypass CreateAutocmdOpts builder (version-dependent struct layout) by calling
+    // nvim_create_autocmd directly via mlua with a registered Lua function callback.
+    let lua = nvim_oxi::mlua::lua();
+    let cleanup_cb = lua
+        .create_function(move |_lua, _: mlua::Value| match cloned.try_borrow_mut() {
+            Ok(mut app) => {
+                shutdown_runtime.block_on_primary(async move {
+                    app.disconnect(DisconnectArgs::All)
+                        .await
+                        .inspect_err(|e| error!("Error disconnecting: {:?}", e))
+                        .ok();
+                });
+                Ok(mlua::Value::Boolean(true))
+            }
+            Err(e) => {
+                error!(
+                    "An error occurred while disconnecting sessions on exit: {:?}",
+                    e
+                );
+                Ok(mlua::Value::Nil)
+            }
+        })
+        .map_err(|e| {
+            nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+                "Failed to create Lua callback: {}",
+                e
+            )))
+        })?;
+
+    lua.load(
+        "local group, cb = ...\n vim.api.nvim_create_autocmd('VimLeavePre', { group = group, callback = cb })",
+    )
+    .call::<()>((group, cleanup_cb))
+    .map_err(|e| {
+        nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+            "Failed to create VimLeavePre autocmd: {}",
+            e
+        )))
+    })?;
 
     Ok(hermes.into())
 }

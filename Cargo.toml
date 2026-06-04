@@ -14,19 +14,12 @@ resolver = "2"
 [workspace.metadata.precommit]
 fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IFS= read -r f; do git add \"$f\"; done; true; }"
 
-# Pull `nvim-oxi` from the ide-outils fork (PR #307 against upstream) until
-# upstream merges Neovim 0.12 support. The fork has been locally patched in
-# .cargo/git/checkouts/ to add a `buf` spacer field after `buffer` in
-# CreateAutocmdOpts, ExecAutocmdsOpts, and ClearAutocmdsOpts.
-# Neovim 0.12.2 added `buf` to these keyset structs, shifting all
-# hashy-derived mask-bit positions by one. The fix:
-# - Keep `buffer` field always (for the `.buffer()` builder setter)
-# - Add `buf` field (gated on `neovim-0-12`, `#[builder(skip)]`) as a
-#   position-holder so subsequent fields keep correct mask-bit indices
-# Without this every autocmd call fails with `Required: 'command' or 'callback'`.
-#
-# Tracked upstream as https://github.com/noib3/nvim-oxi/pull/307.
-# Drop this `[patch]` block and switch back to `crates-io` once upstream merges.
+# The ide-outils nvim-oxi fork (PR #307) is kept because it upgrades mlua to
+# 0.11, matching our direct mlua dependency. Upstream 0.6.0 pins mlua 0.10,
+# causing a link conflict on the lua native library. The fork's neovim version
+# feature flags are NOT selected — all version-dependent opts builders
+# (CreateAutocmdOpts, ExecAutocmdsOpts, EchoOpts) are bypassed at the call
+# site via call_function / mlua, so no version feature is required.
 [patch.crates-io]
 nvim-oxi       = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
 nvim-oxi-api   = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
@@ -36,8 +29,8 @@ nvim-oxi-luajit = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec
 nvim-oxi-libuv = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
 [features]
 default = ["neovim-0-12"]
-neovim-0-12 = ["nvim-oxi/neovim-0-12"]
 neovim-0-11 = ["nvim-oxi/neovim-0-11"]
+neovim-0-12 = ["nvim-oxi/neovim-0-12"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

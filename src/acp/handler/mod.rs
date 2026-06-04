@@ -14,7 +14,7 @@ use crate::{
     utilities::{NvimMessenger, NvimRuntime, TransmitToNvim},
 };
 use async_lock::Mutex;
-use nvim_oxi::{Array, Dictionary, Object, api::opts::ExecAutocmdsOpts};
+use nvim_oxi::{Array, Dictionary, Object};
 use serde::Serialize;
 use std::{
     fmt::{Debug, Display},
@@ -56,16 +56,23 @@ impl Handler {
                     if Self::listener_attached(command.to_string()) {
                         match serde_json::from_value::<Object>(data.clone()) {
                             Ok(obj) => {
-                                let opts = ExecAutocmdsOpts::builder()
-                                    .patterns(command.to_string())
-                                    .data(obj)
-                                    .group(GROUP)
-                                    .build();
-                                debug!(
-                                    "Executing autocommand: {} with options: {:#?}",
-                                    command, opts
+                                // Bypass ExecAutocmdsOpts builder (version-dependent struct
+                                // layout) by calling nvim_exec_autocmds via call_function with a
+                                // constructed Dictionary, matching the nvim_get_autocmds workaround
+                                // pattern above.
+                                let mut opts_dict = Dictionary::default();
+                                opts_dict.insert(
+                                    "pattern",
+                                    Array::from((Object::from(command.clone()),)),
                                 );
-                                if let Err(err) = nvim_oxi::api::exec_autocmds(["User"], &opts) {
+                                opts_dict.insert("data", obj);
+                                opts_dict.insert("group", Object::from(GROUP));
+                                if let Err(err) =
+                                    nvim_oxi::api::call_function::<(String, Dictionary), Object>(
+                                        "nvim_exec_autocmds",
+                                        ("User".to_string(), opts_dict),
+                                    )
+                                {
                                     error!(
                                         "Error executing autocommand: '{}': {:#?}",
                                         command, err

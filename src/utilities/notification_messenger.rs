@@ -1,8 +1,8 @@
 use crate::acp::{Result, error::Error};
 use crate::utilities::LogLevel;
 use crossbeam_channel::{Sender, bounded};
-use nvim_oxi::api;
 use nvim_oxi::libuv::AsyncHandle;
+use nvim_oxi::{Array, Dictionary, Object, api};
 use std::ptr;
 use std::sync::Arc;
 
@@ -63,10 +63,20 @@ impl NotificationMessenger {
                 nvim_oxi::schedule(move |_| {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         let is_err = matches!(notification.level, LogLevel::Error);
-                        api::echo(
-                            [(notification.message.as_str(), None::<&str>)],
-                            true,
-                            &nvim_oxi::api::opts::EchoOpts::builder().err(is_err).build(),
+                        // Bypass EchoOpts builder (version-dependent struct layout) by calling
+                        // nvim_echo directly via call_function with a constructed Array/Dictionary.
+                        let chunk = Array::from((
+                            Object::from(notification.message.as_str()),
+                            Object::from(""),
+                        ));
+                        let chunks = Array::from((chunk,));
+                        let mut opts = Dictionary::default();
+                        if is_err {
+                            opts.insert("err", Object::from(true));
+                        }
+                        api::call_function::<(Array, bool, Dictionary), Object>(
+                            "nvim_echo",
+                            (chunks, true, opts),
                         )
                         .ok();
                     }))

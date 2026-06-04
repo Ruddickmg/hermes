@@ -26,20 +26,9 @@ else
     cd "$BUILD_DIR"
 fi
 
-# Detect Neovim version for feature flag
-echo "Detecting Neovim version..."
-NEOVIM_MINOR=$(nvim --headless -c 'lua io.write(vim.version().minor)' -c 'qa!' 2>/dev/null || echo "11")
-if [ "$NEOVIM_MINOR" -ge 12 ] 2>/dev/null; then
-    FEATURES=""
-    echo "Building for Neovim 0.12 (default features)"
-else
-    FEATURES="--no-default-features --features neovim-0-11"
-    echo "Building for Neovim 0.11"
-fi
-
-# Build with cargo
+# Build with cargo (default features include neovim-0-11 for single-binary compat)
 echo "Building with cargo (this may take a few minutes)..."
-cargo build --release $FEATURES
+cargo build --release
 
 # Determine library extension
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -72,8 +61,7 @@ fi
 
 # Copy built library
 SOURCE="$BUILD_DIR/target/release/libhermes.$EXT"
-NEOVIM_SUFFIX="nvim0${NEOVIM_MINOR}"
-DEST_FILE="$DEST/libhermes-$PLATFORM-$ARCH-$NEOVIM_SUFFIX.$EXT"
+DEST_FILE="$DEST/libhermes-$PLATFORM-$ARCH.$EXT"
 
 echo "Copying library to: $DEST_FILE"
 cp "$SOURCE" "$DEST_FILE"
