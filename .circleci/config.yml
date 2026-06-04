@@ -613,12 +613,12 @@ jobs:
           name: Run e2e tests (0.12)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov --package hermes-e2e --all-features --lcov --output-path e2e-0-12.coverage.info --ignore-filename-regex 'tests/.*'
+            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/integration/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
       - codecov/upload:
           fail_on_error: true
-          files: e2e-0-12.coverage.info
+          files: e2e.coverage.info
           git_service: github
-          upload_name: e2e-0-12
+          upload_name: e2e
 
   e2e_tests_0_11:
     environment:
@@ -655,11 +655,6 @@ jobs:
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
             cargo llvm-cov --package hermes-e2e --no-default-features --features neovim-0-11 --lcov --output-path e2e-0-11.coverage.info --ignore-filename-regex 'tests/.*'
-      - codecov/upload:
-          fail_on_error: true
-          files: e2e-0-11.coverage.info
-          git_service: github
-          upload_name: e2e-0-11
 
   lua_tests_0_12:
     environment:
@@ -778,15 +773,3 @@ jobs:
             export PATH="/home/circleci/.local/bin:$PATH"
             # Run from project root so that plugin/hermes.lua path resolves correctly
             vusted --coverage -e "package.path = package.path .. ';./tests/lua/?.lua'; package.path = package.path .. ';./tests/lua/spec/?.lua'; package.path = package.path .. ';./lua/?.lua'; package.path = package.path .. ';./lua/?/init.lua'" tests/lua/spec/
-      - run:
-          name: Generate LCOV coverage report
-          command: |
-            eval $(luarocks path --lua-version 5.1 --bin)
-            # Run from project root where luacov.stats.out was generated
-            luacov -c tests/lua/.luacov -r lcov
-            mv luacov.report.out lua-0-11.coverage.info
-      - codecov/upload:
-          fail_on_error: false
-          files: lua-0-11.coverage.info
-          git_service: github
-          upload_name: lua-0-11
