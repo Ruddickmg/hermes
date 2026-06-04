@@ -179,7 +179,7 @@ fn test_mark_buffer_modified() -> nvim_oxi::Result<()> {
     let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
         "modified",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buffer.clone())
+            .buffer(buffer.clone())
             .build(),
     )
     .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get modified: {}", e)))?;

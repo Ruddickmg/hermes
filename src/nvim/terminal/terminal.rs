@@ -4,10 +4,7 @@ use crate::{
 };
 use agent_client_protocol::schema::EnvVariable;
 use async_channel::Sender;
-use nvim_oxi::{
-    Array, Dictionary, Function, Object,
-    api::opts::{BufDeleteOpts, OptionOpts},
-};
+use nvim_oxi::{Array, Dictionary, Function, Object, api::opts::BufDeleteOpts};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use strip_ansi_escapes;
 use uuid::Uuid;
@@ -202,12 +199,19 @@ impl TerminalInfo {
         })
     }
 
-    fn set_option<T>(option: &str, value: T, opts: &OptionOpts) -> Result<()>
+    fn set_buf_option<T>(option: &str, value: T, buf: &nvim_oxi::api::Buffer) -> Result<()>
     where
         T: nvim_oxi::conversion::ToObject,
     {
-        nvim_oxi::api::set_option_value(option, value, opts)
-            .map_err(|e| Error::Internal(e.to_string()))
+        let mut opts_dict = Dictionary::new();
+        opts_dict.insert("buf", Object::from(buf.handle()));
+        let value_obj = value
+            .to_object()
+            .map_err(|e| Error::Internal(e.to_string()))?;
+        let args = Array::from((Object::from(option), value_obj, Object::from(opts_dict)));
+        nvim_oxi::api::call_function::<Array, Object>("nvim_set_option_value", args)
+            .map_err(|e| Error::Internal(e.to_string()))?;
+        Ok(())
     }
 }
 
@@ -292,12 +296,11 @@ impl Terminal for TerminalInfo {
             .call(|_| Self::start_terminal(command, args, configuration))
             .map_err(|e| Error::Internal(e.to_string()))?;
 
-        let opts = OptionOpts::builder().buf(buffer.clone()).build();
-        Self::set_option("buftype", "terminal", &opts)?;
-        Self::set_option("swapfile", false, &opts)?;
-        Self::set_option("bufhidden", "hide", &opts)?;
-        Self::set_option("scrollback", 10000, &opts)?;
-        Self::set_option("modified", false, &opts)?;
+        Self::set_buf_option("buftype", "terminal", &buffer)?;
+        Self::set_buf_option("swapfile", false, &buffer)?;
+        Self::set_buf_option("bufhidden", "hide", &buffer)?;
+        Self::set_buf_option("scrollback", 10000, &buffer)?;
+        Self::set_buf_option("modified", false, &buffer)?;
 
         self.job_id = Some(job_id as i64);
         self.buffer = Some(buffer);

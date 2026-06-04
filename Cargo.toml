@@ -14,24 +14,6 @@ resolver = "2"
 [workspace.metadata.precommit]
 fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IFS= read -r f; do git add \"$f\"; done; true; }"
 
-# The ide-outils nvim-oxi fork (PR #307) is kept because it upgrades mlua to
-# 0.11, matching our direct mlua dependency. Upstream 0.6.0 pins mlua 0.10,
-# causing a link conflict on the lua native library. The fork's neovim version
-# feature flags are NOT selected — all version-dependent opts builders
-# (CreateAutocmdOpts, ExecAutocmdsOpts, EchoOpts) are bypassed at the call
-# site via call_function / mlua, so no version feature is required.
-[patch.crates-io]
-nvim-oxi       = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
-nvim-oxi-api   = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
-nvim-oxi-macros = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
-nvim-oxi-types = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
-nvim-oxi-luajit = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
-nvim-oxi-libuv = { git = "https://github.com/ide-outils/nvim-oxi", rev = "13bec91cdbbaae10b5313621054ac9a8dd118964" }
-[features]
-default = ["neovim-0-12"]
-neovim-0-11 = ["nvim-oxi/neovim-0-11"]
-neovim-0-12 = ["nvim-oxi/neovim-0-12"]
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -61,8 +43,8 @@ crossbeam-channel = "0.5.15"
 event-listener = "5"
 futures = "0.3"
 futures-lite = "2"
-mlua = { version = "0.11", features = ["module"] }
-nvim-oxi = { version = "0.6.0", features = ["libuv", "mlua"] }
+mlua = { version = "0.10", features = ["module"] }
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-11", "libuv", "mlua"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 smol = "2"
@@ -79,7 +61,7 @@ uuid = { version = "1.22.0", features = ["v4"] }
 libc = "0.2"
 
 [build-dependencies]
-nvim-oxi = { version = "0.6.0", features = ["test"] }
+nvim-oxi = { version = "0.6.0", features = ["test", "neovim-0-11"] }
 # panic = "abort" removed - errors are logged and Ok returned instead
 
 [dev-dependencies]

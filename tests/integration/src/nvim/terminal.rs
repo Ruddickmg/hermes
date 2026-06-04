@@ -197,7 +197,7 @@ fn terminal_info_run_sets_buftype_to_terminal() -> nvim_oxi::Result<()> {
     let buftype: String = nvim_oxi::api::get_option_value(
         "buftype",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buffer.clone())
+            .buffer(buffer.clone())
             .build(),
     )?;
 
@@ -220,7 +220,7 @@ fn terminal_info_run_sets_swapfile_to_false() -> nvim_oxi::Result<()> {
     let swapfile: bool = nvim_oxi::api::get_option_value(
         "swapfile",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buffer.clone())
+            .buffer(buffer.clone())
             .build(),
     )?;
 
@@ -243,7 +243,7 @@ fn terminal_info_run_sets_bufhidden_to_hide() -> nvim_oxi::Result<()> {
     let bufhidden: String = nvim_oxi::api::get_option_value(
         "bufhidden",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buffer.clone())
+            .buffer(buffer.clone())
             .build(),
     )?;
 
@@ -266,7 +266,7 @@ fn terminal_info_run_sets_scrollback_to_10000() -> nvim_oxi::Result<()> {
     let scrollback: i64 = nvim_oxi::api::get_option_value(
         "scrollback",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buffer.clone())
+            .buffer(buffer.clone())
             .build(),
     )?;
 
@@ -289,7 +289,7 @@ fn terminal_info_run_sets_modified_to_false() -> nvim_oxi::Result<()> {
     let modified: bool = nvim_oxi::api::get_option_value(
         "modified",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buffer.clone())
+            .buffer(buffer.clone())
             .build(),
     )?;
 

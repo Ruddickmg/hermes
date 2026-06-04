@@ -4,9 +4,42 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nvim_oxi::api;
+use nvim_oxi::{Array, Dictionary, Object, api};
 
 use crate::acp::{Result, error::Error};
+
+/// Get a buffer option value, bypassing OptionOpts builder (version-dependent).
+fn get_buf_option<T: nvim_oxi::conversion::FromObject>(
+    name: &str,
+    buf: &api::Buffer,
+) -> std::result::Result<T, nvim_oxi::api::Error> {
+    let mut opts_dict = Dictionary::new();
+    opts_dict.insert("buf", Object::from(buf.handle()));
+    let args = Array::from((Object::from(name), Object::from(opts_dict)));
+    api::call_function::<Array, T>("nvim_get_option_value", args)
+}
+
+/// Set a buffer option value, bypassing OptionOpts builder (version-dependent).
+fn set_buf_option<T: nvim_oxi::conversion::ToObject>(
+    name: &str,
+    value: T,
+    buf: &api::Buffer,
+) -> std::result::Result<(), nvim_oxi::Error> {
+    let mut opts_dict = Dictionary::new();
+    opts_dict.insert("buf", Object::from(buf.handle()));
+    let value_obj = value
+        .to_object()
+        .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))?;
+    let args = Array::from((Object::from(name), value_obj, Object::from(opts_dict)));
+    api::call_function::<Array, Object>("nvim_set_option_value", args)?;
+    Ok(())
+}
+
+/// Get buffer name, bypassing get_name() return type differences across versions.
+fn buf_get_name(buf: &api::Buffer) -> std::result::Result<String, nvim_oxi::api::Error> {
+    let args = Array::from((Object::from(buf.handle()),));
+    api::call_function::<Array, String>("nvim_buf_get_name", args)
+}
 
 pub fn detect_project_storage_path() -> Result<String> {
     let state_dir = api::call_function::<(String,), String>("stdpath", ("state".to_string(),))
@@ -31,17 +64,12 @@ fn escape_for_ex(filename: &str) -> String {
 
 /// Find an existing buffer that is listed (visible to user)
 pub fn find_existing_buffer(path: &Path) -> Option<nvim_oxi::api::Buffer> {
+    let path_str = path.to_string_lossy();
     nvim_oxi::api::list_bufs().into_iter().find(|b| {
-        b.get_name()
-            .map(|p| p == nvim_oxi::String::from(path))
+        buf_get_name(b)
+            .map(|name| name == path_str.as_ref())
             .unwrap_or(false)
-            && nvim_oxi::api::get_option_value::<bool>(
-                "buflisted",
-                &nvim_oxi::api::opts::OptionOpts::builder()
-                    .buf(b.clone())
-                    .build(),
-            )
-            .unwrap_or(false)
+            && get_buf_option::<bool>("buflisted", b).unwrap_or(false)
     })
 }
 
@@ -55,11 +83,12 @@ pub fn acquire_or_create_buffer(path: &Path) -> Result<(nvim_oxi::api::Buffer, b
     nvim_oxi::api::command(&format!("badd {}", escaped_path))
         .map_err(|e| Error::Internal(e.to_string()))?;
 
+    let path_str = path.to_string_lossy();
     let buf = nvim_oxi::api::list_bufs()
         .into_iter()
         .find(|b| {
-            b.get_name()
-                .map(|p| p == nvim_oxi::String::from(path))
+            buf_get_name(b)
+                .map(|name| name == path_str.as_ref())
                 .unwrap_or(false)
         })
         .ok_or_else(|| {
@@ -84,14 +113,7 @@ pub fn update_buffer_content(buf: &mut nvim_oxi::api::Buffer, content: &str) -> 
 
 /// Mark buffer as having unsaved changes
 pub fn mark_buffer_modified(buf: &nvim_oxi::api::Buffer) -> Result<()> {
-    nvim_oxi::api::set_option_value(
-        "modified",
-        true,
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buf(buf.clone())
-            .build(),
-    )
-    .map_err(|e| Error::Internal(e.to_string()))?;
+    set_buf_option("modified", true, buf).map_err(|e| Error::Internal(e.to_string()))?;
     Ok(())
 }
 
