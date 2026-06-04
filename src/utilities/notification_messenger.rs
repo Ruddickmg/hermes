@@ -1,8 +1,8 @@
 use crate::acp::{Result, error::Error};
 use crate::utilities::LogLevel;
 use crossbeam_channel::{Sender, bounded};
+use nvim_oxi::api;
 use nvim_oxi::libuv::AsyncHandle;
-use nvim_oxi::{Dictionary, api};
 use std::ptr;
 use std::sync::Arc;
 
@@ -54,20 +54,21 @@ impl NotificationMessenger {
     /// Must be called from Neovim's main thread.
     pub fn initialize() -> Result<Self> {
         let (sender, receiver) = bounded::<NotificationMessage>(1000);
-        let mut config = Dictionary::new();
-        config.insert("title", "Hermes");
-        config.insert("merge", true);
 
         let handle = AsyncHandle::new(move || {
             while let Ok(notification) = receiver.try_recv() {
-                let config = config.clone();
                 // CRITICAL: Defer Neovim API calls via vim.schedule to avoid
                 // calling them during uv_run() which can crash Neovim.
                 // See NvimMessenger::initialize for full explanation.
                 nvim_oxi::schedule(move |_| {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        let level: nvim_oxi::api::types::LogLevel = notification.level.into();
-                        api::notify(&notification.message, level, &config).ok();
+                        let is_err = matches!(notification.level, LogLevel::Error);
+                        api::echo(
+                            [(notification.message.as_str(), None::<&str>)],
+                            true,
+                            &nvim_oxi::api::opts::EchoOpts::builder().err(is_err).build(),
+                        )
+                        .ok();
                     }))
                     .ok();
                     Ok::<_, nvim_oxi::Error>(())

@@ -292,7 +292,7 @@ impl Terminal for TerminalInfo {
             .call(|_| Self::start_terminal(command, args, configuration))
             .map_err(|e| Error::Internal(e.to_string()))?;
 
-        let opts = OptionOpts::builder().buffer(buffer.clone()).build();
+        let opts = OptionOpts::builder().buf(buffer.clone()).build();
         Self::set_option("buftype", "terminal", &opts)?;
         Self::set_option("swapfile", false, &opts)?;
         Self::set_option("bufhidden", "hide", &opts)?;

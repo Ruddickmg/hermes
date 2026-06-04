@@ -32,11 +32,13 @@ fn escape_for_ex(filename: &str) -> String {
 /// Find an existing buffer that is listed (visible to user)
 pub fn find_existing_buffer(path: &Path) -> Option<nvim_oxi::api::Buffer> {
     nvim_oxi::api::list_bufs().into_iter().find(|b| {
-        b.get_name().map(|p| p == path).unwrap_or(false)
+        b.get_name()
+            .map(|p| p == nvim_oxi::String::from(path))
+            .unwrap_or(false)
             && nvim_oxi::api::get_option_value::<bool>(
                 "buflisted",
                 &nvim_oxi::api::opts::OptionOpts::builder()
-                    .buffer(b.clone())
+                    .buf(b.clone())
                     .build(),
             )
             .unwrap_or(false)
@@ -55,7 +57,11 @@ pub fn acquire_or_create_buffer(path: &Path) -> Result<(nvim_oxi::api::Buffer, b
 
     let buf = nvim_oxi::api::list_bufs()
         .into_iter()
-        .find(|b| b.get_name().map(|p| p == path).unwrap_or(false))
+        .find(|b| {
+            b.get_name()
+                .map(|p| p == nvim_oxi::String::from(path))
+                .unwrap_or(false)
+        })
         .ok_or_else(|| {
             Error::Internal(format!(
                 "Buffer for file '{}' not found after badd",
@@ -82,7 +88,7 @@ pub fn mark_buffer_modified(buf: &nvim_oxi::api::Buffer) -> Result<()> {
         "modified",
         true,
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buf.clone())
+            .buf(buf.clone())
             .build(),
     )
     .map_err(|e| Error::Internal(e.to_string()))?;

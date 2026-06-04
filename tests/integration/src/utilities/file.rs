@@ -36,8 +36,9 @@ fn test_find_existing_buffer_correct_path() -> nvim_oxi::Result<()> {
     let name = buffer
         .get_name()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_path: std::path::PathBuf = name.into();
     assert_eq!(
-        name,
+        name_path,
         temp_file.path(),
         "Buffer should point to correct file"
     );
@@ -82,8 +83,9 @@ fn test_acquire_or_create_buffer_new_has_correct_path() -> nvim_oxi::Result<()> 
     let name = buffer
         .get_name()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_path: std::path::PathBuf = name.into();
     assert_eq!(
-        name,
+        name_path,
         temp_file.path(),
         "Buffer should point to correct file"
     );
@@ -123,8 +125,9 @@ fn test_acquire_or_create_buffer_existing_has_correct_path() -> nvim_oxi::Result
     let name = buffer
         .get_name()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_path: std::path::PathBuf = name.into();
     assert_eq!(
-        name,
+        name_path,
         temp_file.path(),
         "Buffer should point to correct file"
     );
@@ -176,7 +179,7 @@ fn test_mark_buffer_modified() -> nvim_oxi::Result<()> {
     let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
         "modified",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
+            .buf(buffer.clone())
             .build(),
     )
     .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get modified: {}", e)))?;

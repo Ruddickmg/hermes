@@ -57,13 +57,17 @@ fn open_buffer_marked_modified() -> nvim_oxi::Result<()> {
     // Verify buffer is marked as modified
     let buffer = nvim_oxi::api::list_bufs()
         .into_iter()
-        .find(|b| b.get_name().map(|p| p == temp_file.path()).unwrap_or(false))
+        .find(|b| {
+            b.get_name()
+                .map(|p| p == nvim_oxi::String::from(temp_file.path()))
+                .unwrap_or(false)
+        })
         .expect("Buffer should exist");
 
     let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
         "modified",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
+            .buf(buffer.clone())
             .build(),
     )
     .expect("Should get modified option");
@@ -249,13 +253,17 @@ fn buffer_already_open_marked_modified() -> nvim_oxi::Result<()> {
     // Verify: Buffer should be updated and marked modified
     let updated_buffer = nvim_oxi::api::list_bufs()
         .into_iter()
-        .find(|b| b.get_name().map(|p| p == temp_file.path()).unwrap_or(false))
+        .find(|b| {
+            b.get_name()
+                .map(|p| p == nvim_oxi::String::from(temp_file.path()))
+                .unwrap_or(false)
+        })
         .expect("Buffer should still exist");
 
     let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
         "modified",
         &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(updated_buffer.clone())
+            .buf(updated_buffer.clone())
             .build(),
     )
     .expect("Should get modified option");

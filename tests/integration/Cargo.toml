@@ -23,7 +23,7 @@ async-net = "2"
 async-trait = "0.1"
 blocking = "1"
 hermes = { path = "../.." }
-nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-12", "test"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1.44"
@@ -36,7 +36,7 @@ uuid = "1"
 smol = "2"
 
 [build-dependencies]
-nvim-oxi = { version = "0.6.0", features = ["neovim-0-10", "test"] }
+nvim-oxi = { version = "0.6.0", features = ["neovim-0-12", "test"] }
 
 # [profile.test]
 # opt-level = 0
