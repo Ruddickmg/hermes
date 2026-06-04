@@ -1,6 +1,7 @@
 //! Integration tests for file utilities
 use assert_fs::NamedTempFile;
 use assert_fs::prelude::*;
+use hermes::utilities::buf_options::get_buf_option;
 use hermes::utilities::{
     acquire_or_create_buffer, detect_project_storage_path, find_existing_buffer,
     mark_buffer_modified, refresh_view, save_buffer_to_disk, update_buffer_content,
@@ -176,13 +177,8 @@ fn test_mark_buffer_modified() -> nvim_oxi::Result<()> {
     mark_buffer_modified(&buffer).map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
 
     // Verify modified flag is set
-    let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )
-    .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get modified: {}", e)))?;
+    let is_modified: bool = get_buf_option("modified", &buffer)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get modified: {}", e)))?;
 
     assert!(is_modified, "Buffer should be marked as modified");
 

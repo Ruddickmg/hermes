@@ -4,42 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nvim_oxi::{Array, Dictionary, Object, api};
+use nvim_oxi::api;
 
 use crate::acp::{Result, error::Error};
-
-/// Get a buffer option value, bypassing OptionOpts builder (version-dependent).
-fn get_buf_option<T: nvim_oxi::conversion::FromObject>(
-    name: &str,
-    buf: &api::Buffer,
-) -> std::result::Result<T, nvim_oxi::api::Error> {
-    let mut opts_dict = Dictionary::new();
-    opts_dict.insert("buf", Object::from(buf.handle()));
-    let args = Array::from((Object::from(name), Object::from(opts_dict)));
-    api::call_function::<Array, T>("nvim_get_option_value", args)
-}
-
-/// Set a buffer option value, bypassing OptionOpts builder (version-dependent).
-fn set_buf_option<T: nvim_oxi::conversion::ToObject>(
-    name: &str,
-    value: T,
-    buf: &api::Buffer,
-) -> std::result::Result<(), nvim_oxi::Error> {
-    let mut opts_dict = Dictionary::new();
-    opts_dict.insert("buf", Object::from(buf.handle()));
-    let value_obj = value
-        .to_object()
-        .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))?;
-    let args = Array::from((Object::from(name), value_obj, Object::from(opts_dict)));
-    api::call_function::<Array, Object>("nvim_set_option_value", args)?;
-    Ok(())
-}
-
-/// Get buffer name, bypassing get_name() return type differences across versions.
-fn buf_get_name(buf: &api::Buffer) -> std::result::Result<String, nvim_oxi::api::Error> {
-    let args = Array::from((Object::from(buf.handle()),));
-    api::call_function::<Array, String>("nvim_buf_get_name", args)
-}
+use crate::utilities::buf_options::{buf_get_name, get_buf_option, set_buf_option};
 
 pub fn detect_project_storage_path() -> Result<String> {
     let state_dir = api::call_function::<(String,), String>("stdpath", ("state".to_string(),))

@@ -8,6 +8,7 @@ use async_lock::Mutex;
 use hermes::nvim::requests::{RequestHandler, Requests, Responder};
 use hermes::nvim::state::PluginState;
 use hermes::utilities::NvimRuntime;
+use hermes::utilities::buf_options::get_buf_option;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -60,13 +61,8 @@ fn open_buffer_marked_modified() -> nvim_oxi::Result<()> {
         .find(|b| b.get_name().map(|p| p == temp_file.path()).unwrap_or(false))
         .expect("Buffer should exist");
 
-    let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )
-    .expect("Should get modified option");
+    let is_modified: bool =
+        get_buf_option("modified", &buffer).expect("Should get modified option");
 
     assert!(
         is_modified,
@@ -252,13 +248,8 @@ fn buffer_already_open_marked_modified() -> nvim_oxi::Result<()> {
         .find(|b| b.get_name().map(|p| p == temp_file.path()).unwrap_or(false))
         .expect("Buffer should still exist");
 
-    let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(updated_buffer.clone())
-            .build(),
-    )
-    .expect("Should get modified option");
+    let is_modified: bool =
+        get_buf_option("modified", &updated_buffer).expect("Should get modified option");
     assert!(is_modified, "Buffer should be marked as modified");
 
     receiver

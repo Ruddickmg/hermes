@@ -1,6 +1,7 @@
 use crate::{
     acp::{Result, error::Error},
     nvim::{configuration::TerminalConfig, terminal::parse_exit_code},
+    utilities::buf_options::set_buf_option,
 };
 use agent_client_protocol::schema::EnvVariable;
 use async_channel::Sender;
@@ -199,19 +200,11 @@ impl TerminalInfo {
         })
     }
 
-    fn set_buf_option<T>(option: &str, value: T, buf: &nvim_oxi::api::Buffer) -> Result<()>
+    fn set_option<T>(option: &str, value: T, buf: &nvim_oxi::api::Buffer) -> Result<()>
     where
         T: nvim_oxi::conversion::ToObject,
     {
-        let mut opts_dict = Dictionary::new();
-        opts_dict.insert("buf", Object::from(buf.handle()));
-        let value_obj = value
-            .to_object()
-            .map_err(|e| Error::Internal(e.to_string()))?;
-        let args = Array::from((Object::from(option), value_obj, Object::from(opts_dict)));
-        nvim_oxi::api::call_function::<Array, Object>("nvim_set_option_value", args)
-            .map_err(|e| Error::Internal(e.to_string()))?;
-        Ok(())
+        set_buf_option(option, value, buf).map_err(|e| Error::Internal(e.to_string()))
     }
 }
 
@@ -296,11 +289,11 @@ impl Terminal for TerminalInfo {
             .call(|_| Self::start_terminal(command, args, configuration))
             .map_err(|e| Error::Internal(e.to_string()))?;
 
-        Self::set_buf_option("buftype", "terminal", &buffer)?;
-        Self::set_buf_option("swapfile", false, &buffer)?;
-        Self::set_buf_option("bufhidden", "hide", &buffer)?;
-        Self::set_buf_option("scrollback", 10000, &buffer)?;
-        Self::set_buf_option("modified", false, &buffer)?;
+        Self::set_option("buftype", "terminal", &buffer)?;
+        Self::set_option("swapfile", false, &buffer)?;
+        Self::set_option("bufhidden", "hide", &buffer)?;
+        Self::set_option("scrollback", 10000, &buffer)?;
+        Self::set_option("modified", false, &buffer)?;
 
         self.job_id = Some(job_id as i64);
         self.buffer = Some(buffer);

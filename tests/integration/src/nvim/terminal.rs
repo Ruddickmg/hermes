@@ -5,6 +5,7 @@
 use hermes::acp::Result;
 use hermes::nvim::configuration::TerminalConfig;
 use hermes::nvim::terminal::{Terminal, TerminalInfo};
+use hermes::utilities::buf_options::get_buf_option;
 
 /// Integration test: Verifies report_exit_to sends exit code when already occurred
 #[nvim_oxi::test]
@@ -194,12 +195,7 @@ fn terminal_info_run_sets_buftype_to_terminal() -> nvim_oxi::Result<()> {
 
     // Verify the buffer was created and buftype is set
     let buffer = terminal.buffer().expect("Buffer should be created");
-    let buftype: String = nvim_oxi::api::get_option_value(
-        "buftype",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )?;
+    let buftype: String = get_buf_option("buftype", &buffer)?;
 
     assert_eq!(buftype, "terminal");
 
@@ -217,12 +213,7 @@ fn terminal_info_run_sets_swapfile_to_false() -> nvim_oxi::Result<()> {
         .expect("Failed to start terminal job");
 
     let buffer = terminal.buffer().expect("Buffer should be created");
-    let swapfile: bool = nvim_oxi::api::get_option_value(
-        "swapfile",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )?;
+    let swapfile: bool = get_buf_option("swapfile", &buffer)?;
 
     assert!(!swapfile, "swapfile should be false for terminal buffers");
 
@@ -240,12 +231,7 @@ fn terminal_info_run_sets_bufhidden_to_hide() -> nvim_oxi::Result<()> {
         .expect("Failed to start terminal job");
 
     let buffer = terminal.buffer().expect("Buffer should be created");
-    let bufhidden: String = nvim_oxi::api::get_option_value(
-        "bufhidden",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )?;
+    let bufhidden: String = get_buf_option("bufhidden", &buffer)?;
 
     assert_eq!(bufhidden, "hide");
 
@@ -263,12 +249,7 @@ fn terminal_info_run_sets_scrollback_to_10000() -> nvim_oxi::Result<()> {
         .expect("Failed to start terminal job");
 
     let buffer = terminal.buffer().expect("Buffer should be created");
-    let scrollback: i64 = nvim_oxi::api::get_option_value(
-        "scrollback",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )?;
+    let scrollback: i64 = get_buf_option("scrollback", &buffer)?;
 
     assert_eq!(scrollback, 10000);
 
@@ -286,12 +267,7 @@ fn terminal_info_run_sets_modified_to_false() -> nvim_oxi::Result<()> {
         .expect("Failed to start terminal job");
 
     let buffer = terminal.buffer().expect("Buffer should be created");
-    let modified: bool = nvim_oxi::api::get_option_value(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )?;
+    let modified: bool = get_buf_option("modified", &buffer)?;
 
     assert!(!modified, "modified should be false for terminal buffers");
 

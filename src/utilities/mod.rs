@@ -1,3 +1,4 @@
+pub mod buf_options;
 pub mod file;
 pub mod logging;
 pub mod message_messenger;
@@ -8,6 +9,7 @@ pub mod prompt;
 pub mod runtime;
 pub mod ui;
 
+pub use buf_options::*;
 pub use file::*;
 pub use logging::*;
 pub use message_messenger::*;
