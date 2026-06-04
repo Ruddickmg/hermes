@@ -603,6 +603,7 @@ jobs:
           name: Install coverage tools
           command: |
             cargo install cargo-llvm-cov@0.6.13
+            cargo install cargo-nextest --locked
       - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
@@ -644,6 +645,7 @@ jobs:
           name: Install coverage tools
           command: |
             cargo install cargo-llvm-cov@0.6.13
+            cargo install cargo-nextest --locked
       - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
