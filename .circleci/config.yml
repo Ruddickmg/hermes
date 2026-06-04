@@ -73,7 +73,7 @@ workflows:
               only: 
                 - main
                 - development
-      - build-linux-x86_64-0-12:
+      - build-linux-x86_64:
           filters:
             branches:
               only:
@@ -82,7 +82,7 @@ workflows:
           requires:
             - update-cargo-version
             - fetch-registry
-      - build-linux-x86_64-0-11:
+      - build-linux-aarch64:
           filters:
             branches:
               only:
@@ -91,7 +91,7 @@ workflows:
           requires:
             - update-cargo-version
             - fetch-registry
-      - build-linux-aarch64-0-12:
+      - build-mac-aarch64:
           filters:
             branches:
               only:
@@ -100,7 +100,7 @@ workflows:
           requires:
             - update-cargo-version
             - fetch-registry
-      - build-linux-aarch64-0-11:
+      - build-mac-x86_64:
           filters:
             branches:
               only:
@@ -109,52 +109,7 @@ workflows:
           requires:
             - update-cargo-version
             - fetch-registry
-      - build-mac-aarch64-0-12:
-          filters:
-            branches:
-              only:
-                - main
-                - development
-          requires:
-            - update-cargo-version
-            - fetch-registry
-      - build-mac-aarch64-0-11:
-          filters:
-            branches:
-              only:
-                - main
-                - development
-          requires:
-            - update-cargo-version
-            - fetch-registry
-      - build-mac-x86_64-0-12:
-          filters:
-            branches:
-              only:
-                - main
-                - development
-          requires:
-            - update-cargo-version
-            - fetch-registry
-      - build-mac-x86_64-0-11:
-          filters:
-            branches:
-              only:
-                - main
-                - development
-          requires:
-            - update-cargo-version
-            - fetch-registry
-      - build-windows-x86_64-0-12:
-          filters:
-            branches:
-              only:
-                - main
-                - development
-          requires:
-            - update-cargo-version
-            - fetch-registry
-      - build-windows-x86_64-0-11:
+      - build-windows-x86_64:
           filters:
             branches:
               only:
@@ -179,16 +134,11 @@ workflows:
             - unit_tests
             - e2e_tests_0_12
             - e2e_tests_0_11
-            - build-linux-x86_64-0-12
-            - build-linux-x86_64-0-11
-            - build-linux-aarch64-0-12
-            - build-linux-aarch64-0-11
-            - build-mac-aarch64-0-12
-            - build-mac-aarch64-0-11
-            - build-mac-x86_64-0-12
-            - build-mac-x86_64-0-11
-            - build-windows-x86_64-0-12
-            - build-windows-x86_64-0-11
+            - build-linux-x86_64
+            - build-linux-aarch64
+            - build-mac-aarch64
+            - build-mac-x86_64
+            - build-windows-x86_64
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
@@ -271,75 +221,41 @@ jobs:
           paths:
             - src/acp/registry/registry.json
 
-  build-linux-x86_64-0-12:
+  build-linux-x86_64:
     executor: rust-linux-x86_64
     steps:
       - checkout
       - attach_workspace:
           at: .
       - run:
-          name: Stable Build for x86_64 (0.12)
-          command: cargo build --release --features neovim-0-12
+          name: Build for x86_64
+          command: cargo build --release
       - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.so target/release/libhermes-linux-x86_64-nvim012.so
+          name: Rename binary
+          command: mv target/release/libhermes.so target/release/libhermes-linux-x86_64.so
       - persist_to_workspace:
           root: target/release
           paths:
-            - libhermes-linux-x86_64-nvim012.so
+            - libhermes-linux-x86_64.so
 
-  build-linux-x86_64-0-11:
-    executor: rust-linux-x86_64
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Stable Build for x86_64 (0.11)
-          command: cargo build --release --features neovim-0-11
-      - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.so target/release/libhermes-linux-x86_64-nvim011.so
-      - persist_to_workspace:
-          root: target/release
-          paths:
-            - libhermes-linux-x86_64-nvim011.so
-
-  build-linux-aarch64-0-12:
+  build-linux-aarch64:
     executor: rust-linux-aarch64
     steps:
       - checkout
       - attach_workspace:
           at: .
       - run:
-          name: Stable Build for aarch64 (0.12)
-          command: cargo build --release --features neovim-0-12
+          name: Build for aarch64
+          command: cargo build --release
       - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.so target/release/libhermes-linux-aarch64-nvim012.so
+          name: Rename binary
+          command: mv target/release/libhermes.so target/release/libhermes-linux-aarch64.so
       - persist_to_workspace:
           root: target/release
           paths:
-            - libhermes-linux-aarch64-nvim012.so
+            - libhermes-linux-aarch64.so
 
-  build-linux-aarch64-0-11:
-    executor: rust-linux-aarch64
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Stable Build for aarch64 (0.11)
-          command: cargo build --release --features neovim-0-11
-      - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.so target/release/libhermes-linux-aarch64-nvim011.so
-      - persist_to_workspace:
-          root: target/release
-          paths:
-            - libhermes-linux-aarch64-nvim011.so
-
-  build-mac-aarch64-0-12:
+  build-mac-aarch64:
     executor: mac-aarch64
     steps:
       - checkout
@@ -349,37 +265,17 @@ jobs:
           name: Install Rust
           command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
       - run:
-          name: Build Rust Project for aarch64 (0.12)
-          command: cargo build --release --features neovim-0-12
+          name: Build for aarch64
+          command: cargo build --release
       - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.dylib target/release/libhermes-macos-aarch64-nvim012.dylib
+          name: Rename binary
+          command: mv target/release/libhermes.dylib target/release/libhermes-macos-aarch64.dylib
       - persist_to_workspace:
           root: target/release
           paths:
-            - libhermes-macos-aarch64-nvim012.dylib
+            - libhermes-macos-aarch64.dylib
 
-  build-mac-aarch64-0-11:
-    executor: mac-aarch64
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install Rust
-          command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      - run:
-          name: Build Rust Project for aarch64 (0.11)
-          command: cargo build --release --features neovim-0-11
-      - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.dylib target/release/libhermes-macos-aarch64-nvim011.dylib
-      - persist_to_workspace:
-          root: target/release
-          paths:
-            - libhermes-macos-aarch64-nvim011.dylib
-
-  build-mac-x86_64-0-12:
+  build-mac-x86_64:
     executor: mac-aarch64
     steps:
       - checkout
@@ -395,43 +291,17 @@ jobs:
           name: Install x86_64 target
           command: rustup target add x86_64-apple-darwin
       - run:
-          name: Build Rust Project for x86_64 (0.12 cross-compile)
-          command: cargo build --release --target x86_64-apple-darwin --features neovim-0-12
+          name: Build for x86_64 (cross-compile)
+          command: cargo build --release --target x86_64-apple-darwin
       - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.dylib target/release/libhermes-macos-x86_64-nvim012.dylib 2>/dev/null || mv target/x86_64-apple-darwin/release/libhermes.dylib target/release/libhermes-macos-x86_64-nvim012.dylib
+          name: Rename binary
+          command: mv target/release/libhermes.dylib target/release/libhermes-macos-x86_64.dylib 2>/dev/null || mv target/x86_64-apple-darwin/release/libhermes.dylib target/release/libhermes-macos-x86_64.dylib
       - persist_to_workspace:
           root: target/release
           paths:
-            - libhermes-macos-x86_64-nvim012.dylib
-
-  build-mac-x86_64-0-11:
-    executor: mac-aarch64
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install Rosetta 2
-          command: softwareupdate --install-rosetta --agree-to-license
-      - run:
-          name: Install Rust
-          command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      - run:
-          name: Install x86_64 target
-          command: rustup target add x86_64-apple-darwin
-      - run:
-          name: Build Rust Project for x86_64 (0.11 cross-compile)
-          command: cargo build --release --target x86_64-apple-darwin --features neovim-0-11
-      - run:
-          name: Rename binary for architecture
-          command: mv target/release/libhermes.dylib target/release/libhermes-macos-x86_64-nvim011.dylib 2>/dev/null || mv target/x86_64-apple-darwin/release/libhermes.dylib target/release/libhermes-macos-x86_64-nvim011.dylib
-      - persist_to_workspace:
-          root: target/release
-          paths:
-            - libhermes-macos-x86_64-nvim011.dylib
+            - libhermes-macos-x86_64.dylib
   
-  build-windows-x86_64-0-12:
+  build-windows-x86_64:
     executor: windows/default
     steps:
       - checkout
@@ -449,16 +319,16 @@ jobs:
             rustup target add x86_64-pc-windows-msvc
             rustc -vV
       - run:
-          name: Build for Windows x86_64 (0.12)
+          name: Build for Windows x86_64
           command: |
             $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-            cargo build --release --target x86_64-pc-windows-msvc --features neovim-0-12
+            cargo build --release --target x86_64-pc-windows-msvc
       - run:
           name: Rename DLL
           command: |
             $dllPath = "target/x86_64-pc-windows-msvc/release/hermes.dll"
             if (Test-Path $dllPath) {
-                Move-Item $dllPath "target/x86_64-pc-windows-msvc/release/libhermes-windows-x86_64-nvim012.dll"
+                Move-Item $dllPath "target/x86_64-pc-windows-msvc/release/libhermes-windows-x86_64.dll"
             } else {
                 Write-Error "DLL not found at expected path"
                 exit 1
@@ -466,44 +336,7 @@ jobs:
       - persist_to_workspace:
           root: target/x86_64-pc-windows-msvc/release
           paths:
-            - libhermes-windows-x86_64-nvim012.dll
-
-  build-windows-x86_64-0-11:
-    executor: windows/default
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Install Rust (MSVC)
-          command: |
-            choco install rustup.install -y
-            refreshenv
-            $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-            rustup --version
-            rustup toolchain install stable-x86_64-pc-windows-msvc
-            rustup default stable-x86_64-pc-windows-msvc
-            rustup target add x86_64-pc-windows-msvc
-            rustc -vV
-      - run:
-          name: Build for Windows x86_64 (0.11)
-          command: |
-            $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-            cargo build --release --target x86_64-pc-windows-msvc --features neovim-0-11
-      - run:
-          name: Rename DLL
-          command: |
-            $dllPath = "target/x86_64-pc-windows-msvc/release/hermes.dll"
-            if (Test-Path $dllPath) {
-                Move-Item $dllPath "target/x86_64-pc-windows-msvc/release/libhermes-windows-x86_64-nvim011.dll"
-            } else {
-                Write-Error "DLL not found at expected path"
-                exit 1
-            }
-      - persist_to_workspace:
-          root: target/x86_64-pc-windows-msvc/release
-          paths:
-            - libhermes-windows-x86_64-nvim011.dll
+            - libhermes-windows-x86_64.dll
 
   check_formatting:
     executor: rust-linux-x86_64
@@ -744,7 +577,7 @@ jobs:
             nvim --version
       - run:
           name: Build Hermes binary
-          command: cargo build --release --no-default-features --features neovim-0-11
+          command: cargo build --release
       - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
