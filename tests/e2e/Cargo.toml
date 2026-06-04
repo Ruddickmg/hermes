@@ -6,6 +6,11 @@ name = "hermes-e2e"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["neovim-0-12"]
+neovim-0-12 = ["hermes/neovim-0-12", "nvim-oxi/neovim-0-12"]
+neovim-0-11 = ["hermes/neovim-0-11", "nvim-oxi/neovim-0-11"]
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -22,8 +27,8 @@ async-net = "2"
 async-trait = "0.1"
 futures = "0.3"
 futures-lite = "2"
-hermes = { path = "../.." }
-nvim-oxi = { version = "0.6.0", features = ["neovim-0-12", "test"] }
+hermes = { path = "../..", default-features = false }
+nvim-oxi = { version = "0.6.0", features = ["test"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 smol = "2"
@@ -33,7 +38,7 @@ tempfile = "3.14"
 uuid = { version = "1", features = ["v4"] }
 
 [build-dependencies]
-nvim-oxi = { version = "0.6.0", features = ["neovim-0-12", "test"] }
+nvim-oxi = { version = "0.6.0", features = ["test"] }
 
 # [profile.test]
 # opt-level = 0

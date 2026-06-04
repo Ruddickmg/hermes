@@ -57,6 +57,16 @@ function M.get_data_dir()
 end
 
 -- luacov: disable
+---Get Neovim version suffix for binary naming
+---@return string nvim_suffix e.g. "nvim012" for Neovim 0.12.x
+---@private
+-- luacov: enable
+local function get_nvim_suffix()
+	local ver = vim.version()
+	return string.format("nvim%02d%02d", ver.major, ver.minor)
+end
+
+-- luacov: disable
 ---Get the binary name for current platform
 ---@return string binary_name Name of the binary file
 ---@private
@@ -66,7 +76,8 @@ function M.get_binary_name()
 	local os = platform.get_os()
 	local arch = platform.get_arch()
 	local ext = platform.get_ext()
-	return string.format("libhermes-%s-%s.%s", os, arch, ext)
+	local suffix = get_nvim_suffix()
+	return string.format("libhermes-%s-%s-%s.%s", os, arch, suffix, ext)
 end
 
 -- luacov: disable
@@ -214,8 +225,19 @@ function M.build_from_source(dest_dir)
 
 	logging.notify("Building from source (this may take a few minutes)...", vim.log.levels.INFO, notification_options)
 
+	-- Detect Neovim version and build with correct feature flag
+	local ver = vim.version()
+	local is_nvim_12 = (ver.major == 0 and ver.minor >= 12)
+
 	-- Build with cargo from the detected source directory
-	local build_cmd = "cd " .. vim.fn.shellescape(source_dir) .. " && cargo build --release"
+	local build_cmd
+	if is_nvim_12 then
+		build_cmd = "cd " .. vim.fn.shellescape(source_dir) .. " && cargo build --release"
+	else
+		build_cmd = "cd "
+			.. vim.fn.shellescape(source_dir)
+			.. " && cargo build --release --no-default-features --features neovim-0-11"
+	end
 	local output = vim.fn.system(build_cmd)
 
 	if vim.v.shell_error ~= 0 then
@@ -315,7 +337,18 @@ function M.build_from_source_async(dest_dir, on_complete)
 		local start_time = uv.now()
 		local progress_interval = 60000 -- Show progress every 60 seconds
 
-		local job_id = vim.fn.jobstart({ "cargo", "build", "--release" }, {
+		-- Detect Neovim version and build with correct feature flag
+		local ver = vim.version()
+		local is_nvim_12 = (ver.major == 0 and ver.minor >= 12)
+
+		local cargo_args
+		if is_nvim_12 then
+			cargo_args = { "cargo", "build", "--release" }
+		else
+			cargo_args = { "cargo", "build", "--release", "--no-default-features", "--features", "neovim-0-11" }
+		end
+
+		local job_id = vim.fn.jobstart(cargo_args, {
 			cwd = source_dir,
 			on_stdout = function(_, _) end,
 			on_stderr = function(_, _) end,
