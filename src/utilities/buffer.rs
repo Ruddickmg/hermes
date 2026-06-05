@@ -70,32 +70,3 @@ pub fn buffer_get_lines(
         })
         .map_err(|e| Error::Internal(e.to_string()))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn create_hidden_buffer_signature_compiles() {
-        fn assert_compiles(_f: impl Fn() -> Result<api::Buffer>) {}
-        assert_compiles(create_hidden_buffer);
-    }
-
-    #[test]
-    fn delete_buffer_force_signature_compiles() {
-        fn assert_compiles(_f: impl Fn(&api::Buffer) -> Result<()>) {}
-        assert_compiles(delete_buffer_force);
-    }
-
-    #[test]
-    fn buffer_line_count_signature_compiles() {
-        fn assert_compiles(_f: impl Fn(&api::Buffer) -> Result<usize>) {}
-        assert_compiles(buffer_line_count);
-    }
-
-    #[test]
-    fn buffer_get_lines_signature_compiles() {
-        fn assert_compiles(_f: impl Fn(&api::Buffer, usize, usize, bool) -> Result<Vec<String>>) {}
-        assert_compiles(buffer_get_lines);
-    }
-}

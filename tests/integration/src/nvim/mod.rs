@@ -10,6 +10,9 @@ pub mod terminal;
 #[nvim_oxi::test]
 fn hermes_initializes_without_error() -> nvim_oxi::Result<()> {
     let dict: Dictionary = hermes()?;
-    assert!(!dict.is_empty(), "hermes dictionary should not be empty");
+    assert!(
+        dict.get("setup").is_some(),
+        "hermes dictionary should contain 'setup' export"
+    );
     Ok(())
 }

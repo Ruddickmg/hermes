@@ -2,6 +2,7 @@
 use hermes::utilities::buffer::{
     buffer_get_lines, buffer_line_count, create_hidden_buffer, delete_buffer_force,
 };
+use pretty_assertions::assert_eq;
 
 #[nvim_oxi::test]
 fn create_hidden_buffer_returns_valid_buffer() -> nvim_oxi::Result<()> {
@@ -48,8 +49,8 @@ fn delete_buffer_force_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
     // Delete again — should error because buffer no longer exists
     let result = delete_buffer_force(&buf);
     assert!(
-        result.is_err(),
-        "Deleting an already-deleted buffer should error"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Deleting an already-deleted buffer should return Internal error"
     );
 
     Ok(())
@@ -78,8 +79,8 @@ fn buffer_line_count_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
 
     let result = buffer_line_count(&buf);
     assert!(
-        result.is_err(),
-        "buffer_line_count on deleted buffer should error"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "buffer_line_count on deleted buffer should return Internal error"
     );
 
     Ok(())
@@ -112,8 +113,8 @@ fn buffer_get_lines_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
 
     let result = buffer_get_lines(&buf, 0, 1, false);
     assert!(
-        result.is_err(),
-        "buffer_get_lines on deleted buffer should error"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "buffer_get_lines on deleted buffer should return Internal error"
     );
 
     Ok(())

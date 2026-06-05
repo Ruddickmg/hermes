@@ -6,6 +6,7 @@ use hermes::utilities::{
     acquire_or_create_buffer, detect_project_storage_path, find_existing_buffer,
     mark_buffer_modified, refresh_view, save_buffer_to_disk, update_buffer_content,
 };
+use pretty_assertions::assert_eq;
 
 #[nvim_oxi::test]
 fn test_find_existing_buffer_finds_open_file() -> nvim_oxi::Result<()> {
@@ -347,8 +348,8 @@ fn save_buffer_to_disk_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
 
     let result = save_buffer_to_disk(&buf);
     assert!(
-        result.is_err(),
-        "save_buffer_to_disk on a deleted buffer should return an error (not abort Neovim)"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "save_buffer_to_disk on a deleted buffer should return Internal error (not abort Neovim)"
     );
 
     Ok(())
@@ -366,8 +367,8 @@ fn update_buffer_content_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
 
     let result = update_buffer_content(&mut buf, "test content");
     assert!(
-        result.is_err(),
-        "update_buffer_content on a deleted buffer should error"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "update_buffer_content on a deleted buffer should return Internal error"
     );
 
     Ok(())

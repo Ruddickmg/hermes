@@ -1,5 +1,6 @@
 //! Integration tests for buffer option utilities
 use hermes::utilities::buf_options::{buf_get_name, get_buf_option, set_buf_option};
+use pretty_assertions::assert_eq;
 
 #[nvim_oxi::test]
 fn set_and_get_buf_option_roundtrip() -> nvim_oxi::Result<()> {

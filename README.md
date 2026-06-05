@@ -2252,6 +2252,8 @@ Available formats:
 
 -- functionality
 
+- [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
+- [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
@@ -2266,8 +2268,6 @@ Available formats:
   - [ ] session
     - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
     - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
-    - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
-    - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
   - [ ] [ACP over MCP](https://agentclientprotocol.com/rfds/mcp-over-acp)
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)

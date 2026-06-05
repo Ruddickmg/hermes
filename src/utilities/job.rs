@@ -66,23 +66,3 @@ pub fn stop_job(id: i64) -> Result<()> {
         })
         .map_err(|e| Error::Internal(e.to_string()))?
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn start_job_in_buffer_signature_compiles() {
-        fn assert_compiles(
-            _f: impl Fn(&api::Buffer, String, Vec<String>, Dictionary) -> Result<i64>,
-        ) {
-        }
-        assert_compiles(start_job_in_buffer);
-    }
-
-    #[test]
-    fn stop_job_signature_compiles() {
-        fn assert_compiles(_f: impl Fn(i64) -> Result<()>) {}
-        assert_compiles(stop_job);
-    }
-}

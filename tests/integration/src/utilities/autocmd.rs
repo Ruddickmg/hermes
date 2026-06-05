@@ -90,12 +90,16 @@ fn create_autocmd_callback_error_path_logs_and_returns_nil() -> nvim_oxi::Result
     })?;
 
     // Trigger the autocmd; the callback should execute and return nil internally.
-    exec_autocmd(
+    let result = exec_autocmd(
         "hermes_test_cb_err",
         "User",
         "*",
         nvim_oxi::Object::from(()),
-    )?;
+    );
+    assert!(
+        result.is_ok(),
+        "exec_autocmd should succeed even when callback returns an error"
+    );
 
     Ok(())
 }

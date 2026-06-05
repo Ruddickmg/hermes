@@ -9,6 +9,7 @@ use hermes::nvim::requests::{RequestHandler, Requests, Responder};
 use hermes::nvim::state::PluginState;
 use hermes::utilities::NvimRuntime;
 use hermes::utilities::buf_options::get_buf_option;
+use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -190,7 +191,10 @@ fn responder_send_failure_returns_error() -> nvim_oxi::Result<()> {
     drop(receiver);
 
     let result = block_on(requests.default_response(&request_id, serde_json::Value::Null));
-    assert!(result.is_err(), "Should return error when send fails");
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Should return Internal error when send fails"
+    );
     Ok(())
 }
 
@@ -348,7 +352,11 @@ fn write_file_cleanup_request_exists_before_response() -> nvim_oxi::Result<()> {
     let request_id = block_on(requests.add_request("test-session".to_string(), responder));
 
     // Verify request exists before response
-    assert!(block_on(requests.get_request(&request_id)).is_some());
+    let request = block_on(requests.get_request(&request_id));
+    assert!(
+        request.is_some(),
+        "Request should exist before default_response is called"
+    );
     Ok(())
 }
 
@@ -373,7 +381,11 @@ fn write_file_cleanup_default_response_succeeds() -> nvim_oxi::Result<()> {
 
     // Use default_response (goes through Request::default() -> now calls finish())
     let result = block_on(requests.default_response(&request_id, serde_json::Value::Null));
-    assert!(result.is_ok());
+    assert!(
+        result.is_ok(),
+        "default_response should succeed for write file request: {:?}",
+        result
+    );
     Ok(())
 }
 

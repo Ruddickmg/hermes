@@ -34,8 +34,8 @@ fn start_job_in_buffer_errors_for_invalid_command() -> nvim_oxi::Result<()> {
     );
 
     assert!(
-        result.is_err(),
-        "Starting a nonexistent command should return an error (not abort Neovim)"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Starting a nonexistent command should return Internal error (not abort Neovim)"
     );
 
     Ok(())
@@ -68,8 +68,8 @@ fn stop_job_terminates_sleep_job() -> nvim_oxi::Result<()> {
 fn stop_job_errors_for_invalid_job_id() -> nvim_oxi::Result<()> {
     let result = stop_job(-1);
     assert!(
-        result.is_err(),
-        "stop_job with invalid job_id should return an error"
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "stop_job with invalid job_id should return Internal error"
     );
 
     Ok(())
