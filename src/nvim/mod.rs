@@ -8,14 +8,13 @@ pub mod terminal;
 
 use crate::{
     Handler,
-    acp::registry::Registry,
+    acp::{error::Error, registry::Registry},
     api::{DisconnectArgs, Hermes},
-    utilities::{Logger, NvimRuntime, detect_project_storage_path},
+    utilities::{Logger, NvimRuntime, create_autocmd, detect_project_storage_path},
 };
 use async_lock::Mutex;
 use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
 use std::{cell::RefCell, rc::Rc, sync::Arc};
-use tracing::error;
 
 pub const GROUP: &str = "hermes";
 
@@ -58,44 +57,13 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
                 )))
             })?;
 
-    // Bypass CreateAutocmdOpts builder (version-dependent struct layout) by calling
-    // nvim_create_autocmd directly via mlua with a registered Lua function callback.
-    let lua = nvim_oxi::mlua::lua();
-    let cleanup_cb = lua
-        .create_function(move |_lua, _: mlua::Value| match cloned.try_borrow_mut() {
-            Ok(mut app) => {
-                shutdown_runtime.block_on_primary(async move {
-                    app.disconnect(DisconnectArgs::All)
-                        .await
-                        .inspect_err(|e| error!("Error disconnecting: {:?}", e))
-                        .ok();
-                });
-                Ok(mlua::Value::Boolean(true))
-            }
-            Err(e) => {
-                error!(
-                    "An error occurred while disconnecting sessions on exit: {:?}",
-                    e
-                );
-                Ok(mlua::Value::Nil)
-            }
-        })
-        .map_err(|e| {
-            nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
-                "Failed to create Lua callback: {}",
-                e
-            )))
-        })?;
-
-    lua.load(
-        "local group, cb = ...\n vim.api.nvim_create_autocmd('VimLeavePre', { group = group, callback = cb })",
-    )
-    .call::<()>((group, cleanup_cb))
-    .map_err(|e| {
-        nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
-            "Failed to create VimLeavePre autocmd: {}",
-            e
-        )))
+    create_autocmd(group as i32, "VimLeavePre", move || {
+        let mut app = cloned
+            .try_borrow_mut()
+            .map_err(|e| Error::Internal(format!("Failed to borrow API on VimLeavePre: {}", e)))?;
+        shutdown_runtime
+            .block_on_primary(async move { app.disconnect(DisconnectArgs::All).await })?;
+        Ok(true)
     })?;
 
     Ok(hermes.into())

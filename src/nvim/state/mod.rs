@@ -1,4 +1,3 @@
-use crate::acp::Result;
 use crate::acp::registry::Registry;
 use std::collections::HashMap;
 use std::path::PathBuf;
