@@ -336,6 +336,25 @@ fn test_acquire_or_create_buffer_with_spaces_in_path() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn save_buffer_to_disk_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
+
+    let buf = create_hidden_buffer()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;
+
+    delete_buffer_force(&buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("delete_buffer_force failed: {}", e)))?;
+
+    let result = save_buffer_to_disk(&buf);
+    assert!(
+        result.is_err(),
+        "save_buffer_to_disk on a deleted buffer should return an error (not abort Neovim)"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn update_buffer_content_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
     use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
 

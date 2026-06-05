@@ -415,6 +415,21 @@ fn terminal_info_configure_buffered_false_sets_stderr_buffered_to_false() -> nvi
     Ok(())
 }
 
+/// Integration test: Verifies run() errors for invalid command without crashing Neovim
+#[nvim_oxi::test]
+fn terminal_info_run_errors_for_invalid_command() -> nvim_oxi::Result<()> {
+    let config = TerminalConfig::default();
+    let mut terminal = TerminalInfo::new(None).configure(config);
+
+    let result = terminal.run("nonexistent_command_xyz".to_string(), vec![]);
+    assert!(
+        result.is_err(),
+        "run() with invalid command should return an error (not abort Neovim)"
+    );
+
+    Ok(())
+}
+
 /// Integration test: Verifies stop() succeeds on a running terminal
 #[nvim_oxi::test]
 fn terminal_info_stop_succeeds_on_running_terminal() -> nvim_oxi::Result<()> {

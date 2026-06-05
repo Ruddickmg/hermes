@@ -22,6 +22,26 @@ fn start_job_in_buffer_returns_positive_job_id() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn start_job_in_buffer_errors_for_invalid_command() -> nvim_oxi::Result<()> {
+    let buf = create_hidden_buffer()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;
+
+    let result = start_job_in_buffer(
+        &buf,
+        "nonexistent_command_xyz".to_string(),
+        vec![],
+        Dictionary::new(),
+    );
+
+    assert!(
+        result.is_err(),
+        "Starting a nonexistent command should return an error (not abort Neovim)"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn stop_job_terminates_sleep_job() -> nvim_oxi::Result<()> {
     let buf = create_hidden_buffer()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;

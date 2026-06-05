@@ -88,19 +88,35 @@ pub fn mark_buffer_modified(buf: &nvim_oxi::api::Buffer) -> Result<()> {
 /// Save buffer to disk
 pub fn save_buffer_to_disk(buf: &nvim_oxi::api::Buffer) -> Result<()> {
     // Run :write in the context of the given buffer and propagate any errors.
-    buf.call(|_| {
-        nvim_oxi::api::command("write")
-            .inspect_err(|e| {
-                tracing::error!(
-                    "An error occurred while triggering write in Neovim: {:?}",
-                    e
-                )
-            })
-            .ok();
+    // Panics are caught before they cross the FFI boundary to prevent aborting Neovim.
+    let result = std::rc::Rc::new(std::cell::Cell::new(None));
+    let result_inside = result.clone();
+
+    buf.call(move |_| {
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            nvim_oxi::api::command("write")
+                .inspect_err(|e| {
+                    tracing::error!(
+                        "An error occurred while triggering write in Neovim: {:?}",
+                        e
+                    )
+                })
+                .ok();
+        }));
+        result_inside.set(Some(match r {
+            Ok(()) => Ok(()),
+            Err(e) => Err(nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+                "write command panicked: {:?}",
+                e.downcast_ref::<&str>().unwrap_or(&"unknown panic")
+            )))),
+        }));
     })
     .map_err(|e| Error::Internal(e.to_string()))?;
 
-    Ok(())
+    result
+        .take()
+        .ok_or_else(|| Error::Internal("write command did not produce a result".to_string()))?
+        .map_err(|e| Error::Internal(e.to_string()))
 }
 
 /// Refresh the display to show updated buffer content
