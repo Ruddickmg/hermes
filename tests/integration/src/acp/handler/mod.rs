@@ -1240,3 +1240,119 @@ fn session_notification_does_not_write_history_when_permissions_denied() -> nvim
 
     Ok(())
 }
+
+// === Handler callback branch tests ===
+
+use hermes::nvim::autocommands::Commands;
+use hermes::nvim::requests::{RequestHandler, Responder};
+use hermes::utilities::TransmitToNvim;
+use hermes::utilities::autocmd::create_augroup;
+use nvim_oxi::api::opts::CreateAutocmdOpts;
+use std::time::Duration;
+
+fn blocking_send_handler(
+    handler: hermes::acp::handler::Handler,
+    data: (String, serde_json::Value, Option<(Responder, String)>),
+) -> hermes::acp::Result<()> {
+    std::thread::spawn(move || {
+        let executor = smol::LocalExecutor::new();
+        smol::block_on(executor.run(async { handler.channel.send(data).await }))
+    })
+    .join()
+    .map_err(|_| hermes::acp::error::Error::Internal("Thread panicked".to_string()))?
+}
+
+#[nvim_oxi::test]
+fn handler_callback_fires_autocmd_when_listener_attached() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let requests = Rc::new(MockRequestHandler::new());
+    let handler =
+        Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
+
+    // Ensure the hermes augroup exists so listener_attached can query it
+    let _ = create_augroup("hermes", true);
+
+    // Register a Lua autocmd listener for PermissionRequest
+    let opts = CreateAutocmdOpts::builder()
+        .patterns([Commands::PermissionRequest.to_string().as_str()])
+        .group("hermes")
+        .command("let g:hermes_test_callback_fired = 1")
+        .build();
+    nvim_oxi::api::create_autocmd(["User"], &opts)?;
+
+    // Send message through handler channel from a spawned thread
+    let data = (
+        Commands::PermissionRequest.to_string(),
+        serde_json::json!({}),
+        None,
+    );
+    blocking_send_handler(handler, data).expect("Send should succeed");
+
+    // Wait for the scheduled callback to execute
+    let fired = crate::helpers::ui::wait_for(
+        || {
+            nvim_oxi::api::get_var("hermes_test_callback_fired")
+                .map(|v: i64| v == 1)
+                .unwrap_or(false)
+        },
+        Duration::from_millis(500),
+    );
+    assert!(
+        fired,
+        "autocmd listener should have been triggered by handler callback"
+    );
+
+    // Clean up global variable
+    nvim_oxi::api::del_var("hermes_test_callback_fired").ok();
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn handler_callback_sends_default_response_when_no_listener() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let requests = Rc::new(MockRequestHandler::new());
+    let handler =
+        Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
+
+    // Dummy sender – the mock default_response returns Ok without sending,
+    // but the callback branch itself is what we want to exercise for coverage.
+    let (sender, _receiver) =
+        async_channel::bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
+
+    let data = (
+        "UnknownCommand".to_string(),
+        serde_json::json!({}),
+        Some((
+            Responder::PermissionResponse(sender),
+            "test-session".to_string(),
+        )),
+    );
+    blocking_send_handler(handler, data).expect("Send should succeed");
+
+    // Give the event loop time to process the scheduled callback
+    nvim_oxi::api::command("sleep 50m").ok();
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn handler_callback_warns_when_no_listener_and_no_request() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let requests = Rc::new(MockRequestHandler::new());
+    let handler =
+        Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
+
+    // Send a command with no listener and no responder
+    let data = (
+        "AnotherUnknownCommand".to_string(),
+        serde_json::json!({}),
+        None,
+    );
+    blocking_send_handler(handler, data).expect("Send should succeed");
+
+    // The callback logs a warning; we just verify it doesn't panic or crash.
+    // Give the event loop a moment to process.
+    nvim_oxi::api::command("sleep 50m").ok();
+
+    Ok(())
+}

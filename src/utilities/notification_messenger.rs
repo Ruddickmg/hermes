@@ -36,6 +36,17 @@ impl std::fmt::Debug for NotificationMessenger {
     }
 }
 
+/// Returns the Neovim highlight group name for a given log level.
+fn hl_group_for_level(level: LogLevel) -> &'static str {
+    match level {
+        LogLevel::Error => "ErrorMsg",
+        LogLevel::Warn => "WarningMsg",
+        LogLevel::Info => "MoreMsg",
+        LogLevel::Debug | LogLevel::Trace => "Comment",
+        LogLevel::Off => "",
+    }
+}
+
 impl NotificationMessenger {
     /// Create a new NotificationMessenger with the given sender and AsyncHandle
     ///
@@ -63,13 +74,7 @@ impl NotificationMessenger {
                 nvim_oxi::schedule(move |_| {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         let is_err = matches!(notification.level, LogLevel::Error);
-                        let hl_group = match notification.level {
-                            LogLevel::Error => "ErrorMsg",
-                            LogLevel::Warn => "WarningMsg",
-                            LogLevel::Info => "MoreMsg",
-                            LogLevel::Debug | LogLevel::Trace => "Comment",
-                            LogLevel::Off => "",
-                        };
+                        let hl_group = hl_group_for_level(notification.level);
                         // Bypass EchoOpts builder (version-dependent struct layout) by calling
                         // nvim_echo directly via call_function with a constructed Array/Dictionary.
                         let chunk = Array::from((
@@ -462,5 +467,35 @@ mod tests {
             .unwrap();
         // Remaining capacity should be 9 after one send
         assert_eq!(messenger.sender.capacity(), Some(10));
+    }
+
+    #[test]
+    fn hl_group_for_level_error_returns_errormsg() {
+        assert_eq!(hl_group_for_level(LogLevel::Error), "ErrorMsg");
+    }
+
+    #[test]
+    fn hl_group_for_level_warn_returns_warningmsg() {
+        assert_eq!(hl_group_for_level(LogLevel::Warn), "WarningMsg");
+    }
+
+    #[test]
+    fn hl_group_for_level_info_returns_moremsg() {
+        assert_eq!(hl_group_for_level(LogLevel::Info), "MoreMsg");
+    }
+
+    #[test]
+    fn hl_group_for_level_debug_returns_comment() {
+        assert_eq!(hl_group_for_level(LogLevel::Debug), "Comment");
+    }
+
+    #[test]
+    fn hl_group_for_level_trace_returns_comment() {
+        assert_eq!(hl_group_for_level(LogLevel::Trace), "Comment");
+    }
+
+    #[test]
+    fn hl_group_for_level_off_returns_empty() {
+        assert_eq!(hl_group_for_level(LogLevel::Off), "");
     }
 }

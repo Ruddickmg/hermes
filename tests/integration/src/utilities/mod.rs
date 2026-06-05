@@ -1,4 +1,6 @@
 //! Integration tests for application utilities (mirrors src/utilities/)
+pub mod autocmd;
+pub mod buf_options;
 pub mod file;
 pub mod logging;
 pub mod message_messenger;
