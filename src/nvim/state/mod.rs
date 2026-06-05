@@ -28,12 +28,12 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
-    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Result<Self> {
+    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Self {
         let history_path = storage_path.join("history");
-        self.agent_info.set_history(history_path)?;
+        self.agent_info.set_history(history_path);
         let binary_path = storage_path.join("binaries");
         self.config.distributions.binary.path = binary_path.to_string_lossy().to_string();
-        Ok(self)
+        self
     }
 
     #[instrument(level = "trace")]
@@ -181,25 +181,12 @@ mod tests {
     #[test]
     fn with_storage_path_initializes_history_writer() {
         let temp_dir = TempDir::new().unwrap();
-        let state = PluginState::new()
-            .with_storage_path(temp_dir.path().to_path_buf())
-            .unwrap();
+        let state = PluginState::new().with_storage_path(temp_dir.path().to_path_buf());
 
         state
             .agent_info
             .history
-            .as_ref()
-            .unwrap()
             .write_keyed("agent/session.jsonl", "test");
-    }
-
-    #[test]
-    fn with_storage_path_returns_error_on_invalid_path() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("not_a_dir.txt");
-        std::fs::write(&file_path, "content").unwrap();
-        let result = PluginState::new().with_storage_path(file_path.join("history"));
-        assert!(result.is_err());
     }
 
     #[test]

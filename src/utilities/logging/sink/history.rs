@@ -20,14 +20,13 @@ pub struct HistorySink {
 }
 
 impl HistorySink {
-    pub fn new(base_path: PathBuf) -> io::Result<Self> {
-        fs::create_dir_all(&base_path)?;
-        Ok(Self {
+    pub fn new(base_path: PathBuf) -> Self {
+        Self {
             base_path,
             created_dirs: HashSet::new(),
             buffer: Vec::new(),
             flush_interval: HISTORY_FLUSH_INTERVAL,
-        })
+        }
     }
 
     fn flush_buffer(&mut self) -> io::Result<()> {
@@ -91,7 +90,7 @@ mod tests {
 
     fn create_sink(temp_dir: &TempDir) -> HistorySink {
         let path = temp_dir.path().join("history");
-        HistorySink::new(path).unwrap()
+        HistorySink::new(path)
     }
 
     #[test]

@@ -131,9 +131,7 @@ impl Handler {
         {
             let key = format!("{}/{}.jsonl", state.agent_info.current, session_id);
             if let Ok(content) = serde_json::to_string(&session_notification) {
-                if let Some(history) = &state.agent_info.history {
-                    history.write_keyed(key, content);
-                }
+                state.agent_info.history.write_keyed(key, content);
             }
         }
         drop(state);

@@ -27,7 +27,7 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
     let nvim_runtime = NvimRuntime::new();
     let plugin_state = Arc::new(Mutex::new(
         state::PluginState::new()
-            .with_storage_path(std::path::PathBuf::from(&storage_path))?
+            .with_storage_path(std::path::PathBuf::from(&storage_path))
             .with_registry(registry.cloned()),
     ));
     let request_handler = Rc::new(requests::Requests::new(

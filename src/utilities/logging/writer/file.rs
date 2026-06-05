@@ -97,7 +97,7 @@ pub struct FileWriter {
 impl FileWriter {
     pub fn new(path: impl AsRef<Path>, max_size: u64, max_files: usize) -> io::Result<Self> {
         let file_sink = FileSink::new(path, max_size, max_files)?;
-        let channel_writer = ChannelWriter::new_file(file_sink)?;
+        let channel_writer = ChannelWriter::new_file(file_sink);
 
         Ok(Self {
             inner: channel_writer,

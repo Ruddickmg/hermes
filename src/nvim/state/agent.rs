@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io;
 use std::path::PathBuf;
 
 use agent_client_protocol::schema::InitializeResponse;
@@ -12,7 +11,7 @@ use crate::utilities::logging::sink::history::HistorySink;
 pub struct AgentInfo {
     pub current: Assistant,
     agents: HashMap<Assistant, InitializeResponse>,
-    pub history: Option<ChannelWriter<HistorySink>>,
+    pub history: ChannelWriter<HistorySink>,
     pub history_base_path: PathBuf,
 }
 
@@ -21,17 +20,15 @@ impl AgentInfo {
         Self {
             current: Assistant::default(),
             agents: HashMap::new(),
-            history: None,
+            history: ChannelWriter::new_file(HistorySink::new(PathBuf::new())),
             history_base_path: PathBuf::new(),
         }
     }
 
-    pub fn set_history(&mut self, base_path: PathBuf) -> io::Result<()> {
-        let sink = HistorySink::new(base_path.clone())?;
-        let writer = ChannelWriter::new_file(sink)?;
-        self.history = Some(writer);
+    pub fn set_history(&mut self, base_path: PathBuf) {
+        let sink = HistorySink::new(base_path.clone());
+        self.history = ChannelWriter::new_file(sink);
         self.history_base_path = base_path;
-        Ok(())
     }
 
     fn notify_user(&self, allowed: bool, capability: &str) -> bool {
@@ -176,7 +173,7 @@ mod tests {
     fn test_set_history_updates_base_path() {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let mut info = AgentInfo::new();
-        info.set_history(temp_dir.path().join("history")).unwrap();
+        info.set_history(temp_dir.path().join("history"));
         assert_eq!(info.history_base_path, temp_dir.path().join("history"));
     }
 
@@ -547,45 +544,19 @@ mod tests {
     }
 
     #[test]
-    fn test_default_history_is_none() {
-        let info = AgentInfo::new();
-        assert!(info.history.is_none());
-    }
-
-    #[test]
-    fn test_set_history_fails_on_invalid_path() {
-        let temp_dir = tempfile::TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("not_a_dir.txt");
-        std::fs::write(&file_path, "content").unwrap();
-        let mut info = AgentInfo::new();
-        let result = info.set_history(file_path.join("history"));
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn test_set_history_accepts_valid_path() {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let mut info = AgentInfo::new();
-        let result = info.set_history(temp_dir.path().join("history"));
-        assert!(result.is_ok());
-        info.history
-            .as_ref()
-            .unwrap()
-            .write_keyed("agent/session.jsonl", "test");
+        info.set_history(temp_dir.path().join("history"));
+        info.history.write_keyed("agent/session.jsonl", "test");
     }
 
     #[test]
     fn test_set_history_writes_to_different_path() {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let mut info = AgentInfo::new();
-        info.set_history(temp_dir.path().join("history")).unwrap();
-        info.history
-            .as_ref()
-            .unwrap()
-            .write_keyed("agent/session.jsonl", "line1");
-        info.history
-            .as_ref()
-            .unwrap()
-            .write_keyed("agent/session.jsonl", "line2");
+        info.set_history(temp_dir.path().join("history"));
+        info.history.write_keyed("agent/session.jsonl", "line1");
+        info.history.write_keyed("agent/session.jsonl", "line2");
     }
 }
