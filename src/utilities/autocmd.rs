@@ -88,7 +88,7 @@ mod tests {
         // returns an error, the helper returns `Ok(mlua::Value::Nil)`
         // to Lua. We can't test the actual Lua boundary without Neovim,
         // but we can verify the callback signature accepts Results.
-        let callback: Box<dyn FnMut() -> Result<bool>> =
+        let mut callback: Box<dyn FnMut() -> Result<bool>> =
             Box::new(|| Err(crate::acp::error::Error::Internal("test error".to_string())));
         let result = callback();
         assert!(result.is_err());
