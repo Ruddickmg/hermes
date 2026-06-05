@@ -1,6 +1,36 @@
 use crate::acp::Result;
+use nvim_oxi::{Array, Dictionary, Object};
 use std::cell::RefCell;
-use tracing::error;
+use tracing::{error, instrument};
+
+/// Creates a Neovim autocommand group.
+///
+/// Abstracts away the `CreateAugroupOpts` builder (version-dependent struct
+/// layout) by calling `nvim_create_augroup` directly via `call_function`.
+///
+/// # Arguments
+///
+/// * `name` - The autocommand group name
+/// * `clear` - Whether to clear existing autocommands in the group
+///
+/// # Errors
+///
+/// Returns an error if the augroup creation fails.
+#[instrument(level = "trace", skip_all)]
+pub fn create_augroup(name: &str, clear: bool) -> nvim_oxi::Result<i32> {
+    let mut opts = Dictionary::default();
+    opts.insert("clear", Object::from(clear));
+    nvim_oxi::api::call_function::<(String, Dictionary), i32>(
+        "nvim_create_augroup",
+        (name.to_string(), opts),
+    )
+    .map_err(|e| {
+        nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+            "Failed to create autogroup for the '{}' group: {}",
+            name, e
+        )))
+    })
+}
 
 /// Creates a Neovim autocommand that invokes a Rust callback when triggered.
 ///
@@ -30,6 +60,7 @@ use tracing::error;
 /// The caller is responsible for ensuring the callback does not panic.
 /// If the callback panics, it will abort the Neovim process because Lua
 /// callbacks across the FFI boundary cannot unwind.
+#[instrument(level = "trace", skip_all)]
 pub fn create_autocmd<F>(group: i32, event: &str, callback: F) -> nvim_oxi::Result<()>
 where
     F: FnMut() -> Result<bool> + 'static,
@@ -66,6 +97,76 @@ where
     })
 }
 
+/// Executes a Neovim autocommand programmatically.
+///
+/// Abstracts away the `ExecAutocmdsOpts` builder (version-dependent struct
+/// layout) by calling `nvim_exec_autocmds` directly via `call_function` with a
+/// constructed Dictionary.
+///
+/// # Arguments
+///
+/// * `group` - The autocommand group name
+/// * `event` - The event name (e.g., `"User"`)
+/// * `pattern` - The pattern to match
+/// * `data` - Additional data to pass to the autocommand listeners
+///
+/// # Errors
+///
+/// Returns an error if the autocommand execution fails.
+#[instrument(level = "trace", skip(data))]
+pub fn exec_autocmd(
+    group: &str,
+    event: &str,
+    pattern: &str,
+    data: Object,
+) -> crate::acp::Result<()> {
+    let mut opts_dict = Dictionary::default();
+    opts_dict.insert("pattern", Array::from((Object::from(pattern),)));
+    opts_dict.insert("data", data);
+    opts_dict.insert("group", Object::from(group));
+    nvim_oxi::api::call_function::<(String, Dictionary), Object>(
+        "nvim_exec_autocmds",
+        (event.to_string(), opts_dict),
+    )
+    .map_err(|err| {
+        crate::acp::error::Error::Internal(format!(
+            "Error executing autocommand '{}': {:#?}",
+            pattern, err
+        ))
+    })?;
+    Ok(())
+}
+
+/// Checks whether any autocommand listeners are attached for a given pattern.
+///
+/// Abstracts away the `GetAutocmdsOpts` builder by calling `nvim_get_autocmds`
+/// directly via `call_function` with a constructed Dictionary.
+///
+/// # Arguments
+///
+/// * `group` - The autocommand group name
+/// * `event` - The event name (e.g., `"User"`)
+/// * `pattern` - The pattern to match
+///
+/// # Returns
+///
+/// `true` if at least one autocommand listener is registered, `false` otherwise.
+#[instrument(level = "trace")]
+pub fn autocmd_listeners_attached(group: &str, event: &str, pattern: &str) -> bool {
+    let mut opts_dict = Dictionary::default();
+    opts_dict.insert("group", Object::from(group));
+    opts_dict.insert("event", Array::from((Object::from(event),)));
+    opts_dict.insert("pattern", Array::from((Object::from(pattern),)));
+
+    nvim_oxi::api::call_function::<(Object,), Array>("nvim_get_autocmds", (opts_dict.into(),))
+        .map(|commands| !commands.is_empty())
+        .map_err(|e| {
+            error!("Error detecting autocommand for '{}': {:?}", pattern, e);
+            e
+        })
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,7 +174,6 @@ mod tests {
 
     #[test]
     fn create_autocmd_helper_signature_compiles() {
-        // Verify the generic signature compiles with a simple callback
         fn assert_compiles<F>(_f: F)
         where
             F: FnMut() -> Result<bool> + 'static,
@@ -84,10 +184,6 @@ mod tests {
 
     #[test]
     fn create_autocmd_callback_error_is_converted_to_nil() {
-        // This test verifies the conceptual behavior: when the callback
-        // returns an error, the helper returns `Ok(mlua::Value::Nil)`
-        // to Lua. We can't test the actual Lua boundary without Neovim,
-        // but we can verify the callback signature accepts Results.
         let mut callback: Box<dyn FnMut() -> Result<bool>> =
             Box::new(|| Err(crate::acp::error::Error::Internal("test error".to_string())));
         let result = callback();
@@ -106,5 +202,24 @@ mod tests {
         let mut callback: Box<dyn FnMut() -> Result<bool>> = Box::new(|| Ok(false));
         let result = callback().unwrap();
         assert!(!result);
+    }
+
+    #[test]
+    fn create_augroup_signature_compiles() {
+        // Verify the function signature compiles. We can't call it without Neovim.
+        fn assert_compiles(_f: impl Fn(&str, bool) -> nvim_oxi::Result<i32>) {}
+        assert_compiles(create_augroup);
+    }
+
+    #[test]
+    fn exec_autocmd_signature_compiles() {
+        fn assert_compiles(_f: impl Fn(&str, &str, &str, Object) -> crate::acp::Result<()>) {}
+        assert_compiles(exec_autocmd);
+    }
+
+    #[test]
+    fn autocmd_listeners_attached_signature_compiles() {
+        fn assert_compiles(_f: impl Fn(&str, &str, &str) -> bool) {}
+        assert_compiles(autocmd_listeners_attached);
     }
 }

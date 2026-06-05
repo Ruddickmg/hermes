@@ -10,10 +10,10 @@ use crate::{
     Handler,
     acp::{error::Error, registry::Registry},
     api::{DisconnectArgs, Hermes},
-    utilities::{Logger, NvimRuntime, create_autocmd, detect_project_storage_path},
+    utilities::{Logger, NvimRuntime, create_augroup, create_autocmd, detect_project_storage_path},
 };
 use async_lock::Mutex;
-use nvim_oxi::{Dictionary, api::opts::CreateAugroupOpts};
+use nvim_oxi::Dictionary;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub const GROUP: &str = "hermes";
@@ -48,16 +48,9 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
     let shutdown_runtime = nvim_runtime.clone();
     let hermes = Hermes::new(nvim_runtime, api)?;
 
-    let group =
-        nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::builder().clear(true).build())
-            .map_err(|e| {
-                nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
-                    "Failed to create autogroup for the '{}' group: {}",
-                    GROUP, e
-                )))
-            })?;
+    let group = create_augroup(GROUP, true)?;
 
-    create_autocmd(group as i32, "VimLeavePre", move || {
+    create_autocmd(group, "VimLeavePre", move || {
         let mut app = cloned
             .try_borrow_mut()
             .map_err(|e| Error::Internal(format!("Failed to borrow API on VimLeavePre: {}", e)))?;
