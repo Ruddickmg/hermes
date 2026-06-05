@@ -559,4 +559,16 @@ mod tests {
         info.history.write_keyed("agent/session.jsonl", "line1");
         info.history.write_keyed("agent/session.jsonl", "line2");
     }
+
+    #[test]
+    fn test_can_close_session_returns_false_by_default() {
+        let info = create_agent_info_with_agent(Assistant::Opencode);
+        assert!(!info.can_close_session());
+    }
+
+    #[test]
+    fn test_can_close_session_returns_false_when_no_info() {
+        let info = AgentInfo::new();
+        assert!(!info.can_close_session());
+    }
 }

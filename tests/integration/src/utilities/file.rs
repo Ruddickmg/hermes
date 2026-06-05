@@ -308,3 +308,29 @@ fn test_detect_project_storage_path_returns_valid_path() -> nvim_oxi::Result<()>
 
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn test_acquire_or_create_buffer_with_spaces_in_path() -> nvim_oxi::Result<()> {
+    use assert_fs::NamedTempFile;
+    let temp_file = NamedTempFile::new("file with spaces.txt").unwrap();
+
+    let (buffer, was_already_open) = acquire_or_create_buffer(temp_file.path())
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    assert!(
+        !was_already_open,
+        "Buffer should not have been already open"
+    );
+
+    // Verify buffer was created by checking it has a name
+    let name = buffer
+        .get_name()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_str = name.to_string_lossy().to_string();
+    assert!(
+        name_str.contains("file with spaces"),
+        "Buffer name should contain the filename with spaces"
+    );
+
+    Ok(())
+}

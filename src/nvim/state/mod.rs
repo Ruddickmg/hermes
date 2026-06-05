@@ -206,4 +206,25 @@ mod tests {
         let state = PluginState::new().with_registry(registry.clone());
         assert_eq!(state.registry, registry);
     }
+
+    #[test]
+    fn get_session_info_returns_none_for_unknown_session() {
+        let state = PluginState::default();
+        assert!(state.get_session_info("unknown-session").is_none());
+    }
+
+    #[test]
+    fn get_session_info_returns_some_for_known_session() {
+        let mut state = PluginState::default();
+        let session = NewSessionResponse::new("known-session");
+        state.set_session_info(&session);
+        assert!(state.get_session_info("known-session").is_some());
+    }
+
+    #[test]
+    fn set_agent_changes_current_agent() {
+        let mut state = PluginState::default();
+        state.set_agent(Assistant::Opencode);
+        assert_eq!(state.agent_info.current, Assistant::Opencode);
+    }
 }

@@ -78,3 +78,24 @@ fn exec_autocmd_errors_for_nonexistent_group() -> nvim_oxi::Result<()> {
     assert!(result.is_err(), "nonexistent group should produce an error");
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn create_autocmd_callback_error_path_logs_and_returns_nil() -> nvim_oxi::Result<()> {
+    let group_id = create_augroup("hermes_test_cb_err", true)?;
+
+    create_autocmd(group_id, "User", || {
+        Err(hermes::acp::error::Error::Internal(
+            "test error".to_string(),
+        ))
+    })?;
+
+    // Trigger the autocmd; the callback should execute and return nil internally.
+    exec_autocmd(
+        "hermes_test_cb_err",
+        "User",
+        "*",
+        nvim_oxi::Object::from(()),
+    )?;
+
+    Ok(())
+}

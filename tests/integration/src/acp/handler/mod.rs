@@ -1250,18 +1250,6 @@ use hermes::utilities::autocmd::create_augroup;
 use nvim_oxi::api::opts::CreateAutocmdOpts;
 use std::time::Duration;
 
-fn blocking_send_handler(
-    handler: hermes::acp::handler::Handler,
-    data: (String, serde_json::Value, Option<(Responder, String)>),
-) -> hermes::acp::Result<()> {
-    std::thread::spawn(move || {
-        let executor = smol::LocalExecutor::new();
-        smol::block_on(executor.run(async { handler.channel.send(data).await }))
-    })
-    .join()
-    .map_err(|_| hermes::acp::error::Error::Internal("Thread panicked".to_string()))?
-}
-
 #[nvim_oxi::test]
 fn handler_callback_fires_autocmd_when_listener_attached() -> nvim_oxi::Result<()> {
     let state = Arc::new(Mutex::new(PluginState::default()));
@@ -1280,13 +1268,19 @@ fn handler_callback_fires_autocmd_when_listener_attached() -> nvim_oxi::Result<(
         .build();
     nvim_oxi::api::create_autocmd(["User"], &opts)?;
 
-    // Send message through handler channel from a spawned thread
-    let data = (
-        Commands::PermissionRequest.to_string(),
-        serde_json::json!({}),
-        None,
-    );
-    blocking_send_handler(handler, data).expect("Send should succeed");
+    // Send message through handler channel using async send
+    let executor = smol::LocalExecutor::new();
+    smol::block_on(executor.run(async {
+        handler
+            .channel
+            .send((
+                Commands::PermissionRequest.to_string(),
+                serde_json::json!({}),
+                None,
+            ))
+            .await
+            .expect("Send should succeed");
+    }));
 
     // Wait for the scheduled callback to execute
     let fired = crate::helpers::ui::wait_for(
@@ -1319,15 +1313,21 @@ fn handler_callback_sends_default_response_when_no_listener() -> nvim_oxi::Resul
     let (sender, _receiver) =
         async_channel::bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
 
-    let data = (
-        "UnknownCommand".to_string(),
-        serde_json::json!({}),
-        Some((
-            Responder::PermissionResponse(sender),
-            "test-session".to_string(),
-        )),
-    );
-    blocking_send_handler(handler, data).expect("Send should succeed");
+    let executor = smol::LocalExecutor::new();
+    smol::block_on(executor.run(async {
+        handler
+            .channel
+            .send((
+                "UnknownCommand".to_string(),
+                serde_json::json!({}),
+                Some((
+                    Responder::PermissionResponse(sender),
+                    "test-session".to_string(),
+                )),
+            ))
+            .await
+            .expect("Send should succeed");
+    }));
 
     // Give the event loop time to process the scheduled callback
     nvim_oxi::api::command("sleep 50m").ok();
@@ -1342,13 +1342,18 @@ fn handler_callback_warns_when_no_listener_and_no_request() -> nvim_oxi::Result<
     let handler =
         Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
 
-    // Send a command with no listener and no responder
-    let data = (
-        "AnotherUnknownCommand".to_string(),
-        serde_json::json!({}),
-        None,
-    );
-    blocking_send_handler(handler, data).expect("Send should succeed");
+    let executor = smol::LocalExecutor::new();
+    smol::block_on(executor.run(async {
+        handler
+            .channel
+            .send((
+                "AnotherUnknownCommand".to_string(),
+                serde_json::json!({}),
+                None,
+            ))
+            .await
+            .expect("Send should succeed");
+    }));
 
     // The callback logs a warning; we just verify it doesn't panic or crash.
     // Give the event loop a moment to process.

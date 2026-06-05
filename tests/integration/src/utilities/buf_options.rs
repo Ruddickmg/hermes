@@ -39,6 +39,19 @@ fn buf_get_name_returns_path_for_named() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn get_win_option_returns_number_for_current_window() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buf_options::get_win_option;
+
+    let win = nvim_oxi::api::get_current_win();
+    let number: bool = get_win_option("number", &win)?;
+    assert_eq!(
+        number, false,
+        "current window number option should be false by default in test"
+    );
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn get_buf_option_errors_for_invalid_option() -> nvim_oxi::Result<()> {
     let buf = nvim_oxi::api::create_buf(false, true)?;
     let result = get_buf_option::<bool>("not_a_real_option", &buf);

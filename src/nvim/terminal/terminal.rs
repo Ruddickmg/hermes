@@ -1,11 +1,13 @@
 use crate::{
     acp::{Result, error::Error},
     nvim::{configuration::TerminalConfig, terminal::parse_exit_code},
-    utilities::buf_options::set_buf_option,
+    utilities::{
+        create_hidden_buffer, delete_buffer_force, set_buf_option, start_job_in_buffer, stop_job,
+    },
 };
 use agent_client_protocol::schema::EnvVariable;
 use async_channel::Sender;
-use nvim_oxi::{Array, Dictionary, Function, Object, api::opts::BufDeleteOpts};
+use nvim_oxi::{Dictionary, Function};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use strip_ansi_escapes;
 use uuid::Uuid;
@@ -170,36 +172,6 @@ impl TerminalInfo {
         self
     }
 
-    fn start_terminal(
-        command: String,
-        args: Vec<String>,
-        configuration: Dictionary,
-    ) -> Result<i64> {
-        tracing::debug!(
-            "Starting terminal with command: {}, args: {:?}",
-            command,
-            args
-        );
-        tracing::debug!(
-            "Configuration keys: {:?}",
-            configuration.keys().collect::<Vec<_>>()
-        );
-
-        let commands: Array =
-            Array::from_iter(vec![command].into_iter().chain(args).map(Object::from));
-
-        tracing::debug!("Calling jobstart with {} commands", commands.len());
-
-        nvim_oxi::api::call_function::<(Array, Dictionary), i64>(
-            "jobstart",
-            (commands, configuration),
-        )
-        .map_err(|e| {
-            tracing::error!("jobstart failed: {:?}", e);
-            Error::Internal(e.to_string())
-        })
-    }
-
     fn set_option<T>(option: &str, value: T, buf: &nvim_oxi::api::Buffer) -> Result<()>
     where
         T: nvim_oxi::conversion::ToObject,
@@ -282,12 +254,9 @@ impl Terminal for TerminalInfo {
     }
 
     fn run(&mut self, command: String, args: Vec<String>) -> Result<i64> {
-        let buffer =
-            nvim_oxi::api::create_buf(false, true).map_err(|e| Error::Internal(e.to_string()))?;
+        let buffer = create_hidden_buffer()?;
         let configuration = self.configuration.clone();
-        let job_id = buffer
-            .call(|_| Self::start_terminal(command, args, configuration))
-            .map_err(|e| Error::Internal(e.to_string()))?;
+        let job_id = start_job_in_buffer(&buffer, command, args, configuration)?;
 
         Self::set_option("buftype", "terminal", &buffer)?;
         Self::set_option("swapfile", false, &buffer)?;
@@ -306,8 +275,7 @@ impl Terminal for TerminalInfo {
 
     fn stop(&self) -> Result<()> {
         if let Some(id) = self.job_id {
-            nvim_oxi::api::call_function::<(i64,), ()>("jobstop", (id,))
-                .map_err(|e| Error::Internal(e.to_string()))
+            stop_job(id)
         } else {
             Err(Error::Internal(
                 "Cannot stop terminal: job ID not found".to_string(),
@@ -317,10 +285,7 @@ impl Terminal for TerminalInfo {
 
     fn delete(&mut self) -> Result<()> {
         if let Some(buffer) = self.buffer.take() {
-            let opts = BufDeleteOpts::builder().force(true).build();
-            buffer
-                .delete(&opts)
-                .map_err(|e| Error::Internal(format!("Failed to delete terminal buffer: {}", e)))
+            delete_buffer_force(&buffer)
         } else {
             Err(Error::Internal("No buffer found for deletion".to_string()))
         }
