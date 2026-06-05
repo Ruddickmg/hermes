@@ -32,6 +32,29 @@ pub struct Handler {
 
 impl Handler {
     #[instrument(level = "trace", skip_all)]
+    fn execute_autocommand(command: &str, data: Object) -> crate::acp::Result<()> {
+        // Bypass ExecAutocmdsOpts builder (version-dependent struct
+        // layout) by calling nvim_exec_autocmds via call_function with a
+        // constructed Dictionary, matching the nvim_get_autocmds workaround
+        // pattern above.
+        let mut opts_dict = Dictionary::default();
+        opts_dict.insert("pattern", Array::from((Object::from(command.clone()),)));
+        opts_dict.insert("data", data);
+        opts_dict.insert("group", Object::from(GROUP));
+        nvim_oxi::api::call_function::<(String, Dictionary), Object>(
+            "nvim_exec_autocmds",
+            ("User".to_string(), opts_dict),
+        )
+        .map_err(|err| {
+            crate::acp::error::Error::Internal(format!(
+                "Error executing autocommand: '{}': {:#?}",
+                command, err
+            ))
+        })?;
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip_all)]
     pub fn new<R: RequestHandler + 'static>(
         state: Arc<Mutex<PluginState>>,
         nvim_runtime: NvimRuntime,
@@ -56,28 +79,8 @@ impl Handler {
                     if Self::listener_attached(command.to_string()) {
                         match serde_json::from_value::<Object>(data.clone()) {
                             Ok(obj) => {
-                                // Bypass ExecAutocmdsOpts builder (version-dependent struct
-                                // layout) by calling nvim_exec_autocmds via call_function with a
-                                // constructed Dictionary, matching the nvim_get_autocmds workaround
-                                // pattern above.
-                                let mut opts_dict = Dictionary::default();
-                                opts_dict.insert(
-                                    "pattern",
-                                    Array::from((Object::from(command.clone()),)),
-                                );
-                                opts_dict.insert("data", obj);
-                                opts_dict.insert("group", Object::from(GROUP));
-                                if let Err(err) =
-                                    nvim_oxi::api::call_function::<(String, Dictionary), Object>(
-                                        "nvim_exec_autocmds",
-                                        ("User".to_string(), opts_dict),
-                                    )
-                                {
-                                    error!(
-                                        "Error executing autocommand: '{}': {:#?}",
-                                        command, err
-                                    );
-                                }
+                                Self::execute_autocommand(&command, obj)
+                                    .inspect_err(|err| error!("{}", err));
                             }
                             Err(e) => {
                                 error!(
