@@ -63,11 +63,18 @@ impl NotificationMessenger {
                 nvim_oxi::schedule(move |_| {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         let is_err = matches!(notification.level, LogLevel::Error);
+                        let hl_group = match notification.level {
+                            LogLevel::Error => "ErrorMsg",
+                            LogLevel::Warn => "WarningMsg",
+                            LogLevel::Info => "MoreMsg",
+                            LogLevel::Debug | LogLevel::Trace => "Comment",
+                            LogLevel::Off => "",
+                        };
                         // Bypass EchoOpts builder (version-dependent struct layout) by calling
                         // nvim_echo directly via call_function with a constructed Array/Dictionary.
                         let chunk = Array::from((
                             Object::from(notification.message.as_str()),
-                            Object::from(""),
+                            Object::from(hl_group),
                         ));
                         let chunks = Array::from((chunk,));
                         let mut opts = Dictionary::default();
