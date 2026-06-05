@@ -334,3 +334,22 @@ fn test_acquire_or_create_buffer_with_spaces_in_path() -> nvim_oxi::Result<()> {
 
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn update_buffer_content_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
+
+    let mut buf = create_hidden_buffer()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;
+
+    delete_buffer_force(&buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("delete_buffer_force failed: {}", e)))?;
+
+    let result = update_buffer_content(&mut buf, "test content");
+    assert!(
+        result.is_err(),
+        "update_buffer_content on a deleted buffer should error"
+    );
+
+    Ok(())
+}

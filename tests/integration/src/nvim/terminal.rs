@@ -414,3 +414,68 @@ fn terminal_info_configure_buffered_false_sets_stderr_buffered_to_false() -> nvi
 
     Ok(())
 }
+
+/// Integration test: Verifies stop() succeeds on a running terminal
+#[nvim_oxi::test]
+fn terminal_info_stop_succeeds_on_running_terminal() -> nvim_oxi::Result<()> {
+    let config = TerminalConfig::default();
+    let mut terminal = TerminalInfo::new(None).configure(config);
+
+    terminal
+        .run("sleep".to_string(), vec!["10".to_string()])
+        .expect("Failed to start terminal job");
+
+    let result = terminal.stop();
+    assert!(
+        result.is_ok(),
+        "stop() should succeed on a running terminal: {:?}",
+        result
+    );
+
+    Ok(())
+}
+
+/// Integration test: Verifies delete() removes the terminal buffer
+#[nvim_oxi::test]
+fn terminal_info_delete_removes_terminal_buffer() -> nvim_oxi::Result<()> {
+    let config = TerminalConfig::default();
+    let mut terminal = TerminalInfo::new(None).configure(config);
+
+    terminal
+        .run("echo".to_string(), vec!["hello".to_string()])
+        .expect("Failed to start terminal job");
+
+    let buffer = terminal
+        .buffer()
+        .expect("Buffer should exist before delete");
+    let handle = buffer.handle();
+
+    let result = terminal.delete();
+    assert!(
+        result.is_ok(),
+        "delete() should succeed on a terminal with a buffer: {:?}",
+        result
+    );
+
+    let bufs: Vec<_> = nvim_oxi::api::list_bufs().collect();
+    assert!(
+        !bufs.iter().any(|b| b.handle() == handle),
+        "Buffer should no longer exist after terminal deletion"
+    );
+
+    Ok(())
+}
+
+/// Integration test: Verifies delete() errors when no buffer exists
+#[nvim_oxi::test]
+fn terminal_info_delete_errors_when_no_buffer() -> nvim_oxi::Result<()> {
+    let mut terminal = TerminalInfo::new(None);
+
+    let result = terminal.delete();
+    assert!(
+        result.is_err(),
+        "delete() should error when there is no buffer"
+    );
+
+    Ok(())
+}

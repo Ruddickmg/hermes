@@ -31,7 +31,19 @@ pub fn start_job_in_buffer(
 /// Returns an error if the jobstop call fails.
 #[tracing::instrument(level = "trace")]
 pub fn stop_job(id: i64) -> Result<()> {
-    api::call_function::<(i64,), ()>("jobstop", (id,)).map_err(|e| Error::Internal(e.to_string()))
+    // jobstop returns 1 on success, 0 if job not found
+    api::call_function::<(i64,), i64>("jobstop", (id,))
+        .map(|ret| {
+            if ret == 0 {
+                Err(Error::Internal(format!(
+                    "jobstop failed: job {} not found",
+                    id
+                )))
+            } else {
+                Ok(())
+            }
+        })
+        .map_err(|e| Error::Internal(e.to_string()))?
 }
 
 #[cfg(test)]
