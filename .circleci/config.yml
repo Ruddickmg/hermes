@@ -372,10 +372,13 @@ jobs:
       - run:
           name: Run unit tests
           command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
+      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
+      # The orb intermittently fails to import the Codecov PGP key, causing
+      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
       - codecov/upload:
           fail_on_error: true
           files: unit.coverage.info
-          version: v11.2.7
+          skip_validation: true
           git_service: github
           upload_name: unit
 
@@ -407,10 +410,13 @@ jobs:
       - run:
           name: Run integration tests
           command: cargo llvm-cov nextest --package hermes-integration --all-features --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
+      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
+      # The orb intermittently fails to import the Codecov PGP key, causing
+      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
       - codecov/upload:
           fail_on_error: true
           files: integration.coverage.info
-          version: v11.2.7
+          skip_validation: true
           git_service: github
           upload_name: integration
 
@@ -450,10 +456,13 @@ jobs:
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
             cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
+      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
+      # The orb intermittently fails to import the Codecov PGP key, causing
+      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
       - codecov/upload:
           fail_on_error: true
           files: e2e.coverage.info
-          version: v11.2.7
+          skip_validation: true
           git_service: github
           upload_name: e2e
 
@@ -553,10 +562,13 @@ jobs:
             # Run from project root where luacov.stats.out was generated
             luacov -c tests/lua/.luacov -r lcov
             mv luacov.report.out lua-0-12.coverage.info
+      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
+      # The orb intermittently fails to import the Codecov PGP key, causing
+      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
       - codecov/upload:
           fail_on_error: false
           files: lua-0-12.coverage.info
-          version: v11.2.7
+          skip_validation: true
           git_service: github
           upload_name: lua-0-12
 

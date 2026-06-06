@@ -93,18 +93,18 @@ pub fn save_buffer_to_disk(buf: &nvim_oxi::api::Buffer) -> Result<()> {
     let result_inside = result.clone();
 
     buf.call(move |_| {
-        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let write_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             nvim_oxi::api::command("write")
-                .inspect_err(|e| {
-                    tracing::error!(
-                        "An error occurred while triggering write in Neovim: {:?}",
-                        e
-                    )
-                })
-                .ok();
         }));
-        result_inside.set(Some(match r {
-            Ok(()) => Ok(()),
+        result_inside.set(Some(match write_result {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => {
+                tracing::error!(
+                    "An error occurred while triggering write in Neovim: {:?}",
+                    e
+                );
+                Err(nvim_oxi::Error::Api(e))
+            }
             Err(e) => Err(nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
                 "write command panicked: {:?}",
                 e.downcast_ref::<&str>().unwrap_or(&"unknown panic")
