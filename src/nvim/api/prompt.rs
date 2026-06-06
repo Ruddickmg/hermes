@@ -11,6 +11,23 @@ use nvim_oxi::{
 use tracing::{error, instrument};
 
 use crate::api::Api;
+use crate::nvim::state::agent::AgentInfo;
+
+/// Writes prompt history entries to the agent's keyed history sink.
+fn write_prompt_history(
+    history: Vec<String>,
+    agent_name: &crate::acp::connection::Assistant,
+    session_id: &str,
+    agent_info: &AgentInfo,
+) {
+    if history.is_empty() {
+        return;
+    }
+    let key = format!("{}/{}.jsonl", agent_name, session_id);
+    for content in history {
+        agent_info.history.write_keyed(key.clone(), content);
+    }
+}
 
 /// Extracts a required string field from a Lua dictionary.
 fn required_string(dict: &Dictionary, key: &str) -> Result<String, ConversionError> {
@@ -389,14 +406,9 @@ impl Api {
 
         connection.prompt(request).await?;
 
-        if !history.is_empty() {
-            let key = format!("{}/{}.jsonl", agent_name, session_id);
-            let state = self.state.lock().await;
-            history.into_iter().for_each(|content| {
-                state.agent_info.history.write_keyed(key.clone(), content);
-            });
-            drop(state);
-        }
+        let state = self.state.lock().await;
+        write_prompt_history(history, &agent_name, &session_id, &state.agent_info);
+        drop(state);
 
         Ok(prompt_id)
     }
@@ -947,6 +959,55 @@ mod tests {
         assert!(
             result.is_err(),
             "non-string value for 'description' should error"
+        );
+    }
+
+    #[test]
+    fn write_prompt_history_writes_entries_to_file() {
+        use crate::acp::connection::Assistant;
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut agent_info = AgentInfo::new();
+        agent_info.set_history(temp_dir.path().to_path_buf());
+
+        let history = vec![
+            r#"{"role":"user","content":"hello"}"#.to_string(),
+            r#"{"role":"user","content":"world"}"#.to_string(),
+        ];
+
+        write_prompt_history(history, &Assistant::Copilot, "session-abc", &agent_info);
+
+        // Flush and shutdown the worker to ensure writes hit disk
+        agent_info.history.clone().shutdown();
+
+        let file_path = temp_dir.path().join("copilot/session-abc.jsonl");
+        let contents =
+            std::fs::read_to_string(&file_path).expect("History file should exist after prompt");
+        let lines: Vec<&str> = contents.lines().collect();
+        assert_eq!(
+            lines.as_slice(),
+            &[
+                r#"{"role":"user","content":"hello"}"#,
+                r#"{"role":"user","content":"world"}"#,
+            ]
+        );
+    }
+
+    #[test]
+    fn write_prompt_history_skips_when_empty() {
+        use crate::acp::connection::Assistant;
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let mut agent_info = AgentInfo::new();
+        agent_info.set_history(temp_dir.path().to_path_buf());
+
+        let history: Vec<String> = vec![];
+        write_prompt_history(history, &Assistant::Copilot, "session-abc", &agent_info);
+
+        agent_info.history.clone().shutdown();
+
+        let file_path = temp_dir.path().join("copilot/session-abc.jsonl");
+        assert!(
+            !file_path.exists(),
+            "History file should not be created for empty history"
         );
     }
 }
