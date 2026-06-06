@@ -563,9 +563,9 @@ jobs:
             eval $(luarocks path --lua-version 5.1 --bin)
             # Run from project root where luacov.stats.out was generated
             luacov -c tests/lua/.luacov -r lcov
-            mv luacov.report.out lua-0-12.coverage.info
+            mv luacov.report.out lua.coverage.info
       - upload-coverage:
-          file: lua-0-12.coverage.info
+          file: lua.coverage.info
           allow-failure: true
 
   lua_tests_0_11:
