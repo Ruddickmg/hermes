@@ -92,7 +92,7 @@ describe("hermes.binary", function()
 		end)
 	end)
 
-	describe("download()", function()
+		describe("download()", function()
 		it("downloads to correct path", function()
 			local captured_dest
 			download_stub = stub(download, "download").invokes(function(_, dest)
@@ -120,6 +120,28 @@ describe("hermes.binary", function()
 			local result = binary.download(temp_dir .. "/test.so", "v1.0.0")
 
 			assert.is_false(result)
+		end)
+
+		it("returns false when platform is unsupported", function()
+			stub(require("hermes.platform"), "get_platform_key").returns(nil)
+
+			local result, err = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.is_false(result)
+			assert.truthy(err and err.message)
+		end)
+
+		it("fetches latest version when ver is latest", function()
+			local fetch_called = false
+			stub(require("hermes.version"), "fetch_latest").invokes(function()
+				fetch_called = true
+				return "v2.0.0"
+			end)
+			download_stub = stub(download, "download").returns(true, nil)
+
+			binary.download(temp_dir .. "/test.so", "latest")
+
+			assert.is_true(fetch_called, "fetch_latest should be called when version is 'latest'")
 		end)
 	end)
 	describe("ensure_binary()", function()
@@ -244,6 +266,20 @@ describe("hermes.binary", function()
 			-- This is already covered by test at line 542
 			-- Keeping this block for organization
 			stub(vim.fn, "executable").returns(0) -- cargo not available
+			local result = binary.build_from_source(temp_dir)
+			assert.is_false(result)
+		end)
+
+		it("returns false when Cargo.toml is missing", function()
+			stub(vim.fn, "executable").returns(1) -- cargo available
+			-- Mock filereadable to return 0 for Cargo.toml (not found)
+			stub(vim.fn, "filereadable").invokes(function(path)
+				if path:match("Cargo%.toml$") then
+					return 0
+				end
+				return 1
+			end)
+
 			local result = binary.build_from_source(temp_dir)
 			assert.is_false(result)
 		end)

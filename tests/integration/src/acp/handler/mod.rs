@@ -531,6 +531,53 @@ fn agent_message_chunk_succeeds_after_user_message_chunk() -> nvim_oxi::Result<(
 }
 
 #[nvim_oxi::test]
+fn get_agent_returns_current_agent() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let agent = hermes::acp::connection::Assistant::from("test-agent");
+    smol::block_on(async {
+        state.lock().await.agent_info.set_agent(agent.clone());
+    });
+
+    let result = smol::block_on(handler.get_agent());
+    assert_eq!(
+        result.to_string(),
+        agent.to_string(),
+        "get_agent should return the current agent"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn set_prompt_id_updates_session_prompt_id() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    smol::block_on(handler.set_prompt_id("session-1".to_string(), "prompt-abc".to_string()));
+
+    let mut state_guard = smol::block_on(state.lock());
+    let stored_id = state_guard.get_session_prompt("session-1");
+    assert_eq!(
+        stored_id, "prompt-abc",
+        "set_prompt_id should update the prompt id"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn get_prompt_id_returns_same_value_on_repeated_calls_without_user_message() -> nvim_oxi::Result<()>
 {
     let state = Arc::new(Mutex::new(PluginState::default()));

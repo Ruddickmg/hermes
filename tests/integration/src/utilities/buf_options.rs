@@ -73,3 +73,16 @@ fn set_buf_option_errors_for_invalid_option() -> nvim_oxi::Result<()> {
     );
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn get_win_option_errors_for_invalid_option() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buf_options::get_win_option;
+
+    let win = nvim_oxi::api::get_current_win();
+    let result = get_win_option::<bool>("not_a_real_option", &win);
+    assert!(
+        result.is_err(),
+        "invalid option name should return an error"
+    );
+    Ok(())
+}
