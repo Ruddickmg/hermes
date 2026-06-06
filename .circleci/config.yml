@@ -142,6 +142,29 @@ workflows:
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
+commands:
+  upload-coverage:
+    description: Upload a coverage report to Codecov using the CLI
+    parameters:
+      file:
+        type: string
+        description: Path to the coverage report file
+      allow-failure:
+        type: boolean
+        default: false
+        description: Whether to allow the upload to fail without failing the job
+    steps:
+      - run:
+          name: Upload coverage to Codecov
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            if [ "<< parameters.allow-failure >>" = "true" ]; then
+              ./codecov upload-coverage --file << parameters.file >> --disable-search || true
+            else
+              ./codecov upload-coverage --file << parameters.file >> --disable-search
+            fi
+
 jobs:
   update-cargo-version:
     executor: node
@@ -372,12 +395,8 @@ jobs:
       - run:
           name: Run unit tests
           command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
-      - run:
-          name: Upload unit coverage to Codecov
-          command: |
-            curl -Os https://cli.codecov.io/latest/linux/codecov
-            chmod +x codecov
-            ./codecov upload-coverage --file unit.coverage.info --disable-search
+      - upload-coverage:
+          file: unit.coverage.info
 
   integration_tests:
     environment:
@@ -407,12 +426,8 @@ jobs:
       - run:
           name: Run integration tests
           command: cargo llvm-cov nextest --package hermes-integration --all-features --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
-      - run:
-          name: Upload integration coverage to Codecov
-          command: |
-            curl -Os https://cli.codecov.io/latest/linux/codecov
-            chmod +x codecov
-            ./codecov upload-coverage --file integration.coverage.info --disable-search
+      - upload-coverage:
+          file: integration.coverage.info
 
   e2e_tests_0_12:
     environment:
@@ -450,12 +465,8 @@ jobs:
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
             cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
-      - run:
-          name: Upload e2e coverage to Codecov
-          command: |
-            curl -Os https://cli.codecov.io/latest/linux/codecov
-            chmod +x codecov
-            ./codecov upload-coverage --file e2e.coverage.info --disable-search
+      - upload-coverage:
+          file: e2e.coverage.info
 
   e2e_tests_0_11:
     environment:
@@ -553,12 +564,9 @@ jobs:
             # Run from project root where luacov.stats.out was generated
             luacov -c tests/lua/.luacov -r lcov
             mv luacov.report.out lua-0-12.coverage.info
-      - run:
-          name: Upload Lua coverage to Codecov
-          command: |
-            curl -Os https://cli.codecov.io/latest/linux/codecov
-            chmod +x codecov
-            ./codecov upload-coverage --file lua-0-12.coverage.info --disable-search || true
+      - upload-coverage:
+          file: lua-0-12.coverage.info
+          allow-failure: true
 
   lua_tests_0_11:
     environment:
