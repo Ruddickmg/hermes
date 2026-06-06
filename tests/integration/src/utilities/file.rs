@@ -356,6 +356,45 @@ fn save_buffer_to_disk_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn save_buffer_to_disk_propagates_write_error_on_readonly_file() -> nvim_oxi::Result<()> {
+    let temp_file = NamedTempFile::new("readonly_test.txt").unwrap();
+
+    // Create buffer with content
+    let (mut buffer, _) = acquire_or_create_buffer(temp_file.path())
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Make parent directory read-only so :write fails
+    let parent = temp_file
+        .path()
+        .parent()
+        .ok_or_else(|| nvim_oxi::api::Error::Other("no parent dir".to_string()))?;
+    let mut perms = std::fs::metadata(parent)
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?
+        .permissions();
+    perms.set_readonly(true);
+    std::fs::set_permissions(parent, perms.clone())
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Modify buffer content
+    update_buffer_content(&mut buffer, "new content")
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Save should fail because directory is read-only
+    let result = save_buffer_to_disk(&buffer);
+
+    // Restore permissions before assert so cleanup works on failure
+    perms.set_readonly(false);
+    let _ = std::fs::set_permissions(parent, perms);
+
+    assert!(
+        result.is_err(),
+        "save_buffer_to_disk should return error when parent directory is read-only"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn update_buffer_content_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
     use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
 

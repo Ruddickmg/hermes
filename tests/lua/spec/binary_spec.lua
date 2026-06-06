@@ -216,6 +216,29 @@ describe("hermes.binary", function()
 
 			assert.stub(download_stub).was_called()
 		end)
+
+		it("downloads when binary exists but version file is missing", function()
+			-- Create binary file but NO version file
+			local bin_path = binary.get_binary_path()
+			vim.fn.mkdir(binary.get_data_dir(), "p")
+			io.open(bin_path, "w"):close()
+
+			-- Mock: binary exists (1), version file does NOT exist (0)
+			filereadable_stub = stub(vim.fn, "filereadable").invokes(function(path)
+				if path == bin_path then
+					return 1
+				end
+				return 0 -- version file missing
+			end)
+
+			version_stub = stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
+			download_stub = stub(download, "download").returns(true, nil)
+			stub(vim.fn, "writefile")
+
+			binary.ensure_binary()
+
+			assert.stub(download_stub).was_called()
+		end)
 	end)
 
 	describe("build_from_source()", function()

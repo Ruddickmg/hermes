@@ -86,3 +86,23 @@ fn get_win_option_errors_for_invalid_option() -> nvim_oxi::Result<()> {
     );
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn get_win_option_returns_cursorline_default() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buf_options::get_win_option;
+
+    let win = nvim_oxi::api::get_current_win();
+    let cursorline: bool = get_win_option("cursorline", &win)?;
+    assert_eq!(cursorline, false, "cursorline should default to false");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn get_win_option_returns_wrap_value() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buf_options::get_win_option;
+
+    let win = nvim_oxi::api::get_current_win();
+    let wrap: bool = get_win_option("wrap", &win)?;
+    assert_eq!(wrap, true, "wrap should default to true");
+    Ok(())
+}
