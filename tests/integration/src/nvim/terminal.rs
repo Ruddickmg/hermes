@@ -4,7 +4,7 @@
 
 use hermes::acp::Result;
 use hermes::nvim::configuration::TerminalConfig;
-use hermes::nvim::terminal::{Terminal, TerminalInfo};
+use hermes::nvim::terminal::{Terminal, TerminalInfo, handle_terminal_exit};
 use hermes::utilities::buf_options::get_buf_option;
 use pretty_assertions::assert_eq;
 
@@ -58,13 +58,28 @@ fn terminal_info_report_exit_to_stores_sender_for_later() -> nvim_oxi::Result<()
     let (sender, receiver) = async_channel::bounded::<Result<(Option<u32>, Option<String>)>>(1);
     terminal.report_exit_to(sender).expect("report failed");
 
-    // Verify the sender was stored by triggering an exit and receiving through the original channel
-    let result = terminal
-        .report_exit_to(async_channel::bounded::<Result<(Option<u32>, Option<String>)>>(1).0);
-    assert!(
-        result.is_ok(),
-        "Should be able to report exit again after storing sender"
-    );
+    // Verify the sender was stored by simulating an exit and receiving through the original channel
+    let mut exit_status = terminal
+        .exit_status
+        .try_borrow_mut()
+        .expect("Failed to borrow exit_status");
+    let mut exit_response = terminal
+        .exit_response
+        .try_borrow_mut()
+        .expect("Failed to borrow exit_response");
+
+    handle_terminal_exit(
+        42,
+        "exit".to_string(),
+        &mut *exit_status,
+        &mut *exit_response,
+    )
+    .expect("handle_terminal_exit failed");
+
+    let received = receiver
+        .try_recv()
+        .expect("Should receive exit notification");
+    assert_eq!(received.unwrap(), (Some(42), None));
 
     Ok(())
 }
