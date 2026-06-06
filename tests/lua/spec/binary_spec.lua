@@ -125,9 +125,16 @@ describe("hermes.binary", function()
 		it("returns false when platform is unsupported", function()
 			stub(require("hermes.platform"), "get_platform_key").returns(nil)
 
-			local result, err = binary.download(temp_dir .. "/test.so", "v1.0.0")
+			local result, _ = binary.download(temp_dir .. "/test.so", "v1.0.0")
 
 			assert.is_false(result)
+		end)
+
+		it("returns structured error when platform is unsupported", function()
+			stub(require("hermes.platform"), "get_platform_key").returns(nil)
+
+			local _, err = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
 			assert.truthy(err and err.message)
 		end)
 
