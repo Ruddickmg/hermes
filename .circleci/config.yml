@@ -3,7 +3,7 @@ version: 2.1
 orbs:
   windows: circleci/windows@5.0
   rust: circleci/rust@1.8.0
-  codecov: codecov/codecov@5.4.3
+
   node: circleci/node@7.1.0
 
 #-----------------------------------------------------------------------------------------------------------------------------
@@ -372,15 +372,12 @@ jobs:
       - run:
           name: Run unit tests
           command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
-      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
-      # The orb intermittently fails to import the Codecov PGP key, causing
-      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
-      - codecov/upload:
-          fail_on_error: true
-          files: unit.coverage.info
-          skip_validation: true
-          git_service: github
-          upload_name: unit
+      - run:
+          name: Upload unit coverage to Codecov
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov upload-coverage --file unit.coverage.info --disable-search
 
   integration_tests:
     environment:
@@ -410,15 +407,12 @@ jobs:
       - run:
           name: Run integration tests
           command: cargo llvm-cov nextest --package hermes-integration --all-features --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
-      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
-      # The orb intermittently fails to import the Codecov PGP key, causing
-      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
-      - codecov/upload:
-          fail_on_error: true
-          files: integration.coverage.info
-          skip_validation: true
-          git_service: github
-          upload_name: integration
+      - run:
+          name: Upload integration coverage to Codecov
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov upload-coverage --file integration.coverage.info --disable-search
 
   e2e_tests_0_12:
     environment:
@@ -456,15 +450,12 @@ jobs:
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
             cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
-      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
-      # The orb intermittently fails to import the Codecov PGP key, causing
-      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
-      - codecov/upload:
-          fail_on_error: true
-          files: e2e.coverage.info
-          skip_validation: true
-          git_service: github
-          upload_name: e2e
+      - run:
+          name: Upload e2e coverage to Codecov
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov upload-coverage --file e2e.coverage.info --disable-search
 
   e2e_tests_0_11:
     environment:
@@ -562,15 +553,12 @@ jobs:
             # Run from project root where luacov.stats.out was generated
             luacov -c tests/lua/.luacov -r lcov
             mv luacov.report.out lua-0-12.coverage.info
-      # TODO: Re-enable GPG validation when codecov/codecov-circleci-orb#250 is fixed.
-      # The orb intermittently fails to import the Codecov PGP key, causing
-      # "gpg: no valid OpenPGP data found" errors that block CI uploads.
-      - codecov/upload:
-          fail_on_error: false
-          files: lua-0-12.coverage.info
-          skip_validation: true
-          git_service: github
-          upload_name: lua-0-12
+      - run:
+          name: Upload Lua coverage to Codecov
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov upload-coverage --file lua-0-12.coverage.info --disable-search || true
 
   lua_tests_0_11:
     environment:
