@@ -449,7 +449,7 @@ jobs:
           name: Run e2e tests (0.12)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/integration/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
+            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
       - codecov/upload:
           fail_on_error: true
           files: e2e.coverage.info
@@ -492,7 +492,7 @@ jobs:
           name: Run e2e tests (0.11)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/integration/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
+            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
 
   lua_tests_0_12:
     environment:
