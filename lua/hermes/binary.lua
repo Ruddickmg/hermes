@@ -215,7 +215,7 @@ function M.build_from_source(dest_dir)
 	logging.notify("Building from source (this may take a few minutes)...", vim.log.levels.INFO, notification_options)
 
 	-- Build with cargo from the detected source directory
-	local build_cmd = "cd " .. vim.fn.shellescape(source_dir) .. " && cargo build --release"
+ 	local build_cmd = "cd " .. vim.fn.shellescape(source_dir) .. " && cargo build --release"
 	local output = vim.fn.system(build_cmd)
 
 	if vim.v.shell_error ~= 0 then
@@ -315,7 +315,9 @@ function M.build_from_source_async(dest_dir, on_complete)
 		local start_time = uv.now()
 		local progress_interval = 60000 -- Show progress every 60 seconds
 
-		local job_id = vim.fn.jobstart({ "cargo", "build", "--release" }, {
+		local cargo_args = { "cargo", "build", "--release" }
+
+		local job_id = vim.fn.jobstart(cargo_args, {
 			cwd = source_dir,
 			on_stdout = function(_, _) end,
 			on_stderr = function(_, _) end,

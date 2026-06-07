@@ -988,6 +988,7 @@ dependencies = [
  "futures",
  "futures-lite",
  "hermes",
+ "mlua",
  "nvim-oxi",
  "pretty_assertions",
  "serde",

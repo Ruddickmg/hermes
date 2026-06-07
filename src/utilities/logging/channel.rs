@@ -52,20 +52,20 @@ impl<S: LogSink> ChannelWriter<S> {
     ///
     /// Spawns a dedicated logging thread that will consume messages
     /// and send them to the sink.
-    pub fn new(sink: S, flush_interval: usize) -> io::Result<Self> {
+    pub fn new(sink: S, flush_interval: usize) -> Self {
         let (sender, receiver) = bounded(CHANNEL_CAPACITY);
 
         // Spawn the logging worker thread
         let worker = Worker::spawn(sink, receiver, flush_interval);
 
-        Ok(Self {
+        Self {
             sender,
             _worker: Arc::new(Mutex::new(Some(worker))),
-        })
+        }
     }
 
     /// Create a new channel writer with file sink (flush every 100 messages)
-    pub fn new_file(sink: S) -> io::Result<Self>
+    pub fn new_file(sink: S) -> Self
     where
         S: LogSink,
     {
@@ -73,7 +73,7 @@ impl<S: LogSink> ChannelWriter<S> {
     }
 
     /// Create a new channel writer with UI sink (flush every 10 messages or 100ms)
-    pub fn new_ui(sink: S) -> io::Result<Self>
+    pub fn new_ui(sink: S) -> Self
     where
         S: LogSink,
     {
@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn test_channel_writer_with_null_sink() {
         let sink = NullSink;
-        let mut writer = ChannelWriter::new(sink, 5).unwrap();
+        let mut writer = ChannelWriter::new(sink, 5);
 
         writer.write_all(b"Hello, World!\n").unwrap();
         writer.write_all(b"Second line\n").unwrap();
@@ -374,7 +374,7 @@ mod tests {
     #[test]
     fn test_channel_writer_empty_message() {
         let sink = NullSink;
-        let mut writer = ChannelWriter::new(sink, 5).unwrap();
+        let mut writer = ChannelWriter::new(sink, 5);
 
         writer.write_all(b"").unwrap();
         writer.shutdown();
@@ -383,7 +383,7 @@ mod tests {
     #[test]
     fn test_channel_writer_tracks_all_messages() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 100);
 
         for i in 0..100 {
             writer
@@ -402,7 +402,7 @@ mod tests {
     #[test]
     fn test_channel_writer_batches_messages() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 10).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 10);
 
         for i in 0..25 {
             writer
@@ -421,7 +421,7 @@ mod tests {
     #[test]
     fn test_channel_writer_flush_triggers_sink_flush() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 100);
 
         writer.write_all(b"Test message\n").unwrap();
         writer.flush().unwrap();
@@ -439,7 +439,7 @@ mod tests {
     #[test]
     fn test_channel_writer_timeout_flush() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 100);
 
         writer.write_all(b"First message\n").unwrap();
         writer.write_all(b"Second message\n").unwrap();
@@ -454,7 +454,7 @@ mod tests {
     #[test]
     fn test_channel_worker_death_graceful() {
         let sink = NullSink;
-        let mut writer = ChannelWriter::new(sink, 5).unwrap();
+        let mut writer = ChannelWriter::new(sink, 5);
 
         writer.write_all(b"Before death\n").unwrap();
 
@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn test_channel_writer_clone_shares_channel() {
         let sink = TrackingSink::new();
-        let mut writer1 = ChannelWriter::new(sink.clone(), 100).unwrap();
+        let mut writer1 = ChannelWriter::new(sink.clone(), 100);
         let mut writer2 = writer1.clone();
 
         writer1.write_all(b"From writer1\n").unwrap();
@@ -491,7 +491,7 @@ mod tests {
     fn test_channel_writer_empty_shutdown() {
         let sink = TrackingSink::new();
         let sink_clone = sink.clone();
-        let writer = ChannelWriter::new(sink, 5).unwrap();
+        let writer = ChannelWriter::new(sink, 5);
 
         writer.shutdown();
 
@@ -507,7 +507,7 @@ mod tests {
     #[test]
     fn test_channel_writer_concurrent_writes_safe() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 1000).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 1000);
 
         let mut handles = vec![];
         for thread_id in 0..5 {
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn test_channel_writer_keyed_message_reaches_sink() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 100);
 
         writer.write_keyed("my-key", "my-content");
         writer.flush().unwrap();
@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn test_channel_writer_multiple_keyed_messages_preserved() {
         let sink = TrackingSink::new();
-        let mut writer = ChannelWriter::new(sink.clone(), 100).unwrap();
+        let mut writer = ChannelWriter::new(sink.clone(), 100);
 
         writer.write_keyed("key-a", "content-a");
         writer.write_keyed("key-b", "content-b");
@@ -564,5 +564,15 @@ mod tests {
 
         let keyed = sink.get_keyed_messages();
         assert_eq!(keyed.len(), 3);
+    }
+
+    #[test]
+    fn test_channel_writer_new_ui_creates_writer() {
+        let sink = NullSink;
+        let mut writer = ChannelWriter::new_ui(sink);
+
+        writer.write_all(b"UI message\n").unwrap();
+        writer.flush().unwrap();
+        writer.shutdown();
     }
 }

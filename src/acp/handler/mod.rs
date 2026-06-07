@@ -11,10 +11,11 @@ use crate::{
         GROUP,
         requests::{RequestHandler, Responder},
     },
-    utilities::{NvimMessenger, NvimRuntime, TransmitToNvim},
+    utilities::{
+        NvimMessenger, NvimRuntime, TransmitToNvim, autocmd_listeners_attached, exec_autocmd,
+    },
 };
 use async_lock::Mutex;
-use nvim_oxi::{Array, Dictionary, Object, api::opts::ExecAutocmdsOpts};
 use serde::Serialize;
 use std::{
     fmt::{Debug, Display},
@@ -53,24 +54,11 @@ impl Handler {
                     } else {
                         None
                     };
-                    if Self::listener_attached(command.to_string()) {
-                        match serde_json::from_value::<Object>(data.clone()) {
+                    if listener_attached(command.to_string()) {
+                        match serde_json::from_value::<nvim_oxi::Object>(data.clone()) {
                             Ok(obj) => {
-                                let opts = ExecAutocmdsOpts::builder()
-                                    .patterns(command.to_string())
-                                    .data(obj)
-                                    .group(GROUP)
-                                    .build();
-                                debug!(
-                                    "Executing autocommand: {} with options: {:#?}",
-                                    command, opts
-                                );
-                                if let Err(err) = nvim_oxi::api::exec_autocmds(["User"], &opts) {
-                                    error!(
-                                        "Error executing autocommand: '{}': {:#?}",
-                                        command, err
-                                    );
-                                }
+                                let _ = exec_autocmd(GROUP, "User", &command, obj)
+                                    .inspect_err(|err| error!("{}", err));
                             }
                             Err(e) => {
                                 error!(
@@ -115,30 +103,6 @@ impl Handler {
         let prompt_id = state.get_session_prompt(session_id);
         drop(state);
         Ok(prompt_id)
-    }
-
-    #[instrument(level = "trace")]
-    pub fn listener_attached<S>(pattern: S) -> bool
-    where
-        S: Display + Debug,
-    {
-        let command = pattern.to_string();
-
-        // Workaround for nvim-oxi bug: use call_function with properly constructed arguments
-        // The builder pattern sends buffer=nil which Neovim rejects
-
-        let mut opts_dict = Dictionary::default();
-        opts_dict.insert("group", GROUP);
-        opts_dict.insert("event", Array::from((Object::from("User"),)));
-        opts_dict.insert("pattern", Array::from((Object::from(command.clone()),)));
-
-        nvim_oxi::api::call_function::<(Object,), Array>("nvim_get_autocmds", (opts_dict.into(),))
-            .map(|commands| !commands.is_empty())
-            .map_err(|e| {
-                error!("Error detecting autocommand: {:?}", e);
-                e
-            })
-            .unwrap_or(false)
     }
 
     #[instrument(level = "trace", skip(self))]
@@ -239,4 +203,16 @@ impl Handler {
             .await?;
         Ok(())
     }
+}
+
+/// Checks whether any autocommand listeners are attached for a given command pattern.
+///
+/// Delegates to the shared `autocmd_listeners_attached` utility, which wraps
+/// `nvim_get_autocmds` and handles version differences in struct layouts.
+#[instrument(level = "trace")]
+fn listener_attached<S>(pattern: S) -> bool
+where
+    S: Display + Debug,
+{
+    autocmd_listeners_attached(GROUP, "User", &pattern.to_string())
 }

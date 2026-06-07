@@ -7,6 +7,7 @@ use std::{
 use nvim_oxi::api;
 
 use crate::acp::{Result, error::Error};
+use crate::utilities::buf_options::{buf_get_name, get_buf_option, set_buf_option};
 
 pub fn detect_project_storage_path() -> Result<String> {
     let state_dir = api::call_function::<(String,), String>("stdpath", ("state".to_string(),))
@@ -31,15 +32,12 @@ fn escape_for_ex(filename: &str) -> String {
 
 /// Find an existing buffer that is listed (visible to user)
 pub fn find_existing_buffer(path: &Path) -> Option<nvim_oxi::api::Buffer> {
+    let path_str = path.to_string_lossy();
     nvim_oxi::api::list_bufs().into_iter().find(|b| {
-        b.get_name().map(|p| p == path).unwrap_or(false)
-            && nvim_oxi::api::get_option_value::<bool>(
-                "buflisted",
-                &nvim_oxi::api::opts::OptionOpts::builder()
-                    .buffer(b.clone())
-                    .build(),
-            )
+        buf_get_name(b)
+            .map(|name| name == path_str.as_ref())
             .unwrap_or(false)
+            && get_buf_option::<bool>("buflisted", b).unwrap_or(false)
     })
 }
 
@@ -53,9 +51,14 @@ pub fn acquire_or_create_buffer(path: &Path) -> Result<(nvim_oxi::api::Buffer, b
     nvim_oxi::api::command(&format!("badd {}", escaped_path))
         .map_err(|e| Error::Internal(e.to_string()))?;
 
+    let path_str = path.to_string_lossy();
     let buf = nvim_oxi::api::list_bufs()
         .into_iter()
-        .find(|b| b.get_name().map(|p| p == path).unwrap_or(false))
+        .find(|b| {
+            buf_get_name(b)
+                .map(|name| name == path_str.as_ref())
+                .unwrap_or(false)
+        })
         .ok_or_else(|| {
             Error::Internal(format!(
                 "Buffer for file '{}' not found after badd",
@@ -78,33 +81,42 @@ pub fn update_buffer_content(buf: &mut nvim_oxi::api::Buffer, content: &str) -> 
 
 /// Mark buffer as having unsaved changes
 pub fn mark_buffer_modified(buf: &nvim_oxi::api::Buffer) -> Result<()> {
-    nvim_oxi::api::set_option_value(
-        "modified",
-        true,
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buf.clone())
-            .build(),
-    )
-    .map_err(|e| Error::Internal(e.to_string()))?;
+    set_buf_option("modified", true, buf).map_err(|e| Error::Internal(e.to_string()))?;
     Ok(())
 }
 
 /// Save buffer to disk
 pub fn save_buffer_to_disk(buf: &nvim_oxi::api::Buffer) -> Result<()> {
     // Run :write in the context of the given buffer and propagate any errors.
-    buf.call(|_| {
-        nvim_oxi::api::command("write")
-            .inspect_err(|e| {
+    // Panics are caught before they cross the FFI boundary to prevent aborting Neovim.
+    let result = std::rc::Rc::new(std::cell::Cell::new(None));
+    let result_inside = result.clone();
+
+    buf.call(move |_| {
+        let write_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            nvim_oxi::api::command("write")
+        }));
+        result_inside.set(Some(match write_result {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => {
                 tracing::error!(
                     "An error occurred while triggering write in Neovim: {:?}",
                     e
-                )
-            })
-            .ok();
+                );
+                Err(nvim_oxi::Error::Api(e))
+            }
+            Err(e) => Err(nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+                "write command panicked: {:?}",
+                e.downcast_ref::<&str>().unwrap_or(&"unknown panic")
+            )))),
+        }));
     })
     .map_err(|e| Error::Internal(e.to_string()))?;
 
-    Ok(())
+    result
+        .take()
+        .ok_or_else(|| Error::Internal("write command did not produce a result".to_string()))?
+        .map_err(|e| Error::Internal(e.to_string()))
 }
 
 /// Refresh the display to show updated buffer content

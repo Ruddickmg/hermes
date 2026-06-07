@@ -19,8 +19,9 @@ use crate::nvim::autocommands::Commands;
 use crate::nvim::configuration::dict_from_object;
 use crate::nvim::terminal::{Terminal, TerminalManager, parse_exit_code};
 use crate::utilities::{
-    NvimMessenger, NvimRuntime, TransmitToNvim, acquire_or_create_buffer, mark_buffer_modified,
-    refresh_view, save_buffer_to_disk, show_permission_ui, update_buffer_content,
+    NvimMessenger, NvimRuntime, TransmitToNvim, acquire_or_create_buffer, buffer_get_lines,
+    buffer_line_count, mark_buffer_modified, refresh_view, save_buffer_to_disk, show_permission_ui,
+    update_buffer_content,
 };
 use crate::utilities::{find_existing_buffer, get_permission_prompt, read_file_content};
 
@@ -396,23 +397,17 @@ impl Request {
         let limit = data.limit.map(compensate_for_one_based_index).transpose()?;
 
         if let Some(buffer_content) = find_existing_buffer(&data.path) {
-            let count = buffer_content
-                .line_count()
+            let count = buffer_line_count(&buffer_content)
                 .map_err(|_| agent_client_protocol::Error::internal_error())?;
             let start = line.unwrap_or(0);
             let end = limit.unwrap_or(count as u32);
-            buffer_content
-                .get_lines((start as usize)..(end as usize), true)
+            buffer_get_lines(&buffer_content, start as usize, end as usize, true)
                 .map_err(|e| {
                     error!("Error: {}", e);
                     agent_client_protocol::Error::invalid_params()
                 })
-                .map(|result| {
-                    // Preserve line breaks by joining with '\n' and add a trailing newline
-                    let mut content = result
-                        .map(|s| s.to_string())
-                        .collect::<Vec<String>>()
-                        .join("\n");
+                .map(|lines| {
+                    let mut content = lines.join("\n");
                     content.push('\n');
                     ReadTextFileResponse::new(content)
                 })

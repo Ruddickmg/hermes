@@ -86,14 +86,13 @@ describe("hermes.binary", function()
 	describe("get_binary_path()", function()
 		it("includes platform-specific name", function()
 			local bin_path = binary.get_binary_path()
-			local platform = require("hermes.platform")
-			local expected_name = platform.get_binary_name()
+			local expected_name = binary.get_binary_name()
 
 			assert.truthy(bin_path:find(expected_name, 1, true), "Binary path should contain: " .. expected_name)
 		end)
 	end)
 
-	describe("download()", function()
+		describe("download()", function()
 		it("downloads to correct path", function()
 			local captured_dest
 			download_stub = stub(download, "download").invokes(function(_, dest)
@@ -121,6 +120,35 @@ describe("hermes.binary", function()
 			local result = binary.download(temp_dir .. "/test.so", "v1.0.0")
 
 			assert.is_false(result)
+		end)
+
+		it("returns false when platform is unsupported", function()
+			stub(require("hermes.platform"), "get_platform_key").returns(nil)
+
+			local result, _ = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.is_false(result)
+		end)
+
+		it("returns structured error when platform is unsupported", function()
+			stub(require("hermes.platform"), "get_platform_key").returns(nil)
+
+			local _, err = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.truthy(err and err.message)
+		end)
+
+		it("fetches latest version when ver is latest", function()
+			local fetch_called = false
+			stub(require("hermes.version"), "fetch_latest").invokes(function()
+				fetch_called = true
+				return "v2.0.0"
+			end)
+			download_stub = stub(download, "download").returns(true, nil)
+
+			binary.download(temp_dir .. "/test.so", "latest")
+
+			assert.is_true(fetch_called, "fetch_latest should be called when version is 'latest'")
 		end)
 	end)
 	describe("ensure_binary()", function()
@@ -188,6 +216,29 @@ describe("hermes.binary", function()
 
 			assert.stub(download_stub).was_called()
 		end)
+
+		it("downloads when binary exists but version file is missing", function()
+			-- Create binary file but NO version file
+			local bin_path = binary.get_binary_path()
+			vim.fn.mkdir(binary.get_data_dir(), "p")
+			io.open(bin_path, "w"):close()
+
+			-- Mock: binary exists (1), version file does NOT exist (0)
+			filereadable_stub = stub(vim.fn, "filereadable").invokes(function(path)
+				if path == bin_path then
+					return 1
+				end
+				return 0 -- version file missing
+			end)
+
+			version_stub = stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
+			download_stub = stub(download, "download").returns(true, nil)
+			stub(vim.fn, "writefile")
+
+			binary.ensure_binary()
+
+			assert.stub(download_stub).was_called()
+		end)
 	end)
 
 	describe("build_from_source()", function()
@@ -198,7 +249,7 @@ describe("hermes.binary", function()
 			local target_dir = build_dir .. "/target/release"
 			local ext = platform.get_ext()
 			local mock_built_lib = target_dir .. "/libhermes." .. ext
-			local expected_bin_name = platform.get_binary_name()
+			local expected_bin_name = binary.get_binary_name()
 			local expected_final_path = temp_dir .. "/" .. expected_bin_name
 
 			-- Create directory structure and mock library file
@@ -211,7 +262,7 @@ describe("hermes.binary", function()
 			-- This bypasses the actual git clone and cargo build
 			local uv = vim.uv or vim.loop
 			local dest_dir = temp_dir
-			local bin_name = platform.get_binary_name()
+			local bin_name = binary.get_binary_name()
 			local final_path = dest_dir .. "/" .. bin_name
 
 			-- Manually copy the file to simulate what build_from_source should do
@@ -245,6 +296,20 @@ describe("hermes.binary", function()
 			-- This is already covered by test at line 542
 			-- Keeping this block for organization
 			stub(vim.fn, "executable").returns(0) -- cargo not available
+			local result = binary.build_from_source(temp_dir)
+			assert.is_false(result)
+		end)
+
+		it("returns false when Cargo.toml is missing", function()
+			stub(vim.fn, "executable").returns(1) -- cargo available
+			-- Mock filereadable to return 0 for Cargo.toml (not found)
+			stub(vim.fn, "filereadable").invokes(function(path)
+				if path:match("Cargo%.toml$") then
+					return 0
+				end
+				return 1
+			end)
+
 			local result = binary.build_from_source(temp_dir)
 			assert.is_false(result)
 		end)

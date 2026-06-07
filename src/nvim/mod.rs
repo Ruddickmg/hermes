@@ -8,17 +8,13 @@ pub mod terminal;
 
 use crate::{
     Handler,
-    acp::registry::Registry,
+    acp::{error::Error, registry::Registry},
     api::{DisconnectArgs, Hermes},
-    utilities::{Logger, NvimRuntime, detect_project_storage_path},
+    utilities::{Logger, NvimRuntime, create_augroup, create_autocmd, detect_project_storage_path},
 };
 use async_lock::Mutex;
-use nvim_oxi::{
-    Dictionary,
-    api::opts::{CreateAugroupOpts, CreateAutocmdOpts},
-};
+use nvim_oxi::Dictionary;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
-use tracing::error;
 
 pub const GROUP: &str = "hermes";
 
@@ -30,7 +26,7 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
     let nvim_runtime = NvimRuntime::new();
     let plugin_state = Arc::new(Mutex::new(
         state::PluginState::new()
-            .with_storage_path(std::path::PathBuf::from(&storage_path))?
+            .with_storage_path(std::path::PathBuf::from(&storage_path))
             .with_registry(registry.cloned()),
     ));
     let request_handler = Rc::new(requests::Requests::new(
@@ -52,39 +48,16 @@ pub fn hermes() -> nvim_oxi::Result<Dictionary> {
     let shutdown_runtime = nvim_runtime.clone();
     let hermes = Hermes::new(nvim_runtime, api)?;
 
-    let group =
-        nvim_oxi::api::create_augroup(GROUP, &CreateAugroupOpts::builder().clear(true).build())
-            .map_err(|e| {
-                nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
-                    "Failed to create autogroup for the '{}' group: {}",
-                    GROUP, e
-                )))
-            })?;
+    let group = create_augroup(GROUP, true)?;
 
-    // clean up on exit
-    nvim_oxi::api::create_autocmd(
-        ["VimLeavePre"],
-        &CreateAutocmdOpts::builder()
-            .group(group)
-            .callback(move |_| {
-                match cloned.try_borrow_mut() {
-                    Ok(mut app) => {
-                        shutdown_runtime.block_on_primary(async move {
-                            app.disconnect(DisconnectArgs::All)
-                                .await
-                                .inspect_err(|e| error!("Error disconnecting: {:?}", e))
-                                .ok();
-                        });
-                    }
-                    Err(e) => error!(
-                        "An error occurred while disconnecting sessions on exit: {:?}",
-                        e
-                    ),
-                };
-                true
-            })
-            .build(),
-    )?;
+    create_autocmd(group, "VimLeavePre", move || {
+        let mut app = cloned
+            .try_borrow_mut()
+            .map_err(|e| Error::Internal(format!("Failed to borrow API on VimLeavePre: {}", e)))?;
+        shutdown_runtime
+            .block_on_primary(async move { app.disconnect(DisconnectArgs::All).await })?;
+        Ok(true)
+    })?;
 
     Ok(hermes.into())
 }
