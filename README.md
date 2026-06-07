@@ -2305,6 +2305,7 @@ Available formats:
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
+- [ ] add health check
 - [ ] Download progress updates
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 

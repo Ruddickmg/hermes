@@ -3,9 +3,10 @@ use async_lock::Mutex;
 use hermes::{
     Handler, PluginState,
     api::{Api, DeleteSessionArg, DeleteSessionOptions},
-    nvim::requests::Requests,
+    nvim::{hermes, requests::Requests},
     utilities::detect_project_storage_path,
 };
+use nvim_oxi::{Dictionary, Function, conversion::FromObject};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -144,5 +145,50 @@ fn delete_session_multiple_returns_error_when_no_connection() -> nvim_oxi::Resul
         result
     );
 
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn delete_session_lua_function_single_none() -> nvim_oxi::Result<()> {
+    let dict: Dictionary = hermes()?;
+    let delete_session: Function<(DeleteSessionArg, Option<DeleteSessionOptions>), ()> =
+        FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
+
+    let result = delete_session.call((
+        DeleteSessionArg::Single("test-session".to_string()),
+        None::<DeleteSessionOptions>,
+    ));
+
+    assert!(result.is_err(), "Expected error without a connection");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn delete_session_lua_function_multi_none() -> nvim_oxi::Result<()> {
+    let dict: Dictionary = hermes()?;
+    let delete_session: Function<(DeleteSessionArg, Option<DeleteSessionOptions>), ()> =
+        FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
+
+    let result = delete_session.call((
+        DeleteSessionArg::Multiple(vec!["a".to_string(), "b".to_string()]),
+        None::<DeleteSessionOptions>,
+    ));
+
+    assert!(result.is_err(), "Expected error without a connection");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn delete_session_lua_function_some_options() -> nvim_oxi::Result<()> {
+    let dict: Dictionary = hermes()?;
+    let delete_session: Function<(DeleteSessionArg, Option<DeleteSessionOptions>), ()> =
+        FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
+
+    let result = delete_session.call((
+        DeleteSessionArg::Single("test-session".to_string()),
+        Some(DeleteSessionOptions { cancel: false }),
+    ));
+
+    assert!(result.is_err(), "Expected error without a connection");
     Ok(())
 }

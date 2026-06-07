@@ -215,6 +215,39 @@ mod tests {
     }
 
     #[test]
+    fn test_delete_session_arg_from_object_string() {
+        let obj = Object::from("test-session-id");
+        let result = DeleteSessionArg::from_object(obj).unwrap();
+        match result {
+            DeleteSessionArg::Single(ref id) => assert_eq!(id, "test-session-id"),
+            _ => panic!("Expected Single variant"),
+        }
+    }
+
+    #[test]
+    fn test_delete_session_arg_from_object_array() {
+        let arr = nvim_oxi::Array::from_iter(vec![Object::from("a"), Object::from("b")]);
+        let obj = Object::from(arr);
+        let result = DeleteSessionArg::from_object(obj).unwrap();
+        match result {
+            DeleteSessionArg::Multiple(ref ids) => {
+                assert_eq!(ids.as_slice(), &["a", "b"]);
+            }
+            _ => panic!("Expected Multiple variant"),
+        }
+    }
+
+    #[test]
+    fn test_delete_session_arg_from_object_invalid_type() {
+        let obj = Object::from(42);
+        let result = DeleteSessionArg::from_object(obj);
+        assert!(
+            result.is_err(),
+            "Expected error for non-string, non-array input"
+        );
+    }
+
+    #[test]
     fn test_delete_session_options_default_cancel() {
         let options = DeleteSessionOptions::default();
         assert!(options.cancel, "Cancel should default to true");
@@ -238,5 +271,12 @@ mod tests {
         let obj = Object::from(dict);
         let options = DeleteSessionOptions::from_object(obj).unwrap();
         assert!(!options.cancel, "Cancel should be false when set to false");
+    }
+
+    #[test]
+    fn test_delete_session_options_from_nil() {
+        let obj = Object::nil();
+        let result = DeleteSessionOptions::from_object(obj).unwrap();
+        assert!(result.cancel, "Cancel should default to true from nil");
     }
 }

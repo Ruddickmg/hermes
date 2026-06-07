@@ -754,6 +754,58 @@ fn test_delete_session_fires_session_deleted() -> Result<(), nvim_oxi::Error> {
 }
 
 #[nvim_oxi::test]
+fn test_delete_session_with_cancel_false() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let delete_session: Function<(DeleteSessionArg, Option<DeleteSessionOptions>), ()> =
+        FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_session_deleted =
+        autocommand::listen_for_autocommand::<DeleteSessionResponse>(Commands::SessionDeleted);
+
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        config.delete_session_response = Some(DeleteSessionResponse::new());
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    connect_to_mock_agent(&connect, &mock_handle)?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id.to_string();
+
+    delete_session.call((
+        DeleteSessionArg::Single(session_id),
+        Some(DeleteSessionOptions { cancel: false }),
+    ))?;
+
+    let deleted = wait_for_session_deleted(Duration::from_secs(TIMEOUT_IN_SECONDS));
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert!(
+        deleted.is_ok(),
+        "SessionDeleted autocommand should fire with cancel=false"
+    );
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn test_resume_session() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> =
