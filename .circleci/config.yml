@@ -425,7 +425,12 @@ jobs:
             cargo install cargo-nextest --locked
       - run:
           name: Run integration tests
-          command: cargo llvm-cov nextest --package hermes-integration --all-features --workspace --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
+          command: |
+            eval "$(cargo llvm-cov show-env --export-prefix)"
+            cargo llvm-cov clean --workspace
+            cargo build --all-features --package hermes-integration
+            cargo nextest run --package hermes-integration --all-features
+            cargo llvm-cov report --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: integration.coverage.info
 
@@ -464,7 +469,11 @@ jobs:
           name: Run e2e tests (0.12)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov nextest -E 'package(hermes-e2e)' --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
+            eval "$(cargo llvm-cov show-env --export-prefix)"
+            cargo llvm-cov clean --workspace
+            cargo build --all-features
+            cargo nextest run -E 'package(hermes-e2e)' --all-features --no-capture
+            cargo llvm-cov report --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: e2e.coverage.info
 
@@ -489,10 +498,8 @@ jobs:
             sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
             nvim --version
       - run:
-          name: Install coverage tools
-          command: |
-            cargo install cargo-llvm-cov@0.6.13
-            cargo install cargo-nextest --locked
+          name: Install cargo-nextest
+          command: cargo install cargo-nextest --locked
       - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
@@ -503,7 +510,7 @@ jobs:
           name: Run e2e tests (0.11)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov nextest -E 'package(hermes-e2e)' --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
+            cargo nextest run -E 'package(hermes-e2e)' --all-features --no-capture
 
   lua_tests_0_12:
     environment:
@@ -608,15 +615,13 @@ jobs:
             cd luarocks-3.9.2
             ./configure && make && sudo make install
 
-            # Install vusted for testing and luacov-reporter-lcov for coverage
+            # Install vusted for testing
             eval $(luarocks path --lua-version 5.1 --bin)
             luarocks --lua-version=5.1 install vusted --local
-            luarocks --lua-version=5.1 install luacov --local
-            luarocks --lua-version=5.1 install luacov-reporter-lcov --local
       - run:
-          name: Run Lua tests with coverage
+          name: Run Lua tests
           command: |
             eval $(luarocks path --lua-version 5.1 --bin)
             export PATH="/home/circleci/.local/bin:$PATH"
             # Run from project root so that plugin/hermes.lua path resolves correctly
-            vusted --coverage -e "package.path = package.path .. ';./tests/lua/?.lua'; package.path = package.path .. ';./tests/lua/spec/?.lua'; package.path = package.path .. ';./lua/?.lua'; package.path = package.path .. ';./lua/?/init.lua'" tests/lua/spec/
+            vusted -e "package.path = package.path .. ';./tests/lua/?.lua'; package.path = package.path .. ';./tests/lua/spec/?.lua'; package.path = package.path .. ';./lua/?.lua'; package.path = package.path .. ';./lua/?/init.lua'" tests/lua/spec/
