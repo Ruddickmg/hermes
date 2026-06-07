@@ -697,7 +697,8 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [SessionDeleted](#sessiondeleted) autocommand upon completion
-
+> [!WARNING]
+> Delete session will not cancel or close ongoing sessions. You will need to call [cancel](#cancel-optional) or [close_session](#close-session-optional) explicitly if you want this behavior.
 
 ### Cancel (**Optional**)
 
