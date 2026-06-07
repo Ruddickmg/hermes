@@ -128,12 +128,12 @@ impl Api {
         let additional_directories = config.additional_directories.unwrap_or_default();
 
         if agent_info.can_load_session() {
+            let mut req = LoadSessionRequest::new(session_id, cwd);
+            if agent_info.can_use_additional_directories() {
+                req = req.additional_directories(additional_directories.clone());
+            }
             connection
-                .load_session(
-                    LoadSessionRequest::new(session_id, cwd)
-                        .additional_directories(additional_directories.clone())
-                        .mcp_servers(config.mcp_servers.clone()),
-                )
+                .load_session(req.mcp_servers(config.mcp_servers.clone()))
                 .await
         } else if agent_info.can_resume_sessions()
             && self.response_handler.can_receive_notifications().await
@@ -177,12 +177,12 @@ impl Api {
                 );
             }
 
+            let mut req = ResumeSessionRequest::new(session_id, cwd);
+            if agent_info.can_use_additional_directories() {
+                req = req.additional_directories(additional_directories);
+            }
             connection
-                .resume_session(
-                    ResumeSessionRequest::new(session_id, cwd)
-                        .additional_directories(additional_directories)
-                        .mcp_servers(config.mcp_servers),
-                )
+                .resume_session(req.mcp_servers(config.mcp_servers))
                 .await?;
             Ok(())
         } else {

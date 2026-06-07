@@ -115,12 +115,15 @@ impl Api {
             return Ok(());
         }
 
-        let request = agent_client_protocol::schema::ResumeSessionRequest::new(
+        let mut request = agent_client_protocol::schema::ResumeSessionRequest::new(
             agent_client_protocol::schema::SessionId::from(session_id),
             config.cwd.unwrap_or(project_root),
-        )
-        .additional_directories(config.additional_directories.unwrap_or_default())
-        .mcp_servers(config.mcp_servers);
+        );
+        if agent_info.can_use_additional_directories() {
+            request =
+                request.additional_directories(config.additional_directories.unwrap_or_default());
+        }
+        request = request.mcp_servers(config.mcp_servers);
 
         let connection = self
             .connection

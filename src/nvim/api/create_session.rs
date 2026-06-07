@@ -199,9 +199,14 @@ impl Api {
                 cwd,
                 additional_directories,
                 mcp_servers,
-            } => agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(project_root))
-                .additional_directories(additional_directories.unwrap_or_default())
-                .mcp_servers(
+            } => {
+                let mut req = agent_client_protocol::schema::NewSessionRequest::new(
+                    cwd.unwrap_or(project_root),
+                );
+                if agent_info.can_use_additional_directories() {
+                    req = req.additional_directories(additional_directories.unwrap_or_default());
+                }
+                req.mcp_servers(
                     mcp_servers
                         .unwrap_or_default()
                         .into_iter()
@@ -211,7 +216,8 @@ impl Api {
                             _ => true,
                         })
                         .collect(),
-                ),
+                )
+            }
         };
 
         let connection = self
