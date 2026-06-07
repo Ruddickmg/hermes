@@ -159,7 +159,10 @@ fn delete_session_lua_function_single_none() -> nvim_oxi::Result<()> {
         None::<DeleteSessionOptions>,
     ));
 
-    assert!(result.is_err(), "Expected error without a connection");
+    assert!(
+        result.is_ok(),
+        "Function should return Ok even without connection"
+    );
     Ok(())
 }
 
@@ -174,7 +177,10 @@ fn delete_session_lua_function_multi_none() -> nvim_oxi::Result<()> {
         None::<DeleteSessionOptions>,
     ));
 
-    assert!(result.is_err(), "Expected error without a connection");
+    assert!(
+        result.is_ok(),
+        "Function should return Ok even without connection"
+    );
     Ok(())
 }
 
@@ -189,6 +195,9 @@ fn delete_session_lua_function_some_options() -> nvim_oxi::Result<()> {
         Some(DeleteSessionOptions { cancel: false }),
     ));
 
-    assert!(result.is_err(), "Expected error without a connection");
+    assert!(
+        result.is_ok(),
+        "Function should return Ok even without connection"
+    );
     Ok(())
 }

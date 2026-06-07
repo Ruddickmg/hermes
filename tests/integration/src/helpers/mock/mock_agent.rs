@@ -7,8 +7,9 @@
 use agent_client_protocol::{
     Agent, ByteStreams, Responder, on_receive_notification, on_receive_request,
     schema::{
-        CancelNotification, DeleteSessionRequest, DeleteSessionResponse, InitializeRequest,
-        InitializeResponse, ProtocolVersion,
+        AgentCapabilities, CancelNotification, DeleteSessionRequest, DeleteSessionResponse,
+        InitializeRequest, InitializeResponse, ProtocolVersion, SessionCapabilities,
+        SessionDeleteCapabilities,
     },
 };
 use async_io::Async;
@@ -18,12 +19,17 @@ use futures::{
 };
 use smol::LocalExecutor;
 use std::rc::Rc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::thread::JoinHandle;
 
 pub struct MockAgentHandle {
     pub port: u16,
     handle: Option<JoinHandle<()>>,
     shutdown_tx: async_channel::Sender<()>,
+    pub delete_session_received: Arc<AtomicBool>,
 }
 
 impl Drop for MockAgentHandle {
@@ -49,6 +55,9 @@ impl Drop for MockAgentHandle {
 /// Start a mock ACP agent that responds to Initialize, DeleteSession, and
 /// CancelNotification.
 pub fn start_mock_agent() -> MockAgentHandle {
+    let delete_session_received = Arc::new(AtomicBool::new(false));
+
+    let tracked = delete_session_received.clone();
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let (shutdown_tx, shutdown_rx) = async_channel::bounded(1);
@@ -87,7 +96,16 @@ pub fn start_mock_agent() -> MockAgentHandle {
                             agent_client_protocol::Client,
                         >| {
                             async move {
-                                responder.respond(InitializeResponse::new(ProtocolVersion::V1))
+                                responder.respond(
+                                    InitializeResponse::new(ProtocolVersion::V1)
+                                        .agent_capabilities(
+                                            AgentCapabilities::new().session_capabilities(
+                                                SessionCapabilities::new()
+                                                    .delete(Some(SessionDeleteCapabilities::new())),
+                                            ),
+                                        ),
+                                );
+                                Ok(())
                             }
                         }
                     },
@@ -95,12 +113,17 @@ pub fn start_mock_agent() -> MockAgentHandle {
                 )
                 .on_receive_request(
                     {
+                        let tracked = tracked.clone();
                         move |_req: DeleteSessionRequest,
                               responder: Responder<DeleteSessionResponse>,
                               _cx: agent_client_protocol::ConnectionTo<
                             agent_client_protocol::Client,
                         >| {
-                            async move { responder.respond(DeleteSessionResponse::new()) }
+                            tracked.store(true, Ordering::SeqCst);
+                            async move {
+                                responder.respond(DeleteSessionResponse::new());
+                                Ok(())
+                            }
                         }
                     },
                     on_receive_request!(),
@@ -127,5 +150,6 @@ pub fn start_mock_agent() -> MockAgentHandle {
         port,
         handle: Some(handle),
         shutdown_tx,
+        delete_session_received,
     }
 }
