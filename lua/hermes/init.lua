@@ -97,7 +97,8 @@
 ---@class SessionOptions
 ---Options for creating or loading a session
 ---@field cwd? string Working directory for the session
----@field mcpServers? McpServer[] Array of MCP server configurations
+---@field additional_directories? string[] Additional workspace roots for the session (requires agent capability)
+---@field mcp_servers? McpServer[] Array of MCP server configurations
 
 ---@class ListSessionsOptions
 ---Options for listing sessions

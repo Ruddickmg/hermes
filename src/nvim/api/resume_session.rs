@@ -227,4 +227,15 @@ mod tests {
         let config = ResumeSessionConfig::from_object(Object::from(dict)).unwrap();
         assert_eq!(config.additional_directories, None);
     }
+
+    #[test]
+    fn test_from_object_empty_additional_directories_array() {
+        let mut dict = Dictionary::new();
+        let dirs = Vec::<String>::new()
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let config = ResumeSessionConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(config.additional_directories, Some(vec![]));
+    }
 }

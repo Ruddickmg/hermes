@@ -808,4 +808,23 @@ mod session_args_tests {
             _ => panic!("Expected Configuration variant"),
         }
     }
+
+    #[test]
+    fn test_from_object_empty_additional_directories_array() {
+        let mut dict = Dictionary::new();
+        let dirs = Vec::<String>::new()
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let args = CreateSessionArgs::from_object(Object::from(dict)).unwrap();
+        match args {
+            CreateSessionArgs::Configuration {
+                additional_directories,
+                ..
+            } => {
+                assert_eq!(additional_directories, Some(vec![]));
+            }
+            _ => panic!("Expected Configuration variant"),
+        }
+    }
 }

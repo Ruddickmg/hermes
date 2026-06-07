@@ -1867,6 +1867,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     {
       "sessionId": "string",
       "cwd": "string",
+      "additionalDirectories": ["string"],
       "title": "string (optional)",
       "updatedAt": "string (optional)"
     }

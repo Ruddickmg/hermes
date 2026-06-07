@@ -96,6 +96,7 @@ fn test_custom_session_creation() -> Result<(), nvim_oxi::Error> {
     // Create session with custom configuration
     create_session.call(CreateSessionArgs::Configuration {
         cwd: Some(".".into()),
+        additional_directories: None,
         mcp_servers: None,
     })?;
 
@@ -219,6 +220,7 @@ fn test_load_session() -> Result<(), nvim_oxi::Error> {
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -436,6 +438,7 @@ fn test_load_session_with_legacy_modes() -> Result<(), nvim_oxi::Error> {
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -499,6 +502,7 @@ fn test_load_session_with_config_options() -> Result<(), nvim_oxi::Error> {
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -563,6 +567,7 @@ fn test_load_session_then_set_mode_uses_legacy_path() -> Result<(), nvim_oxi::Er
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -636,6 +641,7 @@ fn test_load_session_then_set_mode_uses_config_path() -> Result<(), nvim_oxi::Er
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -841,6 +847,7 @@ fn test_resume_session() -> Result<(), nvim_oxi::Error> {
 
     let config = ResumeSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     resume_session.call((session_id.clone(), Some(config)))?;
@@ -925,6 +932,7 @@ fn test_resume_session_replays_history() -> Result<(), nvim_oxi::Error> {
     // Load session to replay history
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.to_string(), Some(config)))?;
