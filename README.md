@@ -1669,7 +1669,9 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><code>SessionClosed</code></td>
       <td>Active session closed</td>
       <td>⚡ <a href="#close-session-optional">close_session()</a></td>
-      <td><pre><code class="language-json">{}</code></pre></td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string"
+}</code></pre></td>
     </tr>
     <tr id="sessioncreated">
       <td><code>SessionCreated</code></td>
@@ -1715,7 +1717,9 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><code>SessionDeleted</code></td>
       <td>Session deleted</td>
       <td>⚡ <a href="#delete-session-optional">delete_session()</a></td>
-      <td><pre><code class="language-json">{}</code></pre></td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string"
+}</code></pre></td>
     </tr>
     <tr id="sessionforked">
       <td><code>SessionForked</code></td>

@@ -5,12 +5,21 @@ use agent_client_protocol::schema::{
     SessionConfigOptionCategory, SetSessionConfigOptionResponse, SetSessionModeResponse,
     SetSessionModelResponse,
 };
+use serde::Serialize;
 use tracing::instrument;
 
 use crate::Handler;
 use crate::acp::connection::Assistant;
 use crate::acp::error::Error;
 use crate::nvim::autocommands::Commands;
+
+#[derive(Serialize, Debug)]
+struct WithSessionId<T: Serialize> {
+    #[serde(rename = "sessionId")]
+    session_id: String,
+    #[serde(flatten)]
+    inner: T,
+}
 
 impl Handler {
     #[instrument(level = "trace", skip(self))]
@@ -267,7 +276,11 @@ impl Handler {
         session_id: String,
         response: CloseSessionResponse,
     ) -> Result<(), Error> {
-        self.execute_autocommand(Commands::SessionClosed, response)
+        let data = WithSessionId {
+            session_id: session_id.clone(),
+            inner: response,
+        };
+        self.execute_autocommand(Commands::SessionClosed, data)
             .await?;
         let mut state = self.state.lock().await;
         state.session_info.remove(&session_id);
@@ -282,7 +295,11 @@ impl Handler {
         session_id: String,
         response: DeleteSessionResponse,
     ) -> Result<(), Error> {
-        self.execute_autocommand(Commands::SessionDeleted, response)
+        let data = WithSessionId {
+            session_id: session_id.clone(),
+            inner: response,
+        };
+        self.execute_autocommand(Commands::SessionDeleted, data)
             .await?;
         let mut state = self.state.lock().await;
         state.session_info.remove(&session_id);
