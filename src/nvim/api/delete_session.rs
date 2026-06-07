@@ -1,27 +1,28 @@
 use futures::future;
 use nvim_oxi::{
-    Object, ObjectKind,
+    Dictionary, Object, ObjectKind,
     conversion::FromObject,
     lua::{self, Poppable, Pushable},
 };
 use tracing::error;
 
-use agent_client_protocol::schema::{DeleteSessionRequest, SessionId};
+use agent_client_protocol::schema::{CancelNotification, DeleteSessionRequest, SessionId};
 
 use crate::{
     acp::{self, error::Error},
     api::Api,
+    nvim::{configuration::dict_from_object, requests::RequestHandler},
 };
 
 #[derive(Clone, Debug)]
-pub enum DeleteSessionArgs {
+pub enum DeleteSessionArg {
     Multiple(Vec<String>),
     Single(String),
 }
 
 const EXPECTED: &str = "String or Array of Strings";
 
-impl FromObject for DeleteSessionArgs {
+impl FromObject for DeleteSessionArg {
     fn from_object(obj: Object) -> Result<Self, nvim_oxi::conversion::Error> {
         match obj.kind() {
             ObjectKind::String => {
@@ -57,7 +58,7 @@ impl FromObject for DeleteSessionArgs {
     }
 }
 
-impl Poppable for DeleteSessionArgs {
+impl Poppable for DeleteSessionArg {
     unsafe fn pop(lua: *mut nvim_oxi::lua::ffi::State) -> Result<Self, lua::Error> {
         let obj = unsafe { Object::pop(lua)? };
         Ok(Self::from_object(obj)
@@ -71,7 +72,7 @@ impl Poppable for DeleteSessionArgs {
     }
 }
 
-impl Pushable for DeleteSessionArgs {
+impl Pushable for DeleteSessionArg {
     unsafe fn push(self, state: *mut lua::ffi::State) -> Result<i32, lua::Error> {
         unsafe {
             match self {
@@ -82,9 +83,62 @@ impl Pushable for DeleteSessionArgs {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct DeleteSessionOptions {
+    pub cancel: bool,
+}
+
+impl Default for DeleteSessionOptions {
+    fn default() -> Self {
+        Self { cancel: true }
+    }
+}
+
+impl FromObject for DeleteSessionOptions {
+    fn from_object(obj: Object) -> std::result::Result<Self, nvim_oxi::conversion::Error> {
+        if obj.is_nil() {
+            return Ok(Self::default());
+        }
+
+        let dict = dict_from_object(obj)?;
+
+        let cancel = dict
+            .get("cancel")
+            .and_then(|o| {
+                if matches!(o.kind(), ObjectKind::Boolean) {
+                    Some(unsafe { o.as_boolean_unchecked() })
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(true);
+
+        Ok(Self { cancel })
+    }
+}
+
+impl Poppable for DeleteSessionOptions {
+    unsafe fn pop(lua_state: *mut lua::ffi::State) -> std::result::Result<Self, lua::Error> {
+        let obj = unsafe { Object::pop(lua_state)? };
+        Ok(Self::from_object(obj)
+            .inspect_err(|e| error!("Error parsing delete_session options: {:?}", e))
+            .unwrap_or_default())
+    }
+}
+
+impl Pushable for DeleteSessionOptions {
+    unsafe fn push(self, lua_state: *mut lua::ffi::State) -> std::result::Result<i32, lua::Error> {
+        let mut dict = Dictionary::new();
+        dict.insert("cancel", self.cancel);
+        unsafe { Object::from(dict).push(lua_state) }
+    }
+}
+
+pub type DeleteSessionArgs = (DeleteSessionArg, Option<DeleteSessionOptions>);
+
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn delete_session(&self, args: DeleteSessionArgs) -> acp::Result<()> {
+    pub async fn delete_session(&self, (args, options): DeleteSessionArgs) -> acp::Result<()> {
         let state = self.state.lock().await;
         let agent_info = state.agent_info.clone();
         drop(state);
@@ -94,8 +148,8 @@ impl Api {
         }
 
         let session_ids: Vec<String> = match args {
-            DeleteSessionArgs::Single(id) => vec![id],
-            DeleteSessionArgs::Multiple(ids) => ids,
+            DeleteSessionArg::Single(id) => vec![id],
+            DeleteSessionArg::Multiple(ids) => ids,
         };
 
         let connection = self
@@ -103,11 +157,22 @@ impl Api {
             .get_current_connection()
             .await
             .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
+        let request_handler = &*self.request_handler;
+
+        let cancel_enabled = options.map(|o| o.cancel).unwrap_or(true);
 
         let futures = session_ids
             .into_iter()
             .map(|session_id| {
-                connection.delete_session(DeleteSessionRequest::new(SessionId::from(session_id)))
+                let delete = DeleteSessionRequest::new(SessionId::from(session_id.clone()));
+                async move {
+                    if cancel_enabled {
+                        let cancel = CancelNotification::new(SessionId::from(session_id.clone()));
+                        connection.cancel(cancel).await?;
+                        request_handler.cancel_session_requests(session_id).await?;
+                    }
+                    connection.delete_session(delete).await
+                }
             })
             .collect::<Vec<_>>();
 
@@ -128,24 +193,50 @@ mod tests {
         ]
     }
 
-    fn arb_delete_session_args() -> impl Strategy<Value = DeleteSessionArgs> {
+    fn arb_delete_session_arg() -> impl Strategy<Value = DeleteSessionArg> {
         prop_oneof![
-            arb_session_id().prop_map(DeleteSessionArgs::Single),
-            prop::collection::vec(arb_session_id(), 0..5).prop_map(DeleteSessionArgs::Multiple),
+            arb_session_id().prop_map(DeleteSessionArg::Single),
+            prop::collection::vec(arb_session_id(), 0..5).prop_map(DeleteSessionArg::Multiple),
         ]
     }
 
     proptest! {
         #[test]
-        fn test_delete_session_args_roundtrip(args in arb_delete_session_args()) {
-            match args {
-                DeleteSessionArgs::Single(ref id) => {
+        fn test_delete_session_arg_roundtrip(arg in arb_delete_session_arg()) {
+            match arg {
+                DeleteSessionArg::Single(ref id) => {
                     prop_assert!(!id.is_empty(), "Single session ID should not be empty");
                 }
-                DeleteSessionArgs::Multiple(ref ids) => {
+                DeleteSessionArg::Multiple(ref ids) => {
                     prop_assert!(ids.len() <= 5, "Multiple should have at most 5 session IDs");
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_delete_session_options_default_cancel() {
+        let options = DeleteSessionOptions::default();
+        assert!(options.cancel, "Cancel should default to true");
+    }
+
+    #[test]
+    fn test_delete_session_options_from_empty_dict() {
+        let dict = Dictionary::new();
+        let obj = Object::from(dict);
+        let options = DeleteSessionOptions::from_object(obj).unwrap();
+        assert!(
+            options.cancel,
+            "Cancel should default to true when not specified"
+        );
+    }
+
+    #[test]
+    fn test_delete_session_options_cancel_false() {
+        let mut dict = Dictionary::new();
+        dict.insert("cancel", false);
+        let obj = Object::from(dict);
+        let options = DeleteSessionOptions::from_object(obj).unwrap();
+        assert!(!options.cancel, "Cancel should be false when set to false");
     }
 }

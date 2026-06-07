@@ -2,7 +2,7 @@ use crate::helpers::mock_runtime;
 use async_lock::Mutex;
 use hermes::{
     Handler, PluginState,
-    api::{Api, DeleteSessionArgs},
+    api::{Api, DeleteSessionArg, DeleteSessionOptions},
     nvim::requests::Requests,
     utilities::detect_project_storage_path,
 };
@@ -39,8 +39,10 @@ fn delete_session_returns_ok_when_not_allowed() -> nvim_oxi::Result<()> {
             .unwrap();
     let api = create_test_api(plugin_state, logger);
 
-    let result =
-        block_on(api.delete_session(DeleteSessionArgs::Single("test-session".to_string())));
+    let result = block_on(api.delete_session((
+        DeleteSessionArg::Single("test-session".to_string()),
+        None::<DeleteSessionOptions>,
+    )));
 
     assert!(result.is_ok());
 
@@ -82,8 +84,10 @@ fn delete_session_returns_error_when_no_connection() -> nvim_oxi::Result<()> {
 
     let api = Api::new(plugin_state, logger, handler, requests);
 
-    let result =
-        block_on(api.delete_session(DeleteSessionArgs::Single("test-session".to_string())));
+    let result = block_on(api.delete_session((
+        DeleteSessionArg::Single("test-session".to_string()),
+        None::<DeleteSessionOptions>,
+    )));
 
     assert!(
         result.is_err(),
@@ -129,10 +133,10 @@ fn delete_session_multiple_returns_error_when_no_connection() -> nvim_oxi::Resul
 
     let api = Api::new(plugin_state, logger, handler, requests);
 
-    let result = block_on(api.delete_session(DeleteSessionArgs::Multiple(vec![
-        "session-one".to_string(),
-        "session-two".to_string(),
-    ])));
+    let result = block_on(api.delete_session((
+        DeleteSessionArg::Multiple(vec!["session-one".to_string(), "session-two".to_string()]),
+        None::<DeleteSessionOptions>,
+    )));
 
     assert!(
         result.is_err(),

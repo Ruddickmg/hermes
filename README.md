@@ -684,6 +684,9 @@ hermes.delete_session(sessionId)
 -- delete multiple sessions
 hermes.delete_session({ sessionId, "other-session-id" })
 
+-- cancel session(s) before deleting them (defaults to true; set to false to disable this behavior)
+hermes.delete_session(sessionId, { cancel = true })
+
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
@@ -698,7 +701,6 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionDeleted](#sessiondeleted) autocommand upon completion
 > [!WARNING]
-> Delete session will not cancel or close ongoing sessions. You will need to call [cancel](#cancel-optional) or [close_session](#close-session-optional) explicitly if you want this behavior.
 
 ### Cancel (**Optional**)
 

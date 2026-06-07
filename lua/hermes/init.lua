@@ -642,9 +642,10 @@ end
 
 ---Delete session(s) from the session list
 ---@param session_id string|string[] Session ID(s) to delete
-function M.delete_session(session_id)
+---@param opts? {cancel?: boolean} Options
+function M.delete_session(session_id, opts)
 	execute_async(function()
-		M._load_native_sync().delete_session(session_id)
+		M._load_native_sync().delete_session(session_id, opts)
 	end)
 end
 
