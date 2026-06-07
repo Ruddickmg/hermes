@@ -19,6 +19,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 pub struct LoadSessionConfig {
     pub cwd: Option<PathBuf>,
+    pub additional_directories: Option<Vec<PathBuf>>,
     pub mcp_servers: Vec<agent_client_protocol::schema::McpServer>,
 }
 
@@ -34,8 +35,27 @@ impl FromObject for LoadSessionConfig {
                 .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
         });
 
+        let additional_directories: Option<Vec<PathBuf>> =
+            dict.get("additional_directories").and_then(|obj| {
+                if let nvim_oxi::ObjectKind::Array = obj.kind() {
+                    let array = unsafe { obj.clone().into_array_unchecked() };
+                    Some(
+                        array
+                            .into_iter()
+                            .filter_map(|v| {
+                                v.try_into()
+                                    .ok()
+                                    .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
+                            })
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            });
+
         let mcp_servers: Vec<agent_client_protocol::schema::McpServer> = dict
-            .get("mcpServers")
+            .get("mcp_servers")
             .and_then(parse_mcp_servers)
             .unwrap_or_default();
 
@@ -44,6 +64,7 @@ impl FromObject for LoadSessionConfig {
 
         Ok(Self {
             cwd: Some(cwd.unwrap_or(root)),
+            additional_directories,
             mcp_servers,
         })
     }
@@ -74,6 +95,13 @@ impl Pushable for LoadSessionConfig {
         if let Some(cwd) = self.cwd {
             dict.insert("cwd", cwd.to_string_lossy().to_string());
         }
+        if let Some(dirs) = self.additional_directories {
+            let arr: nvim_oxi::Array = dirs
+                .into_iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            dict.insert("additional_directories", arr);
+        }
         unsafe { Object::from(dict).push(lua_state) }
     }
 }
@@ -97,11 +125,13 @@ impl Api {
             .ok_or_else(|| Error::Connection("No connection found".to_string()))?;
 
         let cwd = config.cwd.unwrap_or(project_root);
+        let additional_directories = config.additional_directories.unwrap_or_default();
 
         if agent_info.can_load_session() {
             connection
                 .load_session(
                     LoadSessionRequest::new(session_id, cwd)
+                        .additional_directories(additional_directories.clone())
                         .mcp_servers(config.mcp_servers.clone()),
                 )
                 .await
@@ -149,7 +179,9 @@ impl Api {
 
             connection
                 .resume_session(
-                    ResumeSessionRequest::new(session_id, cwd).mcp_servers(config.mcp_servers),
+                    ResumeSessionRequest::new(session_id, cwd)
+                        .additional_directories(additional_directories)
+                        .mcp_servers(config.mcp_servers),
                 )
                 .await?;
             Ok(())
@@ -169,6 +201,7 @@ mod tests {
             let root = utilities::get_project_root(current_directory, vec![".git".to_string()]);
             Self {
                 cwd: Some(root),
+                additional_directories: None,
                 mcp_servers: Vec::new(),
             }
         }
@@ -178,6 +211,7 @@ mod tests {
         if let Some(path) = cwd {
             LoadSessionConfig {
                 cwd: Some(PathBuf::from(path)),
+                additional_directories: None,
                 mcp_servers: Vec::new(),
             }
         } else {
@@ -212,6 +246,7 @@ mod tests {
         // The actual McpServer construction comes from the agent_client_protocol crate
         let config = LoadSessionConfig {
             cwd: Some(PathBuf::from("/project")),
+            additional_directories: None,
             mcp_servers: vec![], // Empty vector for simplicity
         };
         // Verify the config handles MCP servers correctly
@@ -223,10 +258,33 @@ mod tests {
     fn test_load_session_config_pushable_without_cwd() {
         let config = LoadSessionConfig {
             cwd: None,
+            additional_directories: None,
             mcp_servers: vec![],
         };
         // Verify the config struct handles None cwd correctly
         assert!(config.cwd.is_none());
         assert!(config.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_from_object_with_additional_directories() {
+        let mut dict = Dictionary::new();
+        let dirs = vec!["src", "tests"]
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let config = LoadSessionConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(
+            config.additional_directories,
+            Some(vec![PathBuf::from("src"), PathBuf::from("tests")])
+        );
+    }
+
+    #[test]
+    fn test_from_object_without_additional_directories() {
+        let mut dict = Dictionary::new();
+        dict.insert("cwd", "/tmp/test");
+        let config = LoadSessionConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(config.additional_directories, None);
     }
 }
