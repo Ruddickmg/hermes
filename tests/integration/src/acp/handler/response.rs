@@ -1,7 +1,7 @@
 use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::schema::{
-    AuthenticateResponse, CloseSessionResponse, ForkSessionResponse, ListSessionsResponse,
-    ResumeSessionResponse,
+    AuthenticateResponse, CloseSessionResponse, DeleteSessionResponse, ForkSessionResponse,
+    ListSessionsResponse, ResumeSessionResponse,
 };
 use async_lock::Mutex;
 use hermes::acp::handler::Handler;
@@ -156,6 +156,81 @@ fn session_notification_session_info_update_succeeds() -> nvim_oxi::Result<()> {
         result,
         Ok(()),
         "SessionInfoUpdate should map to Commands::SessionUpdate and succeed"
+    );
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_deleted_succeeds() -> nvim_oxi::Result<()> {
+    let handler = create_handler();
+    let session_id = String::from("test-session");
+    let response = DeleteSessionResponse::default();
+    let result = smol::block_on(handler.session_deleted(session_id, response));
+    assert!(result.is_ok(), "session_deleted should succeed");
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_deleted_removes_session_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session_id = String::from("test-session");
+    // Insert session info using SessionDetails
+    {
+        let mut locked = smol::block_on(state.lock());
+        locked
+            .session_info
+            .insert(session_id.clone(), SessionDetails::default());
+        locked
+            .prompt
+            .insert(session_id.clone(), "stale-prompt".to_string());
+    }
+
+    let response = DeleteSessionResponse::default();
+    smol::block_on(handler.session_deleted(session_id.clone(), response))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let locked = smol::block_on(state.lock());
+    assert!(
+        !locked.session_info.contains_key(&session_id),
+        "session_info should be removed after delete"
+    );
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_deleted_removes_prompt() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session_id = String::from("test-session");
+    // Insert prompt data
+    {
+        let mut locked = smol::block_on(state.lock());
+        locked
+            .prompt
+            .insert(session_id.clone(), "stale-prompt".to_string());
+    }
+
+    let response = DeleteSessionResponse::default();
+    smol::block_on(handler.session_deleted(session_id.clone(), response))
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    let locked = smol::block_on(state.lock());
+    assert!(
+        !locked.prompt.contains_key(&session_id),
+        "prompt should be removed after delete"
     );
     Ok(())
 }

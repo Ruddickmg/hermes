@@ -1,0 +1,93 @@
+use crate::helpers::mock_runtime;
+use async_lock::Mutex;
+use hermes::{
+    Handler, PluginState, api::Api, nvim::requests::Requests,
+    utilities::detect_project_storage_path,
+};
+use std::rc::Rc;
+use std::sync::Arc;
+
+fn create_test_api(
+    plugin_state: Arc<Mutex<PluginState>>,
+    logger: &'static hermes::utilities::Logger,
+) -> hermes::api::Api {
+    let runtime = mock_runtime();
+    let requests = Rc::new(
+        Requests::new(runtime.clone(), plugin_state.clone()).expect("Failed to create requests"),
+    );
+    let handler = Arc::new(
+        Handler::new(plugin_state.clone(), runtime.clone(), requests.clone())
+            .expect("Failed to create handler"),
+    );
+    Api::new(plugin_state, logger, handler, requests)
+}
+
+fn block_on<F>(fut: F) -> F::Output
+where
+    F: std::future::Future,
+{
+    futures::executor::block_on(fut)
+}
+
+#[nvim_oxi::test]
+fn delete_session_returns_ok_when_not_allowed() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state, logger);
+
+    // Agent info has no delete capability by default, so should return Ok(()) early
+    let result = block_on(api.delete_session("test-session".to_string()));
+
+    assert!(result.is_ok());
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn delete_session_returns_error_when_no_connection() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+
+    // Set up agent with delete capability before creating Api
+    let runtime = mock_runtime();
+    let requests = Rc::new(
+        Requests::new(runtime.clone(), plugin_state.clone()).expect("Failed to create requests"),
+    );
+    let handler = Arc::new(
+        Handler::new(plugin_state.clone(), runtime.clone(), requests.clone())
+            .expect("Failed to create handler"),
+    );
+
+    let agent = hermes::acp::connection::Assistant::from("test-agent");
+    let info = agent_client_protocol::schema::InitializeResponse::new(
+        agent_client_protocol::schema::ProtocolVersion::V1,
+    )
+    .agent_capabilities(
+        agent_client_protocol::schema::AgentCapabilities::new().session_capabilities(
+            agent_client_protocol::schema::SessionCapabilities::new().delete(Some(
+                agent_client_protocol::schema::SessionDeleteCapabilities::new(),
+            )),
+        ),
+    );
+    block_on(handler.set_agent_info(agent.clone(), info));
+    {
+        let mut state_guard = block_on(plugin_state.lock());
+        state_guard.agent_info.set_agent(agent);
+    }
+
+    let api = Api::new(plugin_state, logger, handler, requests);
+
+    let result = block_on(api.delete_session("test-session".to_string()));
+
+    assert!(
+        result.is_err(),
+        "Expected error when no connection exists, got: {:?}",
+        result
+    );
+
+    Ok(())
+}

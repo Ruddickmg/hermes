@@ -300,7 +300,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use agent_client_protocol::schema::{InitializeRequest, ProtocolVersion};
+    use agent_client_protocol::schema::{InitializeRequest, ProtocolVersion, SessionId};
     use pretty_assertions::assert_eq;
 
     /// Creates a mock thread handle that immediately returns Ok for testing
@@ -385,6 +385,30 @@ mod tests {
                 receiver.recv().await,
                 Ok(UserRequest::CreateSession(_))
             ));
+        }));
+    }
+
+    #[test]
+    fn test_connection_delete_session() {
+        use agent_client_protocol::schema::DeleteSessionRequest;
+        let executor = mock_runtime();
+        let (sender, receiver) = async_channel::bounded(1);
+        let connection = Arc::new(Connection::new(sender, mock_handle(), None));
+
+        let request = DeleteSessionRequest::new(SessionId::from("test-session"));
+
+        smol::block_on(executor.run(async {
+            connection.delete_session(request.clone()).await.unwrap();
+        }));
+
+        drop(connection);
+
+        smol::block_on(executor.run(async {
+            if let Ok(UserRequest::DeleteSession(received)) = receiver.recv().await {
+                assert_eq!(received.session_id.0.as_ref(), "test-session");
+            } else {
+                panic!("Expected DeleteSession request");
+            }
         }));
     }
 }
