@@ -215,9 +215,7 @@ function M.build_from_source(dest_dir)
 	logging.notify("Building from source (this may take a few minutes)...", vim.log.levels.INFO, notification_options)
 
 	-- Build with cargo from the detected source directory
-	local build_cmd = "cd "
-		.. vim.fn.shellescape(source_dir)
-		.. " && cargo build --release"
+ 	local build_cmd = "cd " .. vim.fn.shellescape(source_dir) .. " && cargo build --release"
 	local output = vim.fn.system(build_cmd)
 
 	if vim.v.shell_error ~= 0 then
