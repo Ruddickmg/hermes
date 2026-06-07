@@ -103,3 +103,16 @@ fn create_autocmd_callback_error_path_logs_and_returns_nil() -> nvim_oxi::Result
 
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn autocmd_listeners_attached_invalid_event_returns_false() -> nvim_oxi::Result<()> {
+    let group_name = "hermes_test_invalid_event";
+    create_augroup(group_name, true)?;
+
+    assert!(
+        !autocmd_listeners_attached(group_name, "InvalidEvent123", "*"),
+        "should return false when event is invalid (covers map_err error path)"
+    );
+
+    Ok(())
+}

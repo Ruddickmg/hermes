@@ -565,4 +565,14 @@ mod tests {
         let keyed = sink.get_keyed_messages();
         assert_eq!(keyed.len(), 3);
     }
+
+    #[test]
+    fn test_channel_writer_new_ui_creates_writer() {
+        let sink = NullSink;
+        let mut writer = ChannelWriter::new_ui(sink);
+
+        writer.write_all(b"UI message\n").unwrap();
+        writer.flush().unwrap();
+        writer.shutdown();
+    }
 }

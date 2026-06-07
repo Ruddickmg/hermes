@@ -412,3 +412,17 @@ fn update_buffer_content_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
 
     Ok(())
 }
+
+#[nvim_oxi::test]
+fn acquire_or_create_buffer_errors_with_relative_path() -> nvim_oxi::Result<()> {
+    // Pass a relative path; badd creates a buffer with an absolute name,
+    // so the subsequent lookup by relative path fails, exercising the error path.
+    let result = acquire_or_create_buffer(std::path::Path::new("nonexistent_relative.txt"));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "acquire_or_create_buffer with a relative path should return Internal error"
+    );
+
+    Ok(())
+}

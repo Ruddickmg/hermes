@@ -1,5 +1,5 @@
 //! Integration tests for job utilities
-use hermes::utilities::buffer::create_hidden_buffer;
+use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
 use hermes::utilities::job::{start_job_in_buffer, stop_job};
 use nvim_oxi::Dictionary;
 
@@ -70,6 +70,29 @@ fn stop_job_errors_for_invalid_job_id() -> nvim_oxi::Result<()> {
     assert!(
         matches!(result, Err(hermes::acp::error::Error::Internal(_))),
         "stop_job with invalid job_id should return Internal error"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn start_job_in_buffer_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
+    let buf = create_hidden_buffer()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;
+
+    delete_buffer_force(&buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("delete_buffer_force failed: {}", e)))?;
+
+    let result = start_job_in_buffer(
+        &buf,
+        "echo".to_string(),
+        vec!["hello".to_string()],
+        Dictionary::new(),
+    );
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "start_job_in_buffer on a deleted buffer should return Internal error (not abort Neovim)"
     );
 
     Ok(())
