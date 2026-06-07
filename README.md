@@ -680,6 +680,32 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionClosed](#sessionclosed) autocommand upon completion
 
+### Delete Session (**Optional**)
+
+Delete session from the session list
+
+```lua
+local hermes = require("hermes")
+local sessionId = "session-id-from-create-session-response"
+
+-- call signature
+hermes.delete_session(sessionId)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.delete_session(sessionId)
+  end,
+})
+```
+
+> **Triggers:** [SessionDeleted](#sessiondeleted) autocommand upon completion
+
+
 ### Cancel (**Optional**)
 
 Cancel the current operation of the agent (e.g., stop generating text, stop a tool call in progress, etc)
@@ -1689,6 +1715,12 @@ Below is a list of all autocommands and their associated data (passed to the cal
   ]
 }</code></pre></td>
     </tr>
+    <tr id="sessiondeleted">
+      <td><code>SessionDeleted</code></td>
+      <td>Session deleted</td>
+      <td>⚡ <a href="#delete-session-optional">delete_session()</a></td>
+      <td><pre><code class="language-json">{}</code></pre></td>
+    </tr>
     <tr id="sessionforked">
       <td><code>SessionForked</code></td>
       <td>Session forked successfully</td>
@@ -2252,7 +2284,6 @@ Available formats:
 
 -- functionality
 
-- [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
 - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
 - [x] Allow connecting to Agents
   - [x] Via stdio
