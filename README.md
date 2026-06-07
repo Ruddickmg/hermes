@@ -35,16 +35,6 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 }
 ```
 
-**paq.nvim**
-```lua
-
-require("paq") {
-  "Ruddickmg/hermes.nvim"
-}
-require("hermes").setup()
-```
-
-
 ### Requirements
 
 - Neovim 0.11 or later

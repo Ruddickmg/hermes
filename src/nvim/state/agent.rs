@@ -65,6 +65,14 @@ impl AgentInfo {
         self.notify_user(allowed, "closing sessions")
     }
 
+    pub fn can_delete_session(&self) -> bool {
+        let allowed = self
+            .get_capabilities()
+            .map(|capabilities| capabilities.session_capabilities.delete.is_some())
+            .unwrap_or(false);
+        self.notify_user(allowed, "deleting sessions")
+    }
+
     pub fn can_load_session(&self) -> bool {
         let allowed = self
             .get_capabilities()
@@ -147,8 +155,8 @@ mod tests {
     use super::*;
     use agent_client_protocol::schema::{
         AgentCapabilities, McpCapabilities, PromptCapabilities, ProtocolVersion,
-        SessionCapabilities, SessionForkCapabilities, SessionListCapabilities,
-        SessionResumeCapabilities,
+        SessionCapabilities, SessionDeleteCapabilities, SessionForkCapabilities,
+        SessionListCapabilities, SessionResumeCapabilities,
     };
     use pretty_assertions::assert_eq;
 
@@ -570,5 +578,34 @@ mod tests {
     fn test_can_close_session_returns_false_when_no_info() {
         let info = AgentInfo::new();
         assert!(!info.can_close_session());
+    }
+
+    #[test]
+    fn test_can_delete_session_returns_false_by_default() {
+        let info = create_agent_info_with_agent(Assistant::Opencode);
+        assert!(!info.can_delete_session());
+    }
+
+    #[test]
+    fn test_can_delete_session_returns_false_when_no_info() {
+        let info = AgentInfo::new();
+        assert!(!info.can_delete_session());
+    }
+
+    fn create_response_with_delete_enabled() -> InitializeResponse {
+        InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+            AgentCapabilities::new().session_capabilities(
+                SessionCapabilities::new().delete(Some(SessionDeleteCapabilities::new())),
+            ),
+        )
+    }
+
+    #[test]
+    fn test_can_delete_session_returns_true_when_enabled() {
+        let mut info = AgentInfo::new();
+        let agent = Assistant::Opencode;
+        info.add_agent(agent.clone(), create_response_with_delete_enabled());
+        info.set_agent(agent);
+        assert_eq!(info.can_delete_session(), true);
     }
 }

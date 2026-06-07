@@ -4,6 +4,7 @@ pub mod cancel;
 pub mod close_session;
 pub mod connect;
 pub mod create_session;
+pub mod delete_session;
 pub mod disconnect;
 pub mod list_sessions;
 pub mod load_session;
@@ -107,6 +108,12 @@ impl Hermes {
     fn close_session_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
             api.try_borrow()?.close_session(session_id).await
+        })
+    }
+
+    fn delete_session_method(&self) -> Object {
+        self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
+            api.try_borrow()?.delete_session(session_id).await
         })
     }
 
@@ -235,6 +242,7 @@ impl From<Hermes> for Dictionary {
             ("agents", hermes.agents_method()),
             ("cancel", hermes.cancel_method()),
             ("close_session", hermes.close_session_method()),
+            ("delete_session", hermes.delete_session_method()),
             ("connect", hermes.connect_method()),
             ("create_session", hermes.create_session_method()),
             ("disconnect", hermes.disconnect_method()),

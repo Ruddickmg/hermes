@@ -9,10 +9,10 @@ use tracing::{debug, error, warn};
 
 use crate::acp::{Result, error::Error};
 use agent_client_protocol::schema::{
-    AuthenticateRequest, CancelNotification, CloseSessionRequest, ForkSessionRequest,
-    InitializeRequest, ListSessionsRequest, LoadSessionRequest, LogoutRequest, NewSessionRequest,
-    PromptRequest, ResumeSessionRequest, SetSessionConfigOptionRequest, SetSessionModeRequest,
-    SetSessionModelRequest,
+    AuthenticateRequest, CancelNotification, CloseSessionRequest, DeleteSessionRequest,
+    ForkSessionRequest, InitializeRequest, ListSessionsRequest, LoadSessionRequest, LogoutRequest,
+    NewSessionRequest, PromptRequest, ResumeSessionRequest, SetSessionConfigOptionRequest,
+    SetSessionModeRequest, SetSessionModelRequest,
 };
 use async_channel::Sender;
 pub use manager::*;
@@ -40,6 +40,7 @@ pub enum UserRequest {
     ResumeSession(ResumeSessionRequest),
     SetSessionModel(SetSessionModelRequest),
     CloseSession(CloseSessionRequest),
+    DeleteSession(DeleteSessionRequest),
     Logout(LogoutRequest),
 }
 
@@ -233,6 +234,12 @@ impl Connection {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn close_session(&self, request: CloseSessionRequest) -> Result<()> {
         self.send(UserRequest::CloseSession(request)).await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub async fn delete_session(&self, request: DeleteSessionRequest) -> Result<()> {
+        self.send(UserRequest::DeleteSession(request)).await?;
         Ok(())
     }
 

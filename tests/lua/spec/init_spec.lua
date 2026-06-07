@@ -243,6 +243,10 @@ describe("hermes.init (main API)", function()
 			assert.is_function(native.close_session)
 		end)
 
+		it("exports delete_session from Rust", function()
+			assert.is_function(native.delete_session)
+		end)
+
 		it("exports logout from Rust", function()
 			assert.is_function(native.logout)
 		end)

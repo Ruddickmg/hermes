@@ -1,8 +1,9 @@
 use agent_client_protocol::schema::{
-    AuthenticateResponse, CloseSessionResponse, ExtResponse, ForkSessionResponse,
-    InitializeResponse, ListSessionsResponse, LoadSessionResponse, LogoutResponse,
-    NewSessionResponse, PromptResponse, ResumeSessionResponse, SessionConfigOptionCategory,
-    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
+    AuthenticateResponse, CloseSessionResponse, DeleteSessionResponse, ExtResponse,
+    ForkSessionResponse, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
+    LogoutResponse, NewSessionResponse, PromptResponse, ResumeSessionResponse,
+    SessionConfigOptionCategory, SetSessionConfigOptionResponse, SetSessionModeResponse,
+    SetSessionModelResponse,
 };
 use tracing::instrument;
 
@@ -267,6 +268,21 @@ impl Handler {
         response: CloseSessionResponse,
     ) -> Result<(), Error> {
         self.execute_autocommand(Commands::SessionClosed, response)
+            .await?;
+        let mut state = self.state.lock().await;
+        state.session_info.remove(&session_id);
+        state.prompt.remove(&session_id);
+        drop(state);
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn session_deleted(
+        &self,
+        session_id: String,
+        response: DeleteSessionResponse,
+    ) -> Result<(), Error> {
+        self.execute_autocommand(Commands::SessionDeleted, response)
             .await?;
         let mut state = self.state.lock().await;
         state.session_info.remove(&session_id);
