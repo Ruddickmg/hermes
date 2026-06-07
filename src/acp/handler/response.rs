@@ -1,15 +1,25 @@
 use agent_client_protocol::schema::{
-    AuthenticateResponse, CloseSessionResponse, ExtResponse, ForkSessionResponse,
-    InitializeResponse, ListSessionsResponse, LoadSessionResponse, LogoutResponse,
-    NewSessionResponse, PromptResponse, ResumeSessionResponse, SessionConfigOptionCategory,
-    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
+    AuthenticateResponse, CloseSessionResponse, DeleteSessionResponse, ExtResponse,
+    ForkSessionResponse, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
+    LogoutResponse, NewSessionResponse, PromptResponse, ResumeSessionResponse,
+    SessionConfigOptionCategory, SetSessionConfigOptionResponse, SetSessionModeResponse,
+    SetSessionModelResponse,
 };
+use serde::Serialize;
 use tracing::instrument;
 
 use crate::Handler;
 use crate::acp::connection::Assistant;
 use crate::acp::error::Error;
 use crate::nvim::autocommands::Commands;
+
+#[derive(Serialize, Debug)]
+struct WithSessionId<T: Serialize> {
+    #[serde(rename = "sessionId")]
+    session_id: String,
+    #[serde(flatten)]
+    inner: T,
+}
 
 impl Handler {
     #[instrument(level = "trace", skip(self))]
@@ -266,7 +276,30 @@ impl Handler {
         session_id: String,
         response: CloseSessionResponse,
     ) -> Result<(), Error> {
-        self.execute_autocommand(Commands::SessionClosed, response)
+        let data = WithSessionId {
+            session_id: session_id.clone(),
+            inner: response,
+        };
+        self.execute_autocommand(Commands::SessionClosed, data)
+            .await?;
+        let mut state = self.state.lock().await;
+        state.session_info.remove(&session_id);
+        state.prompt.remove(&session_id);
+        drop(state);
+        Ok(())
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn session_deleted(
+        &self,
+        session_id: String,
+        response: DeleteSessionResponse,
+    ) -> Result<(), Error> {
+        let data = WithSessionId {
+            session_id: session_id.clone(),
+            inner: response,
+        };
+        self.execute_autocommand(Commands::SessionDeleted, data)
             .await?;
         let mut state = self.state.lock().await;
         state.session_info.remove(&session_id);

@@ -35,16 +35,6 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 }
 ```
 
-**paq.nvim**
-```lua
-
-require("paq") {
-  "Ruddickmg/hermes.nvim"
-}
-require("hermes").setup()
-```
-
-
 ### Requirements
 
 - Neovim 0.11 or later
@@ -120,50 +110,50 @@ cargo build --release
 
 ## Commands
 
+Show loading state, configuration, and current status of Hermes.
 ```
 :Hermes status
 ```
-Shows loading state, configuration, and current status of Hermes.
 
+Show recent log messages and current state information.
 ```
 :Hermes log
 ```
-Shows recent log messages and current state information.
 
+Show installed version, platform info, and binary status.
 ```
 :Hermes version
 ```
-Shows installed version, platform info, and binary status.
 
+Fetch the latest release from GitHub and replaces the current binary.
 ```
 :Hermes update
 ```
-Fetches the latest release from GitHub and replaces the current binary.
 
+Download the currently configured version.
 ```
 :Hermes install
 ```
-Download the currently configured version.
 
+Remove the binary. Run `:Hermes install` or use Hermes API to re-download.
 ```
 :Hermes clean
 ```
-Removes the binary. Run `:Hermes install` or use Hermes API to re-download.
 
+Compile from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
 ```
 :Hermes build
 ```
-Compiles from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
 
+Cancel an in-progress source build. Shows warning if no build is running.
 ```
 :Hermes cancel
 ```
-Cancels an in-progress source build. Shows warning if no build is running.
 
+Show current Hermes configuration settings.
 ```
 :Hermes setup
 ```
-Shows current Hermes configuration settings.
 
 ## API
 
@@ -679,6 +669,38 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 > **Triggers:** [SessionClosed](#sessionclosed) autocommand upon completion
+
+### Delete Session (**Optional**)
+
+Delete session from the session list
+
+```lua
+local hermes = require("hermes")
+local sessionId = "session-id-from-create-session-response"
+
+-- call signature
+hermes.delete_session(sessionId)
+
+-- delete multiple sessions
+hermes.delete_session({ sessionId, "other-session-id" })
+
+-- cancel session(s) before deleting them (defaults to true; set to false to disable this behavior)
+hermes.delete_session(sessionId, { cancel = true })
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local sessionId = args.data.sessionId
+
+    hermes.delete_session(sessionId)
+  end,
+})
+```
+
+> **Triggers:** [SessionDeleted](#sessiondeleted) autocommand upon completion
+> [!WARNING]
 
 ### Cancel (**Optional**)
 
@@ -1647,7 +1669,9 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><code>SessionClosed</code></td>
       <td>Active session closed</td>
       <td>⚡ <a href="#close-session-optional">close_session()</a></td>
-      <td><pre><code class="language-json">{}</code></pre></td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string"
+}</code></pre></td>
     </tr>
     <tr id="sessioncreated">
       <td><code>SessionCreated</code></td>
@@ -1687,6 +1711,14 @@ Below is a list of all autocommands and their associated data (passed to the cal
       }
     }
   ]
+}</code></pre></td>
+    </tr>
+    <tr id="sessiondeleted">
+      <td><code>SessionDeleted</code></td>
+      <td>Session deleted</td>
+      <td>⚡ <a href="#delete-session-optional">delete_session()</a></td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string"
 }</code></pre></td>
     </tr>
     <tr id="sessionforked">
@@ -2252,7 +2284,6 @@ Available formats:
 
 -- functionality
 
-- [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
 - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
 - [x] Allow connecting to Agents
   - [x] Via stdio
@@ -2274,6 +2305,7 @@ Available formats:
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
+- [ ] add health check
 - [ ] Download progress updates
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 

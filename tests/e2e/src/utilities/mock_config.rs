@@ -2,14 +2,15 @@
 
 use agent_client_protocol::schema::{
     AgentCapabilities, AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest,
-    ExtResponse, Implementation, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
-    McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionId,
+    DeleteSessionResponse, ExtResponse, Implementation, InitializeResponse, ListSessionsResponse,
+    LoadSessionResponse, McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionId,
     PermissionOptionKind, PromptCapabilities, ProtocolVersion, ReadTextFileRequest,
     ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse, SessionCapabilities,
-    SessionCloseCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
-    SessionListCapabilities, SessionResumeCapabilities, SetSessionConfigOptionResponse,
-    SetSessionModeResponse, SetSessionModelResponse, TerminalOutputRequest, ToolCallId,
-    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
+    SessionCloseCapabilities, SessionDeleteCapabilities, SessionForkCapabilities, SessionId,
+    SessionInfo, SessionListCapabilities, SessionResumeCapabilities,
+    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
+    TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
+    WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -55,6 +56,8 @@ pub struct MockConfig {
     pub release_terminal_request: Option<ReleaseTerminalRequest>,
     /// Close session response to return when a CloseSessionRequest is received
     pub close_session_response: Option<CloseSessionResponse>,
+    /// Delete session response to return when a DeleteSessionRequest is received
+    pub delete_session_response: Option<DeleteSessionResponse>,
 }
 
 impl Default for MockConfig {
@@ -77,7 +80,8 @@ impl Default for MockConfig {
                                 .list(Some(SessionListCapabilities::new()))
                                 .fork(Some(SessionForkCapabilities::new()))
                                 .resume(Some(SessionResumeCapabilities::new()))
-                                .close(Some(SessionCloseCapabilities::new())),
+                                .close(Some(SessionCloseCapabilities::new()))
+                                .delete(Some(SessionDeleteCapabilities::new())),
                         ),
                 ),
             authenticate_response: AuthenticateResponse::default(),
@@ -99,6 +103,7 @@ impl Default for MockConfig {
             write_file_request: None,
             release_terminal_request: None,
             close_session_response: None,
+            delete_session_response: None,
         }
     }
 }
@@ -225,6 +230,12 @@ impl MockConfig {
     /// Set a close session response to return on CloseSessionRequest
     pub fn set_close_session_response(mut self, response: CloseSessionResponse) -> Self {
         self.close_session_response = Some(response);
+        self
+    }
+
+    /// Set a delete session response to return on DeleteSessionRequest
+    pub fn set_delete_session_response(mut self, response: DeleteSessionResponse) -> Self {
+        self.delete_session_response = Some(response);
         self
     }
 
