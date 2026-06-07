@@ -7,7 +7,8 @@
 use crate::helpers::mock_runtime;
 use async_lock::Mutex;
 use hermes::acp::handler::Handler;
-use hermes::nvim::{autocommands::Commands, requests::Requests, state::PluginState};
+use hermes::nvim::{GROUP, autocommands::Commands, requests::Requests, state::PluginState};
+use hermes::utilities::autocmd_listeners_attached;
 use nvim_oxi::api::opts::{CreateAugroupOpts, CreateAutocmdOpts};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -17,8 +18,6 @@ pub mod helpers;
 pub mod nvim;
 pub mod request;
 pub mod utilities;
-
-const GROUP: &str = "hermes";
 
 fn create_test_autogroup() -> nvim_oxi::Result<u32> {
     let _ = nvim_oxi::api::create_buf(false, true)?;
@@ -44,7 +43,7 @@ fn create_test_autocmd(command: Commands) -> nvim_oxi::Result<u32> {
 fn test_listener_attached_no_listener() -> nvim_oxi::Result<()> {
     create_test_autogroup()?;
     assert!(
-        !Handler::listener_attached(Commands::ToolCall),
+        !autocmd_listeners_attached(GROUP, "User", &Commands::ToolCall.to_string()),
         "Should return false when no listener is attached"
     );
     Ok(())
@@ -56,7 +55,7 @@ fn test_listener_attached_with_listener() -> nvim_oxi::Result<()> {
     create_test_autogroup()?;
     create_test_autocmd(Commands::PermissionRequest)?;
     assert!(
-        Handler::listener_attached(Commands::PermissionRequest),
+        autocmd_listeners_attached(GROUP, "User", &Commands::PermissionRequest.to_string()),
         "Should return true when a listener is attached"
     );
     Ok(())

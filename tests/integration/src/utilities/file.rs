@@ -1,10 +1,12 @@
 //! Integration tests for file utilities
 use assert_fs::NamedTempFile;
 use assert_fs::prelude::*;
+use hermes::utilities::buf_options::get_buf_option;
 use hermes::utilities::{
     acquire_or_create_buffer, detect_project_storage_path, find_existing_buffer,
     mark_buffer_modified, refresh_view, save_buffer_to_disk, update_buffer_content,
 };
+use pretty_assertions::assert_eq;
 
 #[nvim_oxi::test]
 fn test_find_existing_buffer_finds_open_file() -> nvim_oxi::Result<()> {
@@ -36,8 +38,9 @@ fn test_find_existing_buffer_correct_path() -> nvim_oxi::Result<()> {
     let name = buffer
         .get_name()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_path: std::path::PathBuf = name.into();
     assert_eq!(
-        name,
+        name_path,
         temp_file.path(),
         "Buffer should point to correct file"
     );
@@ -82,8 +85,9 @@ fn test_acquire_or_create_buffer_new_has_correct_path() -> nvim_oxi::Result<()> 
     let name = buffer
         .get_name()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_path: std::path::PathBuf = name.into();
     assert_eq!(
-        name,
+        name_path,
         temp_file.path(),
         "Buffer should point to correct file"
     );
@@ -123,8 +127,9 @@ fn test_acquire_or_create_buffer_existing_has_correct_path() -> nvim_oxi::Result
     let name = buffer
         .get_name()
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_path: std::path::PathBuf = name.into();
     assert_eq!(
-        name,
+        name_path,
         temp_file.path(),
         "Buffer should point to correct file"
     );
@@ -173,13 +178,8 @@ fn test_mark_buffer_modified() -> nvim_oxi::Result<()> {
     mark_buffer_modified(&buffer).map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
 
     // Verify modified flag is set
-    let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )
-    .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get modified: {}", e)))?;
+    let is_modified: bool = get_buf_option("modified", &buffer)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get modified: {}", e)))?;
 
     assert!(is_modified, "Buffer should be marked as modified");
 
@@ -306,6 +306,123 @@ fn test_detect_project_storage_path_returns_valid_path() -> nvim_oxi::Result<()>
 
     // Verify the path is absolute (starts with / on Unix)
     assert!(path.starts_with('/'), "Path should be absolute: {}", path);
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_acquire_or_create_buffer_with_spaces_in_path() -> nvim_oxi::Result<()> {
+    use assert_fs::NamedTempFile;
+    let temp_file = NamedTempFile::new("file with spaces.txt").unwrap();
+
+    let (buffer, was_already_open) = acquire_or_create_buffer(temp_file.path())
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    assert!(
+        !was_already_open,
+        "Buffer should not have been already open"
+    );
+
+    // Verify buffer was created by checking it has a name
+    let name = buffer
+        .get_name()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to get buffer name: {}", e)))?;
+    let name_str = name.to_string_lossy().to_string();
+    assert!(
+        name_str.contains("file with spaces"),
+        "Buffer name should contain the filename with spaces"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn save_buffer_to_disk_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
+
+    let buf = create_hidden_buffer()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;
+
+    delete_buffer_force(&buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("delete_buffer_force failed: {}", e)))?;
+
+    let result = save_buffer_to_disk(&buf);
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "save_buffer_to_disk on a deleted buffer should return Internal error (not abort Neovim)"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn save_buffer_to_disk_propagates_write_error_on_readonly_file() -> nvim_oxi::Result<()> {
+    let temp_file = NamedTempFile::new("readonly_test.txt").unwrap();
+
+    // Create buffer with content
+    let (mut buffer, _) = acquire_or_create_buffer(temp_file.path())
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Make parent directory read-only so :write fails
+    let parent = temp_file
+        .path()
+        .parent()
+        .ok_or_else(|| nvim_oxi::api::Error::Other("no parent dir".to_string()))?;
+    let mut perms = std::fs::metadata(parent)
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?
+        .permissions();
+    perms.set_readonly(true);
+    std::fs::set_permissions(parent, perms.clone())
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Modify buffer content
+    update_buffer_content(&mut buffer, "new content")
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
+
+    // Save should fail because directory is read-only
+    let result = save_buffer_to_disk(&buffer);
+
+    // Restore permissions before assert so cleanup works on failure
+    perms.set_readonly(false);
+    let _ = std::fs::set_permissions(parent, perms);
+
+    assert!(
+        result.is_err(),
+        "save_buffer_to_disk should return error when parent directory is read-only"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn update_buffer_content_errors_on_deleted_buffer() -> nvim_oxi::Result<()> {
+    use hermes::utilities::buffer::{create_hidden_buffer, delete_buffer_force};
+
+    let mut buf = create_hidden_buffer()
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("create_hidden_buffer failed: {}", e)))?;
+
+    delete_buffer_force(&buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(format!("delete_buffer_force failed: {}", e)))?;
+
+    let result = update_buffer_content(&mut buf, "test content");
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "update_buffer_content on a deleted buffer should return Internal error"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn acquire_or_create_buffer_errors_with_relative_path() -> nvim_oxi::Result<()> {
+    // Pass a relative path; badd creates a buffer with an absolute name,
+    // so the subsequent lookup by relative path fails, exercising the error path.
+    let result = acquire_or_create_buffer(std::path::Path::new("nonexistent_relative.txt"));
+
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "acquire_or_create_buffer with a relative path should return Internal error"
+    );
 
     Ok(())
 }

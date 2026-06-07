@@ -1,4 +1,3 @@
-use crate::acp::Result;
 use crate::acp::registry::Registry;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -28,12 +27,12 @@ impl PluginState {
     }
 
     #[instrument(level = "trace")]
-    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Result<Self> {
+    pub fn with_storage_path(mut self, storage_path: PathBuf) -> Self {
         let history_path = storage_path.join("history");
-        self.agent_info.set_history(history_path)?;
+        self.agent_info.set_history(history_path);
         let binary_path = storage_path.join("binaries");
         self.config.distributions.binary.path = binary_path.to_string_lossy().to_string();
-        Ok(self)
+        self
     }
 
     #[instrument(level = "trace")]
@@ -65,7 +64,7 @@ impl PluginState {
             config,
             prompt: HashMap::new(),
             session_info: HashMap::new(),
-            agent_info: AgentInfo::default(),
+            agent_info: AgentInfo::new(),
             registry: None,
         }
     }
@@ -181,9 +180,7 @@ mod tests {
     #[test]
     fn with_storage_path_initializes_history_writer() {
         let temp_dir = TempDir::new().unwrap();
-        let state = PluginState::new()
-            .with_storage_path(temp_dir.path().to_path_buf())
-            .unwrap();
+        let state = PluginState::new().with_storage_path(temp_dir.path().to_path_buf());
 
         state
             .agent_info
@@ -208,5 +205,26 @@ mod tests {
         let registry = Registry::bundled().cloned();
         let state = PluginState::new().with_registry(registry.clone());
         assert_eq!(state.registry, registry);
+    }
+
+    #[test]
+    fn get_session_info_returns_none_for_unknown_session() {
+        let state = PluginState::default();
+        assert!(state.get_session_info("unknown-session").is_none());
+    }
+
+    #[test]
+    fn get_session_info_returns_some_for_known_session() {
+        let mut state = PluginState::default();
+        let session = NewSessionResponse::new("known-session");
+        state.set_session_info(&session);
+        assert!(state.get_session_info("known-session").is_some());
+    }
+
+    #[test]
+    fn set_agent_changes_current_agent() {
+        let mut state = PluginState::default();
+        state.set_agent(Assistant::Opencode);
+        assert_eq!(state.agent_info.current, Assistant::Opencode);
     }
 }

@@ -3,7 +3,7 @@ version: 2.1
 orbs:
   windows: circleci/windows@5.0
   rust: circleci/rust@1.8.0
-  codecov: codecov/codecov@5.4.3
+
   node: circleci/node@7.1.0
 
 #-----------------------------------------------------------------------------------------------------------------------------
@@ -45,7 +45,10 @@ workflows:
   ci_cd:
     jobs:
       - check_formatting
-      - lua_tests:
+      - lua_tests_0_12:
+          requires:
+            - fetch-registry
+      - lua_tests_0_11:
           requires:
             - fetch-registry
       - check_license:
@@ -58,7 +61,10 @@ workflows:
       - unit_tests:
           requires:
             - fetch-registry
-      - e2e_tests:
+      - e2e_tests_0_12:
+          requires:
+            - fetch-registry
+      - e2e_tests_0_11:
           requires:
             - fetch-registry
       - update-cargo-version:
@@ -67,15 +73,6 @@ workflows:
               only: 
                 - main
                 - development
-      - build-windows-x86_64:
-          filters:
-            branches:
-              only:
-                - main
-                - development
-          requires:
-            - update-cargo-version
-            - fetch-registry
       - build-linux-x86_64:
           filters:
             branches:
@@ -112,6 +109,15 @@ workflows:
           requires:
             - update-cargo-version
             - fetch-registry
+      - build-windows-x86_64:
+          filters:
+            branches:
+              only:
+                - main
+                - development
+          requires:
+            - update-cargo-version
+            - fetch-registry
 
       - release:
           filters:
@@ -121,18 +127,43 @@ workflows:
                 - development
           requires:
             - check_formatting
-            - lua_tests
+            - lua_tests_0_12
+            - lua_tests_0_11
             - check_license
             - integration_tests
             - unit_tests
-            - e2e_tests
-            - build-windows-x86_64
+            - e2e_tests_0_12
+            - e2e_tests_0_11
             - build-linux-x86_64
             - build-linux-aarch64
             - build-mac-aarch64
             - build-mac-x86_64
+            - build-windows-x86_64
 
 #-----------------------------------------------------------------------------------------------------------------------------
+
+commands:
+  upload-coverage:
+    description: Upload a coverage report to Codecov using the CLI
+    parameters:
+      file:
+        type: string
+        description: Path to the coverage report file
+      allow-failure:
+        type: boolean
+        default: false
+        description: Whether to allow the upload to fail without failing the job
+    steps:
+      - run:
+          name: Upload coverage to Codecov
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            if [ "<< parameters.allow-failure >>" = "true" ]; then
+              ./codecov upload-coverage --file << parameters.file >> --disable-search || true
+            else
+              ./codecov upload-coverage --file << parameters.file >> --disable-search
+            fi
 
 jobs:
   update-cargo-version:
@@ -220,10 +251,10 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: Stable Build for x86_64
+          name: Build for x86_64
           command: cargo build --release
       - run:
-          name: Rename binary for architecture
+          name: Rename binary
           command: mv target/release/libhermes.so target/release/libhermes-linux-x86_64.so
       - persist_to_workspace:
           root: target/release
@@ -237,10 +268,10 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: Stable Build for aarch64
+          name: Build for aarch64
           command: cargo build --release
       - run:
-          name: Rename binary for architecture
+          name: Rename binary
           command: mv target/release/libhermes.so target/release/libhermes-linux-aarch64.so
       - persist_to_workspace:
           root: target/release
@@ -257,10 +288,10 @@ jobs:
           name: Install Rust
           command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
       - run:
-          name: Build Rust Project for aarch64
+          name: Build for aarch64
           command: cargo build --release
       - run:
-          name: Rename binary for architecture
+          name: Rename binary
           command: mv target/release/libhermes.dylib target/release/libhermes-macos-aarch64.dylib
       - persist_to_workspace:
           root: target/release
@@ -283,10 +314,10 @@ jobs:
           name: Install x86_64 target
           command: rustup target add x86_64-apple-darwin
       - run:
-          name: Build Rust Project for x86_64 (cross-compile)
+          name: Build for x86_64 (cross-compile)
           command: cargo build --release --target x86_64-apple-darwin
       - run:
-          name: Rename binary for architecture
+          name: Rename binary
           command: mv target/release/libhermes.dylib target/release/libhermes-macos-x86_64.dylib 2>/dev/null || mv target/x86_64-apple-darwin/release/libhermes.dylib target/release/libhermes-macos-x86_64.dylib
       - persist_to_workspace:
           root: target/release
@@ -364,13 +395,80 @@ jobs:
       - run:
           name: Run unit tests
           command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
-      - codecov/upload:
-          fail_on_error: true
-          files: unit.coverage.info
-          git_service: github
-          upload_name: unit
+      - upload-coverage:
+          file: unit.coverage.info
 
   integration_tests:
+    environment:
+      CARGO_TARGET_DIR: target
+      NEOVIM_VERSION: 0.12.2
+      TERM: xterm-256color
+      LANG: en_US.UTF-8
+    executor: ubuntu
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - rust/install
+      - run:
+          name: Install Neovim from tarball
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz
+            tar xzf nvim-linux-x86_64.tar.gz
+            sudo mv nvim-linux-x86_64 /opt/nvim
+            sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
+            nvim --version
+      - run:
+          name: Install coverage tools
+          command: |
+            cargo install cargo-llvm-cov@0.6.13
+            cargo install cargo-nextest --locked
+      - run:
+          name: Run integration tests
+          command: cargo llvm-cov nextest --package hermes-integration --all-features --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
+      - upload-coverage:
+          file: integration.coverage.info
+
+  e2e_tests_0_12:
+    environment:
+      CARGO_TARGET_DIR: target
+      NEOVIM_VERSION: 0.12.2
+      TERM: xterm-256color
+      LANG: en_US.UTF-8
+    executor: ubuntu
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - rust/install
+      - run:
+          name: Install Neovim from tarball
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz
+            tar xzf nvim-linux-x86_64.tar.gz
+            sudo mv nvim-linux-x86_64 /opt/nvim
+            sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
+            nvim --version
+      - run:
+          name: Install coverage tools
+          command: |
+            cargo install cargo-llvm-cov@0.6.13
+            cargo install cargo-nextest --locked
+      - run:
+          name: Install Opencode
+          command: curl -fsSL https://opencode.ai/install | bash
+      - run:
+          name: Install GitHub Copilot
+          command: curl -fsSL https://gh.io/copilot-install | bash
+      - run:
+          name: Run e2e tests (0.12)
+          command: |
+            export PATH="/home/circleci/.local/bin:$PATH"
+            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
+      - upload-coverage:
+          file: e2e.coverage.info
+
+  e2e_tests_0_11:
     environment:
       CARGO_TARGET_DIR: target
       NEOVIM_VERSION: 0.11.6
@@ -396,58 +494,20 @@ jobs:
             cargo install cargo-llvm-cov@0.6.13
             cargo install cargo-nextest --locked
       - run:
-          name: Run integration tests
-          command: cargo llvm-cov nextest --package hermes-integration --all-features --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
-      - codecov/upload:
-          fail_on_error: true
-          files: integration.coverage.info
-          git_service: github
-          upload_name: integration
-
-  e2e_tests:
-    environment:
-      CARGO_TARGET_DIR: target
-      NEOVIM_VERSION: 0.11.6
-      TERM: xterm-256color
-      LANG: en_US.UTF-8
-    executor: ubuntu
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - rust/install
-      - run:
-          name: Install Neovim from tarball
-          command: |
-            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz
-            tar xzf nvim-linux-x86_64.tar.gz
-            sudo mv nvim-linux-x86_64 /opt/nvim
-            sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
-            nvim --version
-      - run:
-          name: Install coverage tools
-          command: |
-            cargo install cargo-llvm-cov@0.6.13
-      - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
       - run:
           name: Install GitHub Copilot
           command: curl -fsSL https://gh.io/copilot-install | bash
       - run:
-          name: Run e2e tests
+          name: Run e2e tests (0.11)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo llvm-cov --package hermes-e2e --all-features --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*'
-      - codecov/upload:
-          fail_on_error: true
-          files: e2e.coverage.info
-          git_service: github
-          upload_name: e2e
+            cargo llvm-cov nextest -E 'package(hermes-e2e)' --manifest-path tests/e2e/Cargo.toml --all-features --workspace --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*' --no-capture
 
-  lua_tests:
+  lua_tests_0_12:
     environment:
-      NEOVIM_VERSION: 0.11.6
+      NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
     executor: ubuntu
@@ -504,8 +564,59 @@ jobs:
             # Run from project root where luacov.stats.out was generated
             luacov -c tests/lua/.luacov -r lcov
             mv luacov.report.out lua.coverage.info
-      - codecov/upload:
-          fail_on_error: false
-          files: lua.coverage.info
-          git_service: github
-          upload_name: lua
+      - upload-coverage:
+          file: lua.coverage.info
+          allow-failure: true
+
+  lua_tests_0_11:
+    environment:
+      NEOVIM_VERSION: 0.11.6
+      TERM: xterm-256color
+      LANG: en_US.UTF-8
+    executor: ubuntu
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - rust/install
+      - run:
+          name: Install Neovim from tarball
+          command: |
+            curl -LO https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz
+            tar xzf nvim-linux-x86_64.tar.gz
+            sudo mv nvim-linux-x86_64 /opt/nvim
+            sudo ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
+            nvim --version
+      - run:
+          name: Build Hermes binary
+          command: cargo build --release
+      - run:
+          name: Install Opencode
+          command: curl -fsSL https://opencode.ai/install | bash
+      - run:
+          name: Install GitHub Copilot
+          command: curl -fsSL https://gh.io/copilot-install | bash
+      - run:
+          name: Install Lua tools
+          command: |
+            # Install luarocks
+            sudo apt-get update
+            sudo apt-get install -y lua5.1 liblua5.1-dev
+
+            wget https://luarocks.org/releases/luarocks-3.9.2.tar.gz
+            tar zxpf luarocks-3.9.2.tar.gz
+            cd luarocks-3.9.2
+            ./configure && make && sudo make install
+
+            # Install vusted for testing and luacov-reporter-lcov for coverage
+            eval $(luarocks path --lua-version 5.1 --bin)
+            luarocks --lua-version=5.1 install vusted --local
+            luarocks --lua-version=5.1 install luacov --local
+            luarocks --lua-version=5.1 install luacov-reporter-lcov --local
+      - run:
+          name: Run Lua tests with coverage
+          command: |
+            eval $(luarocks path --lua-version 5.1 --bin)
+            export PATH="/home/circleci/.local/bin:$PATH"
+            # Run from project root so that plugin/hermes.lua path resolves correctly
+            vusted --coverage -e "package.path = package.path .. ';./tests/lua/?.lua'; package.path = package.path .. ';./tests/lua/spec/?.lua'; package.path = package.path .. ';./lua/?.lua'; package.path = package.path .. ';./lua/?/init.lua'" tests/lua/spec/

@@ -11,6 +11,13 @@ Hermes focuses on:
 - Hooks into requests from AI assistants that require responses (permission requests, access requests, etc)
 - Autocommands for updates on communication between the user (client) and assistant (agent) 
 
+## Features
+
+- [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
+- [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
+- [x] Configurable capabilities (filesystem, terminal, etc)
+- [x] Autocommands for messages/notifications
+
 ## Installation
 
 **vim.pack** (v0.12+)
@@ -158,13 +165,6 @@ Cancels an in-progress source build. Shows warning if no build is running.
 ```
 Shows current Hermes configuration settings.
 
-## Features
-
-- [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
-- [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
-- [x] Configurable capabilities (filesystem, terminal, etc)
-- [x] Autocommands for messages/notifications
-
 ## API
 
 Hermes exposes the following functions for sending requests to AI assistants.
@@ -263,7 +263,7 @@ hermes.setup({
 
 ### Agents
 
-This method returns a list of available agents to choose from.
+This method retrieves a list of available agents to choose from.
 
 ```lua
 local hermes = require("hermes")
@@ -273,7 +273,7 @@ hermes.agents()
 
 -- example with config options
 hermes.agents({
-  update = true, -- pull down the most up to date list from the ACP registry
+  update = true, -- pull down the most up to date list from the ACP registry (will use last downloaded/pre-bundled registry if false)
   url = "https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json", -- URL to pull ACP registry from
 })
 ```
@@ -2252,6 +2252,8 @@ Available formats:
 
 -- functionality
 
+- [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
+- [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
@@ -2266,8 +2268,6 @@ Available formats:
   - [ ] session
     - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
     - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
-    - [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
-    - [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
   - [ ] [ACP over MCP](https://agentclientprotocol.com/rfds/mcp-over-acp)
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)

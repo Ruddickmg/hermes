@@ -1,6 +1,7 @@
 //! UI waiting utilities for integration tests
 //! Pattern based on e2e/src/utilities/autocommand.rs
 use hermes::acp::error::Error;
+use hermes::utilities::buf_options::get_win_option;
 use std::time::{Duration, Instant};
 use tracing::debug;
 
@@ -40,14 +41,7 @@ pub fn find_floating_window() -> Option<nvim_oxi::api::Window> {
 
     wins.into_iter().find(|win| {
         // Floating windows have a 'relative' option set (to 'editor', 'win', or 'cursor')
-        let result = nvim_oxi::api::get_option_value::<String>(
-            "relative",
-            &nvim_oxi::api::opts::OptionOpts::builder()
-                .win(win.clone())
-                .build(),
-        );
-
-        let is_floating = result
+        let is_floating = get_win_option::<String>("relative", win)
             .map(|rel| {
                 let floating = !rel.is_empty();
                 debug!("Window relative='{}', floating={}", rel, floating);

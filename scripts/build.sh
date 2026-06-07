@@ -26,7 +26,7 @@ else
     cd "$BUILD_DIR"
 fi
 
-# Build with cargo
+# Build with cargo (default features include neovim-0-11 for single-binary compat)
 echo "Building with cargo (this may take a few minutes)..."
 cargo build --release
 

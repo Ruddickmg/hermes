@@ -101,8 +101,12 @@ describe("plugin.hermes", function()
       local commands = vim.api.nvim_get_commands({})
       local hermes_cmd = commands["Hermes"]
       
-      -- The complete field should indicate it's a Lua function
-      assert.matches("Lua function", hermes_cmd.complete)
+      -- Neovim 0.11 returns a string description, 0.12+ returns the actual function
+      local complete = hermes_cmd.complete
+      assert.is_true(
+        type(complete) == "function" or (type(complete) == "string" and complete:match("Lua function") ~= nil),
+        "complete should be a Lua function or a string referencing one"
+      )
     end)
   end)
   

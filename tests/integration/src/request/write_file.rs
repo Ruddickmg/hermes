@@ -8,6 +8,8 @@ use async_lock::Mutex;
 use hermes::nvim::requests::{RequestHandler, Requests, Responder};
 use hermes::nvim::state::PluginState;
 use hermes::utilities::NvimRuntime;
+use hermes::utilities::buf_options::get_buf_option;
+use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -60,13 +62,8 @@ fn open_buffer_marked_modified() -> nvim_oxi::Result<()> {
         .find(|b| b.get_name().map(|p| p == temp_file.path()).unwrap_or(false))
         .expect("Buffer should exist");
 
-    let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(buffer.clone())
-            .build(),
-    )
-    .expect("Should get modified option");
+    let is_modified: bool =
+        get_buf_option("modified", &buffer).expect("Should get modified option");
 
     assert!(
         is_modified,
@@ -194,7 +191,10 @@ fn responder_send_failure_returns_error() -> nvim_oxi::Result<()> {
     drop(receiver);
 
     let result = block_on(requests.default_response(&request_id, serde_json::Value::Null));
-    assert!(result.is_err(), "Should return error when send fails");
+    assert!(
+        matches!(result, Err(hermes::acp::error::Error::Internal(_))),
+        "Should return Internal error when send fails"
+    );
     Ok(())
 }
 
@@ -252,13 +252,8 @@ fn buffer_already_open_marked_modified() -> nvim_oxi::Result<()> {
         .find(|b| b.get_name().map(|p| p == temp_file.path()).unwrap_or(false))
         .expect("Buffer should still exist");
 
-    let is_modified: bool = nvim_oxi::api::get_option_value::<bool>(
-        "modified",
-        &nvim_oxi::api::opts::OptionOpts::builder()
-            .buffer(updated_buffer.clone())
-            .build(),
-    )
-    .expect("Should get modified option");
+    let is_modified: bool =
+        get_buf_option("modified", &updated_buffer).expect("Should get modified option");
     assert!(is_modified, "Buffer should be marked as modified");
 
     receiver
@@ -357,7 +352,11 @@ fn write_file_cleanup_request_exists_before_response() -> nvim_oxi::Result<()> {
     let request_id = block_on(requests.add_request("test-session".to_string(), responder));
 
     // Verify request exists before response
-    assert!(block_on(requests.get_request(&request_id)).is_some());
+    let request = block_on(requests.get_request(&request_id));
+    assert!(
+        request.is_some(),
+        "Request should exist before default_response is called"
+    );
     Ok(())
 }
 
@@ -382,7 +381,11 @@ fn write_file_cleanup_default_response_succeeds() -> nvim_oxi::Result<()> {
 
     // Use default_response (goes through Request::default() -> now calls finish())
     let result = block_on(requests.default_response(&request_id, serde_json::Value::Null));
-    assert!(result.is_ok());
+    assert!(
+        result.is_ok(),
+        "default_response should succeed for write file request: {:?}",
+        result
+    );
     Ok(())
 }
 

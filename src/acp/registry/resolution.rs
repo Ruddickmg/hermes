@@ -31,7 +31,7 @@ pub async fn fetch_agent_from_registry(
     if let Some(pref) = preference {
         if !pref.is_enabled(distributions_config) {
             return Err(Error::InvalidInput(format!(
-                "Distribution '{}' was selected but is disabled",
+                "Cannot install distribution: '{}' is disabled",
                 pref
             )));
         }

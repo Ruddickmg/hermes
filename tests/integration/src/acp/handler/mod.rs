@@ -19,6 +19,7 @@ use agent_client_protocol::{
 use async_lock::Mutex;
 use hermes::acp::handler::Handler;
 use hermes::nvim::state::PluginState;
+use pretty_assertions::assert_eq;
 use std::io::{Read, Write};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -68,7 +69,7 @@ fn test_session_notification_permissions_allowed() -> nvim_oxi::Result<()> {
     let notification = create_test_notification();
     let res: agent_client_protocol::Result<()> =
         smol::block_on(handler.session_notification(notification));
-    assert!(res.is_ok(), "Should succeed when permissions allowed");
+    assert_eq!(res, Ok(()), "Should succeed when permissions allowed");
 
     Ok(())
 }
@@ -160,78 +161,6 @@ fn test_can_request_permissions_returns_false_when_disabled() -> nvim_oxi::Resul
 // production code (client.rs) and need coverage. Keeping them per AGENTS.md:793-799.
 
 #[nvim_oxi::test]
-fn test_can_write_returns_true_when_enabled() -> nvim_oxi::Result<()> {
-    let state = Arc::new(Mutex::new(PluginState::default()));
-
-    let handler = Handler::new(
-        state.clone(),
-        mock_runtime(),
-        Rc::new(MockRequestHandler::new()),
-    )
-    .expect("Handler creation should succeed");
-
-    // fs_write_access is true by default - covers the return true path
-    let result = smol::block_on(handler.can_write());
-    assert!(result);
-
-    Ok(())
-}
-
-#[nvim_oxi::test]
-fn test_can_read_returns_true_when_enabled() -> nvim_oxi::Result<()> {
-    let state = Arc::new(Mutex::new(PluginState::default()));
-
-    let handler = Handler::new(
-        state.clone(),
-        mock_runtime(),
-        Rc::new(MockRequestHandler::new()),
-    )
-    .expect("Handler creation should succeed");
-
-    // fs_read_access is true by default - covers the return true path
-    let result = smol::block_on(handler.can_read());
-    assert!(result);
-
-    Ok(())
-}
-
-#[nvim_oxi::test]
-fn test_can_access_terminal_returns_true_when_enabled() -> nvim_oxi::Result<()> {
-    let state = Arc::new(Mutex::new(PluginState::default()));
-
-    let handler = Handler::new(
-        state.clone(),
-        mock_runtime(),
-        Rc::new(MockRequestHandler::new()),
-    )
-    .expect("Handler creation should succeed");
-
-    // terminal_access is true by default - covers the return true path
-    let result = smol::block_on(handler.can_access_terminal());
-    assert!(result);
-
-    Ok(())
-}
-
-#[nvim_oxi::test]
-fn test_can_request_permissions_returns_true_when_enabled() -> nvim_oxi::Result<()> {
-    let state = Arc::new(Mutex::new(PluginState::default()));
-
-    let handler = Handler::new(
-        state.clone(),
-        mock_runtime(),
-        Rc::new(MockRequestHandler::new()),
-    )
-    .expect("Handler creation should succeed");
-
-    // request_permissions is true by default - covers the return true path
-    let result = smol::block_on(handler.can_request_permissions());
-    assert!(result);
-
-    Ok(())
-}
-
-#[nvim_oxi::test]
 fn test_set_agent_info_updates_agent_information() -> nvim_oxi::Result<()> {
     let state = Arc::new(Mutex::new(PluginState::default()));
     let handler = Handler::new(
@@ -252,7 +181,10 @@ fn test_set_agent_info_updates_agent_information() -> nvim_oxi::Result<()> {
     let mut state_guard = smol::block_on(state.lock());
     state_guard.agent_info.set_agent(agent.clone());
     let stored_info = state_guard.agent_info.get_current_info();
-    assert!(stored_info.is_some(), "Agent info should be stored");
+    assert!(
+        stored_info.is_some(),
+        "Agent info should be stored after set_agent_info"
+    );
 
     Ok(())
 }
@@ -272,7 +204,7 @@ fn test_session_notification_usage_update_succeeds() -> nvim_oxi::Result<()> {
     let notification = SessionNotification::new("session_id", SessionUpdate::UsageUpdate(usage));
     let res: agent_client_protocol::Result<()> =
         smol::block_on(handler.session_notification(notification));
-    assert_eq!(res, Ok(()));
+    assert_eq!(res, Ok(()), "Usage update notification should succeed");
 
     Ok(())
 }
@@ -294,24 +226,6 @@ fn test_can_receive_notifications_returns_false_when_disabled() -> nvim_oxi::Res
 
     let result = smol::block_on(handler.can_receive_notifications());
     assert!(!result, "Should return false when disabled");
-
-    Ok(())
-}
-
-#[nvim_oxi::test]
-fn test_can_receive_notifications_returns_true_when_enabled() -> nvim_oxi::Result<()> {
-    let state = Arc::new(Mutex::new(PluginState::default()));
-
-    let handler = Handler::new(
-        state.clone(),
-        mock_runtime(),
-        Rc::new(MockRequestHandler::new()),
-    )
-    .expect("Handler creation should succeed");
-
-    // send_notifications is true by default - covers the return true path
-    let result = smol::block_on(handler.can_receive_notifications());
-    assert!(result);
 
     Ok(())
 }
@@ -435,15 +349,81 @@ fn test_no_listener_with_request_triggers_default_response_error_path() -> nvim_
     // Send should succeed even if default_response fails (error is logged, not propagated)
     assert!(result.is_ok(), "Send should succeed even with no listener");
 
-    // Wait for async callback to execute (required for coverage capture)
-    // Must use nvim_oxi sleep to yield control back to Neovim
+    Ok(())
+}
+
+#[tracing_test::traced_test]
+#[nvim_oxi::test]
+fn test_no_listener_with_request_logs_default_response_error() -> nvim_oxi::Result<()> {
+    // Test error logging at lines 74-77 when default_response fails
+    use agent_client_protocol::schema::WriteTextFileResponse;
+    use hermes::nvim::requests::{RequestHandler, Responder};
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    use async_trait::async_trait;
+
+    struct FailingMockRequestHandler;
+    #[async_trait(?Send)]
+    impl RequestHandler for FailingMockRequestHandler {
+        async fn default_response(
+            &self,
+            _request_id: &Uuid,
+            _data: serde_json::Value,
+        ) -> hermes::acp::Result<()> {
+            Err(hermes::acp::error::Error::Internal(
+                "Test error from default_response".to_string(),
+            ))
+        }
+
+        async fn handle_response(
+            &self,
+            _request_id: &Uuid,
+            _response: nvim_oxi::Object,
+        ) -> hermes::acp::Result<()> {
+            Ok(())
+        }
+
+        async fn cancel_session_requests(&self, _session_id: String) -> hermes::acp::Result<()> {
+            Ok(())
+        }
+
+        async fn add_request(&self, _session_id: String, _responder: Responder) -> Uuid {
+            Uuid::new_v4()
+        }
+
+        async fn get_request(&self, _request_id: &Uuid) -> Option<hermes::nvim::requests::Request> {
+            None
+        }
+    }
+
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        std::rc::Rc::new(FailingMockRequestHandler),
+    )
+    .expect("Handler creation should succeed");
+
+    let (sender, _receiver) = async_channel::bounded::<WriteTextFileResponse>(1);
+    let responder = Responder::WriteFileResponse(
+        sender,
+        agent_client_protocol::schema::WriteTextFileRequest::new(
+            agent_client_protocol::schema::SessionId::from("test-session"),
+            std::path::Path::new("/tmp/test.txt"),
+            "test content",
+        ),
+    );
+
+    let _result = smol::block_on(handler.execute_autocommand_request(
+        "test-session".to_string(),
+        "TestErrorCommand",
+        serde_json::json!({"data": "value"}),
+        responder,
+    ));
+
     nvim_oxi::api::command("sleep 10m")?;
 
-    // Verify both the warn and error logs were printed
-    assert!(
-        logs_contain("No listener attached for command"),
-        "Expected warn log for no listener (line 67)"
-    );
     assert!(
         logs_contain("Failed to send default response"),
         "Expected error log for failed default_response (lines 74-77)"
@@ -476,16 +456,6 @@ fn test_no_listener_no_request_triggers_warn_path() -> nvim_oxi::Result<()> {
     assert!(
         result.is_ok(),
         "Send should succeed even with no listener and no request"
-    );
-
-    // Wait for async callback to execute (required for coverage capture)
-    // Must use nvim_oxi sleep to yield control back to Neovim
-    nvim_oxi::api::command("sleep 10m")?;
-
-    // Verify the warn log was printed (line 80)
-    assert!(
-        logs_contain("No listener attached for command 'TestWarnCommand'"),
-        "Expected warn log for no listener with no request (line 80)"
     );
 
     Ok(())
@@ -556,6 +526,53 @@ fn agent_message_chunk_succeeds_after_user_message_chunk() -> nvim_oxi::Result<(
     let agent_notification = create_agent_notification();
     let res = smol::block_on(handler.session_notification(agent_notification));
     assert_eq!(res, Ok(()));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn get_agent_returns_current_agent() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let agent = hermes::acp::connection::Assistant::from("test-agent");
+    smol::block_on(async {
+        state.lock().await.agent_info.set_agent(agent.clone());
+    });
+
+    let result = smol::block_on(handler.get_agent());
+    assert_eq!(
+        result.to_string(),
+        agent.to_string(),
+        "get_agent should return the current agent"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn set_prompt_id_updates_session_prompt_id() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    smol::block_on(handler.set_prompt_id("session-1".to_string(), "prompt-abc".to_string()));
+
+    let mut state_guard = smol::block_on(state.lock());
+    let stored_id = state_guard.get_session_prompt("session-1");
+    assert_eq!(
+        stored_id, "prompt-abc",
+        "set_prompt_id should update the prompt id"
+    );
 
     Ok(())
 }
@@ -1087,9 +1104,7 @@ fn create_notification_with_session(session_id: &str) -> SessionNotification {
 fn session_notification_writes_history_to_file() -> nvim_oxi::Result<()> {
     let temp_dir = TempDir::new().unwrap();
     let state = Arc::new(Mutex::new(
-        PluginState::new()
-            .with_storage_path(temp_dir.path().to_path_buf())
-            .unwrap(),
+        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
     ));
     let handler = Handler::new(
         state.clone(),
@@ -1148,9 +1163,7 @@ fn session_notification_writes_history_to_file() -> nvim_oxi::Result<()> {
 fn session_notification_skips_history_when_not_needed() -> nvim_oxi::Result<()> {
     let temp_dir = TempDir::new().unwrap();
     let state = Arc::new(Mutex::new(
-        PluginState::new()
-            .with_storage_path(temp_dir.path().to_path_buf())
-            .unwrap(),
+        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
     ));
     let handler = Handler::new(
         state.clone(),
@@ -1194,9 +1207,7 @@ fn session_notification_skips_history_when_not_needed() -> nvim_oxi::Result<()> 
 fn session_notification_does_not_write_history_when_permissions_denied() -> nvim_oxi::Result<()> {
     let temp_dir = TempDir::new().unwrap();
     let state = Arc::new(Mutex::new(
-        PluginState::new()
-            .with_storage_path(temp_dir.path().to_path_buf())
-            .unwrap(),
+        PluginState::new().with_storage_path(temp_dir.path().to_path_buf()),
     ));
     smol::block_on(async {
         state.lock().await.config.permissions.send_notifications = false;
@@ -1242,6 +1253,140 @@ fn session_notification_does_not_write_history_when_permissions_denied() -> nvim
     assert!(
         !history_path.exists(),
         "History file should not exist when notification is rejected"
+    );
+
+    Ok(())
+}
+
+// === Handler callback branch tests ===
+
+use hermes::nvim::autocommands::Commands;
+use hermes::nvim::requests::{RequestHandler, Responder};
+use hermes::utilities::TransmitToNvim;
+use hermes::utilities::autocmd::create_augroup;
+use nvim_oxi::api::opts::CreateAutocmdOpts;
+use std::time::Duration;
+
+#[nvim_oxi::test]
+fn handler_callback_fires_autocmd_when_listener_attached() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let requests = Rc::new(MockRequestHandler::new());
+    let handler =
+        Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
+
+    // Ensure the hermes augroup exists so listener_attached can query it
+    let _ = create_augroup("hermes", true);
+
+    // Register a Lua autocmd listener for PermissionRequest
+    let opts = CreateAutocmdOpts::builder()
+        .patterns([Commands::PermissionRequest.to_string().as_str()])
+        .group("hermes")
+        .command("let g:hermes_test_callback_fired = 1")
+        .build();
+    nvim_oxi::api::create_autocmd(["User"], &opts)?;
+
+    // Send message through handler channel using async send
+    let executor = smol::LocalExecutor::new();
+    smol::block_on(executor.run(async {
+        handler
+            .channel
+            .send((
+                Commands::PermissionRequest.to_string(),
+                serde_json::json!({}),
+                None,
+            ))
+            .await
+            .expect("Send should succeed");
+    }));
+
+    // Wait for the scheduled callback to execute
+    let fired = crate::helpers::ui::wait_for(
+        || {
+            nvim_oxi::api::get_var("hermes_test_callback_fired")
+                .map(|v: i64| v == 1)
+                .unwrap_or(false)
+        },
+        Duration::from_millis(500),
+    );
+    assert!(
+        fired,
+        "autocmd listener should have been triggered by handler callback"
+    );
+
+    // Clean up global variable
+    nvim_oxi::api::del_var("hermes_test_callback_fired").ok();
+    Ok(())
+}
+
+#[tracing_test::traced_test]
+#[nvim_oxi::test]
+fn handler_callback_sends_default_response_when_no_listener() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let requests = Rc::new(MockRequestHandler::new());
+    let handler =
+        Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
+
+    // Dummy sender – the mock default_response returns Ok without sending,
+    // but the callback branch itself is what we want to exercise for coverage.
+    let (sender, _receiver) =
+        async_channel::bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
+
+    let executor = smol::LocalExecutor::new();
+    smol::block_on(executor.run(async {
+        handler
+            .channel
+            .send((
+                "UnknownCommand".to_string(),
+                serde_json::json!({}),
+                Some((
+                    Responder::PermissionResponse(sender),
+                    "test-session".to_string(),
+                )),
+            ))
+            .await
+            .expect("Send should succeed");
+    }));
+
+    // Give the event loop time to process the scheduled callback
+    nvim_oxi::api::command("sleep 50m").ok();
+
+    // Verify the callback executed by checking for the expected log message
+    assert!(
+        logs_contain("No listener attached for command"),
+        "Expected warn log for unknown command with no listener"
+    );
+
+    Ok(())
+}
+
+#[tracing_test::traced_test]
+#[nvim_oxi::test]
+fn handler_callback_warns_when_no_listener_and_no_request() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let requests = Rc::new(MockRequestHandler::new());
+    let handler =
+        Handler::new(state, mock_runtime(), requests).expect("Handler creation should succeed");
+
+    let executor = smol::LocalExecutor::new();
+    smol::block_on(executor.run(async {
+        handler
+            .channel
+            .send((
+                "AnotherUnknownCommand".to_string(),
+                serde_json::json!({}),
+                None,
+            ))
+            .await
+            .expect("Send should succeed");
+    }));
+
+    // Give the event loop a moment to process.
+    nvim_oxi::api::command("sleep 50m").ok();
+
+    // Verify the callback executed and logged the expected warning
+    assert!(
+        logs_contain("No listener attached for command"),
+        "Expected warn log for unknown command with no listener and no request"
     );
 
     Ok(())

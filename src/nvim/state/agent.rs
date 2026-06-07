@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io;
 use std::path::PathBuf;
 
 use agent_client_protocol::schema::InitializeResponse;
@@ -16,28 +15,20 @@ pub struct AgentInfo {
     pub history_base_path: PathBuf,
 }
 
-impl Default for AgentInfo {
-    fn default() -> Self {
-        let temp = std::env::temp_dir().join("hermes-history");
-        let sink =
-            HistorySink::new(temp.clone()).expect("failed to create history sink in temp dir");
-        let writer = ChannelWriter::new_file(sink).expect("failed to create history writer");
+impl AgentInfo {
+    pub fn new() -> Self {
         Self {
             current: Assistant::default(),
             agents: HashMap::new(),
-            history: writer,
-            history_base_path: temp,
+            history: ChannelWriter::new_file(HistorySink::new(PathBuf::new())),
+            history_base_path: PathBuf::new(),
         }
     }
-}
 
-impl AgentInfo {
-    pub fn set_history(&mut self, base_path: PathBuf) -> io::Result<()> {
-        let sink = HistorySink::new(base_path.clone())?;
-        let writer = ChannelWriter::new_file(sink)?;
-        self.history = writer;
+    pub fn set_history(&mut self, base_path: PathBuf) {
+        let sink = HistorySink::new(base_path.clone());
+        self.history = ChannelWriter::new_file(sink);
         self.history_base_path = base_path;
-        Ok(())
     }
 
     fn notify_user(&self, allowed: bool, capability: &str) -> bool {
@@ -166,31 +157,29 @@ mod tests {
     }
 
     fn create_agent_info_with_agent(agent: Assistant) -> AgentInfo {
-        let mut info = AgentInfo {
-            current: agent.clone(),
-            ..Default::default()
-        };
+        let mut info = AgentInfo::new();
+        info.current = agent.clone();
         info.add_agent(agent, create_test_response());
         info
     }
 
     #[test]
-    fn test_history_base_path_defaults_to_temp() {
-        let info = AgentInfo::default();
-        assert!(info.history_base_path.ends_with("hermes-history"));
+    fn test_history_base_path_defaults_to_empty() {
+        let info = AgentInfo::new();
+        assert!(info.history_base_path.as_os_str().is_empty());
     }
 
     #[test]
     fn test_set_history_updates_base_path() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let mut info = AgentInfo::default();
-        info.set_history(temp_dir.path().join("history")).unwrap();
+        let mut info = AgentInfo::new();
+        info.set_history(temp_dir.path().join("history"));
         assert_eq!(info.history_base_path, temp_dir.path().join("history"));
     }
 
     #[test]
     fn test_default_agent_info() {
-        let info = AgentInfo::default();
+        let info = AgentInfo::new();
         assert_eq!(info.current, Assistant::default());
         assert!(info.get_current_info().is_none());
         assert!(info.get_capabilities().is_none());
@@ -198,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_set_agent_changes_current() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         info.set_agent(Assistant::Opencode);
         assert_eq!(info.current, Assistant::Opencode);
         info.set_agent(Assistant::Copilot);
@@ -207,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_add_agent_stores_info() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         let response = create_test_response();
 
@@ -220,13 +209,13 @@ mod tests {
 
     #[test]
     fn test_get_current_info_returns_none_for_unknown_agent() {
-        let info = AgentInfo::default();
+        let info = AgentInfo::new();
         assert!(info.get_current_info().is_none());
     }
 
     #[test]
     fn test_get_capabilities_returns_none_when_no_info() {
-        let info = AgentInfo::default();
+        let info = AgentInfo::new();
         assert!(info.get_capabilities().is_none());
     }
 
@@ -254,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_capabilities_return_false_when_no_info() {
-        let info = AgentInfo::default();
+        let info = AgentInfo::new();
 
         assert!(!info.can_load_session());
         assert!(!info.can_send_images());
@@ -269,7 +258,7 @@ mod tests {
 
     #[test]
     fn test_switching_agents_returns_correct_info() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
 
         // Add first agent
         let agent1 = Assistant::Opencode;
@@ -290,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_add_agent_updates_existing_agent() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
 
         // Add agent
@@ -309,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_multiple_agents_stored_independently() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
 
         let agent1 = Assistant::Opencode;
         let agent2 = Assistant::Copilot;
@@ -332,14 +321,14 @@ mod tests {
 
     #[test]
     fn test_current_agent_defaults_to_default_assistant() {
-        let info = AgentInfo::default();
+        let info = AgentInfo::new();
         // Default is Copilot based on Assistant::default()
         assert_eq!(info.current, Assistant::default());
     }
 
     #[test]
     fn test_get_current_info_after_adding_different_agent() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
 
         // Add agent but don't change current
@@ -361,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_can_load_session_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_load_session_enabled());
         info.set_agent(agent);
@@ -376,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_can_send_images_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_images_enabled());
         info.set_agent(agent);
@@ -391,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_can_send_audio_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_audio_enabled());
         info.set_agent(agent);
@@ -407,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_can_send_embedded_context_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(
             agent.clone(),
@@ -425,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_can_connect_to_mcp_over_http_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_mcp_http_enabled());
         info.set_agent(agent);
@@ -440,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_can_connect_to_mcp_over_sse_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_mcp_sse_enabled());
         info.set_agent(agent);
@@ -457,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_can_fork_sessions_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_fork_enabled());
         info.set_agent(agent);
@@ -474,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_can_resume_sessions_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_resume_enabled());
         info.set_agent(agent);
@@ -491,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_can_list_sessions_returns_true_when_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_list_enabled());
         info.set_agent(agent);
@@ -520,7 +509,7 @@ mod tests {
 
     #[test]
     fn test_needs_local_history_true_when_resume_enabled_and_load_disabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_resume_no_load());
         info.set_agent(agent);
@@ -529,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_needs_local_history_false_when_load_enabled_and_resume_enabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_load_and_resume());
         info.set_agent(agent);
@@ -538,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_needs_local_history_false_when_resume_disabled_and_load_disabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_test_response());
         info.set_agent(agent);
@@ -547,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_needs_local_history_false_when_store_history_disabled() {
-        let mut info = AgentInfo::default();
+        let mut info = AgentInfo::new();
         let agent = Assistant::Opencode;
         info.add_agent(agent.clone(), create_response_with_resume_no_load());
         info.set_agent(agent);
@@ -555,27 +544,31 @@ mod tests {
     }
 
     #[test]
-    fn test_default_history_accepts_writes() {
-        let info = AgentInfo::default();
-        info.history.write_keyed("test/session.jsonl", "hello");
-        info.history.write_keyed("test/session.jsonl", "world");
-    }
-
-    #[test]
     fn test_set_history_accepts_valid_path() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let mut info = AgentInfo::default();
-        let result = info.set_history(temp_dir.path().join("history"));
-        assert!(result.is_ok());
+        let mut info = AgentInfo::new();
+        info.set_history(temp_dir.path().join("history"));
         info.history.write_keyed("agent/session.jsonl", "test");
     }
 
     #[test]
     fn test_set_history_writes_to_different_path() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let mut info = AgentInfo::default();
-        info.set_history(temp_dir.path().join("history")).unwrap();
+        let mut info = AgentInfo::new();
+        info.set_history(temp_dir.path().join("history"));
         info.history.write_keyed("agent/session.jsonl", "line1");
         info.history.write_keyed("agent/session.jsonl", "line2");
+    }
+
+    #[test]
+    fn test_can_close_session_returns_false_by_default() {
+        let info = create_agent_info_with_agent(Assistant::Opencode);
+        assert!(!info.can_close_session());
+    }
+
+    #[test]
+    fn test_can_close_session_returns_false_when_no_info() {
+        let info = AgentInfo::new();
+        assert!(!info.can_close_session());
     }
 }

@@ -1,4 +1,8 @@
+pub mod autocmd;
+pub mod buf_options;
+pub mod buffer;
 pub mod file;
+pub mod job;
 pub mod logging;
 pub mod message_messenger;
 pub mod notification_messenger;
@@ -8,7 +12,11 @@ pub mod prompt;
 pub mod runtime;
 pub mod ui;
 
+pub use autocmd::*;
+pub use buf_options::*;
+pub use buffer::*;
 pub use file::*;
+pub use job::*;
 pub use logging::*;
 pub use message_messenger::*;
 pub use notification_messenger::*;
