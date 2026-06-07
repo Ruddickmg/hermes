@@ -471,8 +471,7 @@ jobs:
             export PATH="/home/circleci/.local/bin:$PATH"
             eval "$(cargo llvm-cov show-env --export-prefix)"
             cargo llvm-cov clean --workspace
-            cargo build --all-features
-            cargo nextest run -E 'package(hermes-e2e)' --all-features --no-capture
+            cargo nextest run --package hermes-e2e --all-features --no-capture
             cargo llvm-cov report --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: e2e.coverage.info
@@ -510,7 +509,7 @@ jobs:
           name: Run e2e tests (0.11)
           command: |
             export PATH="/home/circleci/.local/bin:$PATH"
-            cargo nextest run -E 'package(hermes-e2e)' --all-features --no-capture
+            cargo nextest run --package hermes-e2e --all-features --no-capture
 
   lua_tests_0_12:
     environment:
