@@ -13,8 +13,8 @@ use agent_client_protocol::schema::{
 };
 use hermes::{
     api::{
-        ConnectionArgs, CreateSessionArgs, DisconnectArgs, ListSessionsConfig, LoadSessionConfig,
-        PromptArgs, PromptContent, ResumeSessionConfig, SetModeArgs,
+        ConnectionArgs, CreateSessionArgs, DeleteSessionArgs, DisconnectArgs, ListSessionsConfig,
+        LoadSessionConfig, PromptArgs, PromptContent, ResumeSessionConfig, SetModeArgs,
     },
     nvim::{autocommands::Commands, hermes},
 };
@@ -711,7 +711,7 @@ fn test_delete_session_fires_session_deleted() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
     let create_session: Function<CreateSessionArgs, ()> =
         FromObject::from_object(dict.get("create_session").unwrap().clone())?;
-    let delete_session: Function<String, ()> =
+    let delete_session: Function<DeleteSessionArgs, ()> =
         FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
 
     let wait_for_initialization =
@@ -737,7 +737,7 @@ fn test_delete_session_fires_session_deleted() -> Result<(), nvim_oxi::Error> {
     let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     let session_id = session.session_id.to_string();
 
-    delete_session.call(session_id)?;
+    delete_session.call(DeleteSessionArgs::Single(session_id))?;
 
     let deleted = wait_for_session_deleted(Duration::from_secs(TIMEOUT_IN_SECONDS));
 

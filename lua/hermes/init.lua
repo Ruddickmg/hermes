@@ -640,8 +640,8 @@ function M.close_session(session_id)
 	end)
 end
 
----Delete session from the session list
----@param session_id string Session ID
+---Delete session(s) from the session list
+---@param session_id string|string[] Session ID(s) to delete
 function M.delete_session(session_id)
 	execute_async(function()
 		M._load_native_sync().delete_session(session_id)

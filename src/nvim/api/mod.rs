@@ -29,6 +29,7 @@ pub use agents::*;
 use async_lock::Mutex;
 pub use connect::*;
 pub use create_session::*;
+pub use delete_session::*;
 pub use disconnect::*;
 pub use list_sessions::*;
 pub use load_session::*;
@@ -112,9 +113,11 @@ impl Hermes {
     }
 
     fn delete_session_method(&self) -> Object {
-        self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
-            api.try_borrow()?.delete_session(session_id).await
-        })
+        self.api_method(
+            |api: Rc<RefCell<Api>>, args: DeleteSessionArgs| async move {
+                api.try_borrow()?.delete_session(args).await
+            },
+        )
     }
 
     fn connect_method(&self) -> Object {

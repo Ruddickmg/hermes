@@ -535,6 +535,33 @@ describe("Hermes API Endpoints (E2E)", function()
 			assert.is_true(ok, "delete_session() should not crash: " .. tostring(err))
 		end)
 
+		it("delete_session accepts array of session ids", function()
+			local hermes = setup_endpoint_test("opencode")
+
+			local ready = wait_for_ready(hermes, 30000)
+			if not ready then
+				error("Binary should be in READY state")
+			end
+
+			-- First connect
+			local ok, err = pcall(function()
+				hermes.connect("opencode")
+			end)
+			if not ok then
+				error("connect() should not crash: " .. tostring(err))
+			end
+
+			vim.wait(500)
+
+			-- Call delete_session with an array of session IDs
+			ok, err = pcall(function()
+				hermes.delete_session({ "test-session-id", "another-session-id" })
+			end)
+
+			-- Single assertion at the end
+			assert.is_true(ok, "delete_session(array) should not crash: " .. tostring(err))
+		end)
+
 		it("set_mode endpoint callable with opencode", function()
 			local hermes = setup_endpoint_test("opencode")
 
