@@ -71,5 +71,17 @@ pretty_assertions = "1.4"
 proptest = "1.10.0"
 tempfile = "3.14"
 
+[profile.dev]
+opt-level = 0
+debug = 1
+lto = false
+codegen-units = 256
+
+[profile.test]
+opt-level = 0
+debug = 1
+lto = false
+codegen-units = 256
+
 [profile.release]
 

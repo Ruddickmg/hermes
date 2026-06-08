@@ -165,6 +165,25 @@ commands:
               ./codecov upload-coverage --file << parameters.file >> --disable-search
             fi
 
+  restore-cargo-cache:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-cargo-{{ checksum "Cargo.lock" }}
+            - v1-cargo-
+
+  save-cargo-cache:
+    steps:
+      - save_cache:
+          key: v1-cargo-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry/index
+            - ~/.cargo/registry/cache
+            - ~/.cargo/git/db
+            - ~/.cargo/bin
+            - ~/.cargo/.crates.toml
+            - ~/.cargo/.crates2.json
+
 jobs:
   update-cargo-version:
     executor: node
@@ -222,9 +241,10 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - run:
           name: Install cargo-deny
-          command: cargo install --locked cargo-deny
+          command: command -v cargo-deny &> /dev/null || cargo install --locked cargo-deny
       - run:
           name: Check for license
           command: cargo deny check licenses
@@ -233,23 +253,35 @@ jobs:
     executor: rust-linux-x86_64
     steps:
       - checkout
+      - restore-cargo-cache
       - run:
           name: Download ACP Agent Registry
           command: |
             mkdir -p src/acp/registry
             curl -fsSL https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json \
               -o src/acp/registry/registry.json
+      - run:
+          name: Fetch Cargo dependencies
+          command: cargo fetch
+      - save-cargo-cache
       - persist_to_workspace:
           root: .
           paths:
             - src/acp/registry/registry.json
 
   build-linux-x86_64:
+    environment:
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: rust-linux-x86_64
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Build for x86_64
           command: cargo build --release
@@ -262,11 +294,18 @@ jobs:
             - libhermes-linux-x86_64.so
 
   build-linux-aarch64:
+    environment:
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: rust-linux-aarch64
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Build for aarch64
           command: cargo build --release
@@ -365,6 +404,7 @@ jobs:
     executor: rust-linux-x86_64
     steps:
       - checkout
+      - restore-cargo-cache
       - run:
           name: Check Rust formatting
           command: cargo fmt -- --check
@@ -372,7 +412,7 @@ jobs:
           name: Install Lua tooling
           command: |
             # Install selene for Lua linting
-            cargo install selene --locked
+            command -v selene &> /dev/null || cargo install selene --locked
       - run:
           name: Lint Lua code
           command: |
@@ -381,17 +421,23 @@ jobs:
   unit_tests:
     environment:
       CARGO_TARGET_DIR: target
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
-          name: Install coverage tool
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
+      - run:
+          name: Install coverage tools
           command: |
-            cargo install cargo-llvm-cov@0.6.13
-            cargo install cargo-nextest --locked
+            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.6.13
+            command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Run unit tests
           command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
@@ -404,12 +450,18 @@ jobs:
       NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Install Neovim from tarball
           command: |
@@ -421,14 +473,13 @@ jobs:
       - run:
           name: Install coverage tools
           command: |
-            cargo install cargo-llvm-cov@0.6.13
-            cargo install cargo-nextest --locked
+            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.6.13
+            command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Run integration tests
           command: |
             eval "$(cargo llvm-cov show-env --export-prefix)"
             cargo llvm-cov clean --workspace
-            cargo build --all-features --package hermes-integration
             cargo nextest run --package hermes-integration --all-features
             cargo llvm-cov report --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
@@ -440,12 +491,18 @@ jobs:
       NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Install Neovim from tarball
           command: |
@@ -457,8 +514,8 @@ jobs:
       - run:
           name: Install coverage tools
           command: |
-            cargo install cargo-llvm-cov@0.6.13
-            cargo install cargo-nextest --locked
+            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.6.13
+            command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
@@ -482,12 +539,18 @@ jobs:
       NEOVIM_VERSION: 0.11.6
       TERM: xterm-256color
       LANG: en_US.UTF-8
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Install Neovim from tarball
           command: |
@@ -498,7 +561,7 @@ jobs:
             nvim --version
       - run:
           name: Install cargo-nextest
-          command: cargo install cargo-nextest --locked
+          command: command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Install Opencode
           command: curl -fsSL https://opencode.ai/install | bash
@@ -516,12 +579,18 @@ jobs:
       NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Install Neovim from tarball
           command: |
@@ -543,7 +612,6 @@ jobs:
           name: Install Lua tools
           command: |
             # Install luarocks
-            sudo apt-get update
             sudo apt-get install -y lua5.1 liblua5.1-dev
 
             wget https://luarocks.org/releases/luarocks-3.9.2.tar.gz
@@ -579,12 +647,18 @@ jobs:
       NEOVIM_VERSION: 0.11.6
       TERM: xterm-256color
       LANG: en_US.UTF-8
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
+      - run:
+          name: Install mold linker
+          command: sudo apt-get update && sudo apt-get install -y mold
       - run:
           name: Install Neovim from tarball
           command: |
@@ -606,7 +680,6 @@ jobs:
           name: Install Lua tools
           command: |
             # Install luarocks
-            sudo apt-get update
             sudo apt-get install -y lua5.1 liblua5.1-dev
 
             wget https://luarocks.org/releases/luarocks-3.9.2.tar.gz
