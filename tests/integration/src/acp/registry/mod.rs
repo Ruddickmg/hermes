@@ -1,7 +1,7 @@
 //! Integration tests for the Registry struct
 pub mod binary;
 
-use hermes::acp::registry::{Registry, RegistryData};
+use hermes::acp::registry::{Registry, RegistryData, entry::AgentEntry};
 use hermes::utilities::{Downloader, NotificationMessenger};
 use std::collections::HashMap;
 
@@ -20,17 +20,28 @@ fn registry_new_returns_some_with_bundled_data() {
 fn registry_data_get_entry_finds_existing_agent() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
-    let registry = Registry::new(downloader).expect("Bundled registry should exist");
+    let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
+    // Inject a known agent to avoid depending on bundled data contents.
+    registry.data.agents.insert(
+        "test-agent".to_string(),
+        AgentEntry {
+            id: "test-agent".to_string(),
+            name: "Test Agent".to_string(),
+            version: "1.0.0".to_string(),
+            description: "A test agent".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::new(),
+        },
+    );
 
-    // The bundled registry should have at least one agent (opencode in real registry)
-    let first_agent = registry.data.agents.keys().next().cloned();
-    if let Some(agent_id) = first_agent {
-        assert!(
-            registry.data.get_entry(&agent_id).is_some(),
-            "get_entry should find existing agent '{}'",
-            agent_id
-        );
-    }
+    assert!(
+        registry.data.get_entry("test-agent").is_some(),
+        "get_entry should find existing agent"
+    );
 }
 
 #[nvim_oxi::test]
@@ -48,28 +59,31 @@ fn registry_can_be_inserted_into_hash_set() {
 }
 
 #[nvim_oxi::test]
-fn registry_fetch_updates_data() {
+fn registry_fetch_succeeds() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
     let registry = Registry::new(downloader).expect("Bundled registry should exist");
 
-    let original_version = registry.data.version.clone();
-
-    // Fetch from a URL that returns a small valid JSON registry
     let result = smol::block_on(registry.fetch(
         "https://raw.githubusercontent.com/Ruddickmg/hermes.nvim/development/src/acp/registry/registry.json",
     ));
 
     assert!(result.is_ok(), "fetch should succeed: {:?}", result.err());
-    let fetched = result.unwrap();
+}
+
+#[nvim_oxi::test]
+fn registry_fetch_returns_data_with_version() {
+    let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
+    let downloader = Downloader::new(messenger);
+    let registry = Registry::new(downloader).expect("Bundled registry should exist");
+
+    let fetched = smol::block_on(registry.fetch(
+        "https://raw.githubusercontent.com/Ruddickmg/hermes.nvim/development/src/acp/registry/registry.json",
+    ))
+    .expect("fetch should succeed");
+
     assert!(
         !fetched.data.version.is_empty(),
         "Fetched registry should have a version"
-    );
-    // The fetched version may or may not differ from the bundled one;
-    // we just verify the operation succeeded and produced valid data.
-    assert!(
-        fetched.data.version == original_version || fetched.data.version != original_version,
-        "Version should be a valid string"
     );
 }

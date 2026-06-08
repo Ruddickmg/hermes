@@ -14,6 +14,7 @@ use hermes::acp::{
 };
 use hermes::nvim::configuration::DistributionsConfig;
 use hermes::utilities::{Downloader, NotificationMessenger};
+use pretty_assertions::assert_eq;
 
 fn entry_with_distribution(
     id: &str,
@@ -138,6 +139,22 @@ fn resolve_disabled_distribution_returns_error() {
         &registry,
     ));
     assert!(result.is_err());
+}
+
+#[nvim_oxi::test]
+fn resolve_disabled_distribution_error_mentions_disabled() {
+    let entry = entry_with_distribution("test-agent", npx_dist("my-agent", None));
+    let config = DistributionsConfig {
+        npx: false,
+        ..Default::default()
+    };
+    let registry = smol::block_on(test_registry());
+    let result = smol::block_on(fetch_agent_from_registry(
+        &entry,
+        Some(Distribution::Npx),
+        &config,
+        &registry,
+    ));
     assert!(
         result.unwrap_err().to_string().contains("disabled"),
         "Error should mention distribution is disabled"

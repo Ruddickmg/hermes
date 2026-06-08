@@ -8,7 +8,7 @@ const TEST_URL: &str =
     "https://raw.githubusercontent.com/Ruddickmg/hermes.nvim/development/README.md";
 
 #[nvim_oxi::test]
-fn download_to_string_returns_valid_utf8() {
+fn download_to_string_succeeds_for_valid_url() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
 
@@ -23,7 +23,21 @@ fn download_to_string_returns_valid_utf8() {
         "download_to_string should succeed: {:?}",
         result.err()
     );
-    let body = result.unwrap();
+}
+
+#[nvim_oxi::test]
+fn download_to_string_body_contains_expected_content() {
+    let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
+    let downloader = Downloader::new(messenger);
+
+    let body = downloader
+        .download_to_string(
+            TEST_URL,
+            "test-download-string",
+            "Testing download to string",
+        )
+        .expect("download_to_string should succeed");
+
     assert!(
         body.contains("hermes"),
         "Response should contain expected content"
@@ -31,7 +45,7 @@ fn download_to_string_returns_valid_utf8() {
 }
 
 #[nvim_oxi::test]
-fn download_to_file_writes_all_bytes() {
+fn download_to_file_succeeds_for_valid_url() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
 
@@ -51,6 +65,26 @@ fn download_to_file_writes_all_bytes() {
         result.err()
     );
 
+    let _ = std::fs::remove_file(&dest);
+}
+
+#[nvim_oxi::test]
+fn download_to_file_contents_match_expected() {
+    let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
+    let downloader = Downloader::new(messenger);
+
+    let temp_dir = std::env::temp_dir();
+    let dest = temp_dir.join("hermes_test_download.bin");
+
+    downloader
+        .download_to_file(
+            TEST_URL,
+            &dest,
+            "test-download-file",
+            "Testing download to file",
+        )
+        .expect("download_to_file should succeed");
+
     let mut file = std::fs::File::open(&dest).expect("Downloaded file should exist");
     let mut contents = Vec::new();
     file.read_to_end(&mut contents)
@@ -62,7 +96,6 @@ fn download_to_file_writes_all_bytes() {
         "Downloaded file should contain expected content"
     );
 
-    // Cleanup
     let _ = std::fs::remove_file(&dest);
 }
 

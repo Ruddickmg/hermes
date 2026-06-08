@@ -126,6 +126,7 @@ static REGISTRY_DATA: LazyLock<Option<RegistryData>> = LazyLock::new(|| {
 mod tests {
     use super::*;
     use crate::acp::registry::entry::AgentEntry;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn bundled_registry_parses_successfully() {
@@ -154,18 +155,38 @@ mod tests {
 
     #[test]
     fn registry_data_get_entry_returns_some_for_existing_agent() {
-        let data = REGISTRY_DATA.as_ref().unwrap();
-        if let Some(agent) = data.agents.keys().next() {
-            assert!(
-                data.get_entry(agent).is_some(),
-                "Should find existing agent"
-            );
-        }
+        let mut agents = HashMap::new();
+        agents.insert(
+            "test-agent".to_string(),
+            AgentEntry {
+                id: "test-agent".to_string(),
+                name: "Test Agent".to_string(),
+                version: "1.0.0".to_string(),
+                description: "A test agent".to_string(),
+                repository: None,
+                website: None,
+                authors: None,
+                license: None,
+                icon: None,
+                distribution: HashMap::new(),
+            },
+        );
+        let data = RegistryData {
+            version: "1.0.0".to_string(),
+            agents,
+        };
+        assert!(
+            data.get_entry("test-agent").is_some(),
+            "Should find existing agent"
+        );
     }
 
     #[test]
     fn registry_data_get_entry_returns_none_for_missing_agent() {
-        let data = REGISTRY_DATA.as_ref().unwrap();
+        let data = RegistryData {
+            version: "1.0.0".to_string(),
+            agents: HashMap::new(),
+        };
         assert!(
             data.get_entry("definitely-not-a-real-agent-xyz").is_none(),
             "Should return None for missing agent"
