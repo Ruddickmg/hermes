@@ -38,13 +38,149 @@ end
 ---@param path string
 ---@return boolean
 local function is_executable(path)
-	-- On Windows, executable bit is not relevant; file existence is enough for our purposes
-	-- On Unix, check if the file has execute permission
 	if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
 		return vim.fn.filereadable(path) == 1
 	else
 		return vim.fn.executable(path) == 1
 	end
+end
+
+---Check if a directory is writable using libuv fs_access
+---@param path string
+---@return boolean
+local function is_writable(path)
+	local ok, can_write = pcall(vim.uv.fs_access, path, "W")
+	return ok and can_write == true
+end
+
+---Check if a directory is writable or can be created (parent writable)
+---@param dir string
+---@return boolean
+local function is_writable_or_creatable(dir)
+	if vim.fn.isdirectory(dir) == 1 then
+		return is_writable(dir)
+	end
+	-- Directory doesn't exist yet — check if parent is writable so we can create it
+	local parent = vim.fn.fnamemodify(dir, ":h")
+	return is_writable(parent)
+end
+
+---Pretty-print configuration as an array of group strings.
+---Each group is a multi-line string where line 1 is the header and lines 2+ are indented.
+---This works around Neovim's vim.health.info which strips leading whitespace from line 1.
+---@param cfg table The full config table
+---@return string[] Array of group strings
+local function pretty_print_config(cfg)
+	local groups = {}
+	local current_group = {}
+
+	local function add_line(indent, text)
+		table.insert(current_group, string.rep("  ", indent) .. text)
+	end
+
+	local function flush_group()
+		if #current_group > 0 then
+			table.insert(groups, table.concat(current_group, "\n"))
+			current_group = {}
+		end
+	end
+
+	-- Permissions
+	if cfg.permissions then
+		add_line(0, "Permissions:")
+		for k, v in pairs(cfg.permissions) do
+			add_line(1, k .. ": " .. tostring(v))
+		end
+		flush_group()
+	end
+
+	-- Terminal
+	if cfg.terminal then
+		add_line(0, "Terminal:")
+		for k, v in pairs(cfg.terminal) do
+			add_line(1, k .. ": " .. tostring(v))
+		end
+		flush_group()
+	end
+
+	-- Buffer
+	if cfg.buffer then
+		add_line(0, "Buffer:")
+		for k, v in pairs(cfg.buffer) do
+			add_line(1, k .. ": " .. tostring(v))
+		end
+		flush_group()
+	end
+
+	-- Session
+	if cfg.session then
+		add_line(0, "Session:")
+		for k, v in pairs(cfg.session) do
+			add_line(1, k .. ": " .. tostring(v))
+		end
+		flush_group()
+	end
+
+	-- Distributions
+	if cfg.distributions then
+		add_line(0, "Distributions:")
+		if cfg.distributions.binary then
+			local b = cfg.distributions.binary
+			add_line(1, "binary: enabled=" .. tostring(b.enabled) .. ", path=\"" .. (b.path or "") .. "\"")
+		end
+		add_line(1, "uvx: " .. tostring(cfg.distributions.uvx))
+		add_line(1, "npx: " .. tostring(cfg.distributions.npx))
+		flush_group()
+	end
+
+	-- Root Markers
+	if cfg.root_markers then
+		add_line(0, "Root Markers: " .. table.concat(cfg.root_markers, ", "))
+		flush_group()
+	end
+
+	-- Log: File
+	if cfg.log and cfg.log.file then
+		add_line(0, "Log (File):")
+		local f = cfg.log.file
+		add_line(1, "level: " .. tostring(f.level))
+		add_line(1, "format: " .. tostring(f.format))
+		add_line(1, "path: " .. tostring(f.path))
+		add_line(1, "name: " .. tostring(f.name))
+		if f.max_size then
+			add_line(1, "max_size: " .. format_bytes(f.max_size))
+		end
+		if f.max_files then
+			add_line(1, "max_files: " .. tostring(f.max_files))
+		end
+		flush_group()
+	end
+
+	-- Log: Notification
+	if cfg.log and cfg.log.notification then
+		add_line(0, "Log (Notification):")
+		add_line(1, "level: " .. tostring(cfg.log.notification.level))
+		add_line(1, "format: " .. tostring(cfg.log.notification.format))
+		flush_group()
+	end
+
+	-- Log: Stdio
+	if cfg.log and cfg.log.stdio then
+		add_line(0, "Log (Stdio):")
+		add_line(1, "level: " .. tostring(cfg.log.stdio.level))
+		add_line(1, "format: " .. tostring(cfg.log.stdio.format))
+		flush_group()
+	end
+
+	-- Log: Message
+	if cfg.log and cfg.log.message then
+		add_line(0, "Log (Message):")
+		add_line(1, "level: " .. tostring(cfg.log.message.level))
+		add_line(1, "format: " .. tostring(cfg.log.message.format))
+		flush_group()
+	end
+
+	return groups
 end
 
 M.check = function()
@@ -65,6 +201,10 @@ M.check = function()
 	local hermes = require("hermes")
 	local state = hermes.get_loading_state()
 	local error_msg = hermes.get_loading_error()
+	local binary = require("hermes.binary")
+	local bin_path = binary.get_binary_path()
+
+	vim.health.info("Path: " .. bin_path)
 
 	if state == "READY" then
 		vim.health.ok("Binary loaded and ready")
@@ -81,19 +221,11 @@ M.check = function()
 		vim.health.info("Binary not loaded yet — run any Hermes API method to start loading")
 	end
 
-	-- =========================================================================
-	-- Binary File
-	-- =========================================================================
-	vim.health.start("Binary File")
-	local binary = require("hermes.binary")
-	local bin_path = binary.get_binary_path()
-	vim.health.info("Path: " .. bin_path)
-
 	if vim.fn.filereadable(bin_path) == 1 then
 		local size = vim.fn.getfsize(bin_path)
 		vim.health.ok("Binary exists (" .. format_bytes(size) .. ")")
 	else
-		vim.health.warn("Binary not found — will download on first use")
+		vim.health.error("Binary not found — will download on first use")
 	end
 
 	-- =========================================================================
@@ -104,8 +236,13 @@ M.check = function()
 	local wanted = version.get_wanted()
 	vim.health.info("Wanted: " .. wanted)
 
+	local config = require("hermes.config")
+	local download_cfg = config.get_download()
 	local ver_file = binary.get_version_file()
-	if vim.fn.filereadable(ver_file) == 1 then
+
+	if download_cfg and download_cfg.auto == false then
+		vim.health.info("Built from source (auto-download disabled)")
+	elseif vim.fn.filereadable(ver_file) == 1 then
 		local ok, installed = pcall(function()
 			return vim.fn.readfile(ver_file)[1]
 		end)
@@ -167,12 +304,23 @@ M.check = function()
 	-- Log Files
 	-- =========================================================================
 	vim.health.start("Log Files")
-	local config = require("hermes.config")
 	local full_config = config.get()
 	local log_dir = full_config.log.file.path
-	local log_file = log_dir .. "/" .. full_config.log.file.name
+	local file_level = full_config.log.file.level
+	local file_logging_enabled = file_level ~= "off" and file_level ~= 0
 
 	vim.health.info("Directory: " .. log_dir)
+
+	-- Check directory writability
+	if not is_writable_or_creatable(log_dir) then
+		if file_logging_enabled then
+			vim.health.error("Log directory is not writable")
+		else
+			vim.health.warn("Log directory is not writable")
+		end
+	else
+		vim.health.ok("Log directory is writable")
+	end
 
 	-- List existing log files
 	local log_files = {}
@@ -199,11 +347,10 @@ M.check = function()
 		vim.health.info("No log files found")
 	end
 
-	local file_level = full_config.log.file.level
-	if file_level == "off" or file_level == 0 then
-		vim.health.info("File logging is disabled (level: off)")
-	else
+	if file_logging_enabled then
 		vim.health.ok("File logging enabled (level: " .. tostring(file_level) .. ")")
+	else
+		vim.health.info("File logging is disabled (level: off)")
 	end
 
 	-- =========================================================================
@@ -211,7 +358,22 @@ M.check = function()
 	-- =========================================================================
 	vim.health.start("Registry Binaries")
 	local cache_dir = config.get_registry_cache_dir()
+	local binary_dist_enabled = full_config.distributions
+		and full_config.distributions.binary
+		and full_config.distributions.binary.enabled == true
+
 	vim.health.info("Cache directory: " .. cache_dir)
+
+	-- Check cache directory writability
+	if not is_writable_or_creatable(cache_dir) then
+		if binary_dist_enabled then
+			vim.health.error("Registry cache directory is not writable")
+		else
+			vim.health.warn("Registry cache directory is not writable")
+		end
+	else
+		vim.health.ok("Registry cache directory is writable")
+	end
 
 	local agents_found = {}
 	if vim.fn.isdirectory(cache_dir) == 1 then
@@ -221,7 +383,6 @@ M.check = function()
 				local versions = scan_dir(agent_path)
 				for _, ver_entry in ipairs(versions) do
 					if ver_entry.type == "directory" then
-						-- Find the binary inside the version directory
 						local ver_path = agent_path .. "/" .. ver_entry.name
 						local bin_entries = scan_dir(ver_path)
 						for _, file_entry in ipairs(bin_entries) do
@@ -274,7 +435,10 @@ M.check = function()
 	-- Configuration
 	-- =========================================================================
 	vim.health.start("Configuration")
-	vim.health.info(vim.inspect(full_config))
+	local groups = pretty_print_config(full_config)
+	for _, group in ipairs(groups) do
+		vim.health.info(group)
+	end
 end
 
 return M
