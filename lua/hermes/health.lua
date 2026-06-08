@@ -387,10 +387,10 @@ M.check = function()
 						local bin_entries = scan_dir(ver_path)
 						for _, file_entry in ipairs(bin_entries) do
 							if file_entry.type == "file" then
-								local bin_path = ver_path .. "/" .. file_entry.name
-								local stat = vim.uv.fs_stat(bin_path)
+								local registry_bin_path = ver_path .. "/" .. file_entry.name
+								local stat = vim.uv.fs_stat(registry_bin_path)
 								local size_str = stat and format_bytes(stat.size) or "unknown size"
-								local exec = is_executable(bin_path)
+								local exec = is_executable(registry_bin_path)
 								table.insert(
 									agents_found,
 									{

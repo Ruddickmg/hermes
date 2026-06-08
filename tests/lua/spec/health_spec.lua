@@ -1,7 +1,6 @@
 -- Tests for lua/hermes/health.lua
 -- Health check provides :checkhealth hermes diagnostics
 
-local helpers = require("helpers")
 local stub = require("luassert.stub")
 
 describe("hermes.health", function()
