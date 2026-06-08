@@ -1057,4 +1057,95 @@ describe("hermes.binary", function()
 			assert.is_false(result)
 		end)
 	end)
+
+	describe("cancel_download()", function()
+		it("returns true when a download job exists", function()
+			-- Set up internal state so a job appears to exist
+			local jobstop_stub = stub(vim.fn, "jobstop")
+			stub(vim.fn, "jobstart").returns(123)
+			stub(download, "download_async").returns(123)
+			stub(download, "get_available_tool").returns("curl")
+			stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
+			-- Ensure no cache hit: binary and version files don't exist
+			stub(vim.fn, "filereadable").returns(0)
+			stub(vim.fn, "has").returns(0)
+
+			-- Trigger async download path to set internal state
+			binary.ensure_binary_async(60, function() end)
+			vim.wait(100)
+
+			local result = binary.cancel_download()
+
+			assert.is_true(result, "cancel_download should return true when a job exists")
+			assert.stub(jobstop_stub).was_called()
+
+			jobstop_stub:revert()
+		end)
+
+		it("returns false when no download is in progress", function()
+			-- Make sure no download is active
+			binary.cancel_download()
+
+			local result = binary.cancel_download()
+			assert.is_false(result, "cancel_download should return false when no job exists")
+		end)
+
+		it("resets download state after cancel", function()
+			stub(vim.fn, "jobstart").returns(123)
+			stub(download, "download_async").returns(123)
+			stub(download, "get_available_tool").returns("curl")
+			stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
+			stub(vim.fn, "filereadable").returns(0)
+			stub(vim.fn, "has").returns(0)
+
+			binary.ensure_binary_async(60, function() end)
+			vim.wait(100)
+
+			binary.cancel_download()
+
+			-- After cancel, a new download should be allowed
+			local result = binary.cancel_download()
+			assert.is_false(result, "State should be fully reset after cancel")
+		end)
+	end)
+
+	describe("ensure_binary_async() failure paths", function()
+		it("calls callback with failure when download fails", function()
+			stub(download, "get_available_tool").returns("curl")
+			stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(false, { message = "HTTP 404" })
+			end)
+			stub(vim.fn, "filereadable").returns(0)
+			stub(vim.fn, "has").returns(0)
+
+			local callback_success = nil
+			binary.ensure_binary_async(60, function(success, _err)
+				callback_success = success
+			end)
+
+			vim.wait(100)
+
+			assert.is_false(callback_success, "Callback should receive false on download failure")
+		end)
+
+		it("calls callback with error message when download fails", function()
+			stub(download, "get_available_tool").returns("curl")
+			stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(false, { message = "Connection refused" })
+			end)
+			stub(vim.fn, "filereadable").returns(0)
+			stub(vim.fn, "has").returns(0)
+
+			local callback_err = nil
+			binary.ensure_binary_async(60, function(_success, err)
+				callback_err = err
+			end)
+
+			vim.wait(100)
+
+			assert.is_not_nil(callback_err, "Callback should receive error details")
+		end)
+	end)
 end)

@@ -4,7 +4,8 @@ use hermes::utilities::{Downloader, NotificationMessenger};
 use std::io::Read;
 
 /// A small, stable endpoint for verifying download behaviour.
-const TEST_URL: &str = "https://httpbin.org/get";
+const TEST_URL: &str =
+    "https://raw.githubusercontent.com/Ruddickmg/hermes.nvim/development/README.md";
 
 #[nvim_oxi::test]
 fn download_to_string_returns_valid_utf8() {
@@ -24,8 +25,8 @@ fn download_to_string_returns_valid_utf8() {
     );
     let body = result.unwrap();
     assert!(
-        body.contains("https://httpbin.org/get"),
-        "Response should contain the requested URL"
+        body.contains("hermes"),
+        "Response should contain expected content"
     );
 }
 
@@ -57,10 +58,50 @@ fn download_to_file_writes_all_bytes() {
 
     let text = String::from_utf8(contents).expect("Downloaded file should be valid UTF-8");
     assert!(
-        text.contains("https://httpbin.org/get"),
-        "Downloaded file should contain the requested URL"
+        text.contains("hermes"),
+        "Downloaded file should contain expected content"
     );
 
     // Cleanup
+    let _ = std::fs::remove_file(&dest);
+}
+
+#[nvim_oxi::test]
+fn download_to_string_with_bad_url_returns_error() {
+    let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
+    let downloader = Downloader::new(messenger);
+
+    let result = downloader.download_to_string(
+        "https://httpbin.org/status/404",
+        "test-bad-url",
+        "Testing bad URL",
+    );
+
+    assert!(
+        result.is_err(),
+        "download_to_string should fail for a 404 URL"
+    );
+}
+
+#[nvim_oxi::test]
+fn download_to_file_with_bad_url_returns_error() {
+    let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
+    let downloader = Downloader::new(messenger);
+
+    let temp_dir = std::env::temp_dir();
+    let dest = temp_dir.join("hermes_test_404.bin");
+
+    let result = downloader.download_to_file(
+        "https://httpbin.org/status/404",
+        &dest,
+        "test-bad-url-file",
+        "Testing bad URL to file",
+    );
+
+    assert!(
+        result.is_err(),
+        "download_to_file should fail for a 404 URL"
+    );
+
     let _ = std::fs::remove_file(&dest);
 }

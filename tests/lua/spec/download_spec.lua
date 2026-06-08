@@ -373,4 +373,212 @@ describe("hermes.download", function()
       assert.equals("number", type(exit_code))
     end)
   end)
+
+  describe("emit_progress()", function()
+    it("calls nvim_echo with progress options", function()
+      local echo_calls = {}
+      local echo_stub = stub(vim.api, "nvim_echo").invokes(function(chunks, hist, opts)
+        table.insert(echo_calls, { chunks = chunks, hist = hist, opts = opts })
+      end)
+
+      download.emit_progress("test-id", "Test Title", "begin", 0, "Starting")
+
+      echo_stub:revert()
+
+      assert.equals(1, #echo_calls, "nvim_echo should be called once")
+      local call = echo_calls[1]
+      assert.is_table(call.opts)
+      assert.equals("progress", call.opts.kind)
+      assert.equals("test-id", call.opts.id)
+      assert.equals("hermes", call.opts.source)
+      assert.equals("begin", call.opts.status)
+      assert.equals(0, call.opts.percent)
+      assert.equals("Starting", call.opts.title)
+    end)
+
+    it("omits percent and title when nil", function()
+      local echo_calls = {}
+      local echo_stub = stub(vim.api, "nvim_echo").invokes(function(chunks, hist, opts)
+        table.insert(echo_calls, { chunks = chunks, hist = hist, opts = opts })
+      end)
+
+      download.emit_progress("end-id", "Done", "end", nil, nil)
+
+      echo_stub:revert()
+
+      local opts = echo_calls[1].opts
+      assert.is_nil(opts.percent)
+      assert.is_nil(opts.title)
+    end)
+  end)
+
+  describe("download_async()", function()
+    it("calls callback with error when no tool available", function()
+      stub(download, "get_available_tool").returns(nil)
+
+      local callback_err = nil
+      local job_id = download.download_async("http://example.com/file", "/tmp/test", "test-id", function(success, err)
+        callback_err = err
+      end)
+
+      assert.is_nil(job_id, "Should return nil when no tool available")
+      assert.is_not_nil(callback_err, "Callback should receive error")
+      assert.truthy(callback_err.message:match("No download tool available"))
+    end)
+
+    it("calls callback with error when jobstart fails", function()
+      stub(download, "get_available_tool").returns("curl")
+      stub(vim.fn, "jobstart").returns(0)
+
+      local callback_err = nil
+      local job_id = download.download_async("http://example.com/file", "/tmp/test", "test-id", function(success, err)
+        callback_err = err
+      end)
+
+      assert.is_nil(job_id, "Should return nil when jobstart fails")
+      assert.is_not_nil(callback_err, "Callback should receive error")
+      assert.truthy(callback_err.message:match("Failed to start"))
+    end)
+
+    it("parses curl stderr hash marks for progress", function()
+      stub(download, "get_available_tool").returns("curl")
+
+      local progress_calls = {}
+      local progress_stub = stub(download, "emit_progress").invokes(function(id, title, status, percent, text)
+        table.insert(progress_calls, { id = id, status = status, percent = percent })
+      end)
+
+      local on_exit_fn = nil
+      stub(vim.fn, "jobstart").invokes(function(cmd, opts)
+        on_exit_fn = opts.on_exit
+        -- Simulate curl stderr with hash marks
+        opts.on_stderr(0, { "######" })
+        return 123
+      end)
+
+      download.download_async("http://example.com/file", "/tmp/test", "curl-test", function() end)
+
+      progress_stub:revert()
+
+      local report = vim.tbl_filter(function(c)
+        return c.status == "report"
+      end, progress_calls)
+      assert.is_true(#report > 0, "Should emit at least one report progress for curl hashes")
+    end)
+
+    it("parses wget stderr percentage for progress", function()
+      stub(download, "get_available_tool").returns("wget")
+
+      local progress_calls = {}
+      local progress_stub = stub(download, "emit_progress").invokes(function(id, title, status, percent, text)
+        table.insert(progress_calls, { id = id, status = status, percent = percent })
+      end)
+
+      local on_exit_fn = nil
+      stub(vim.fn, "jobstart").invokes(function(cmd, opts)
+        on_exit_fn = opts.on_exit
+        -- Simulate wget stderr with percentage
+        opts.on_stderr(0, { "50%" })
+        return 123
+      end)
+
+      download.download_async("http://example.com/file", "/tmp/test", "wget-test", function() end)
+
+      progress_stub:revert()
+
+      local report = vim.tbl_filter(function(c)
+        return c.status == "report"
+      end, progress_calls)
+      assert.is_true(#report > 0, "Should emit at least one report progress for wget percentage")
+    end)
+
+    it("calls callback with error on non-zero exit code", function()
+      stub(download, "get_available_tool").returns("curl")
+      -- Bypass vim.schedule_wrap so on_exit fires immediately in tests
+      stub(vim, "schedule_wrap").invokes(function(fn)
+        return fn
+      end)
+
+      local callback_success = nil
+      local callback_err = nil
+      local on_exit_fn = nil
+      stub(vim.fn, "jobstart").invokes(function(cmd, opts)
+        on_exit_fn = opts.on_exit
+        return 123
+      end)
+
+      download.download_async("http://example.com/file", "/tmp/test", "exit-test", function(success, err)
+        callback_success = success
+        callback_err = err
+      end)
+
+      -- Simulate failed exit
+      on_exit_fn(0, 1, "SIGTERM")
+
+      assert.is_false(callback_success, "Callback should receive false on non-zero exit")
+      assert.is_not_nil(callback_err, "Should receive error details")
+      assert.equals(1, callback_err.exit_code)
+    end)
+
+    it("calls callback with error when downloaded file is too small", function()
+      stub(download, "get_available_tool").returns("curl")
+      stub(vim.uv or vim.loop, "fs_stat").returns({ size = 50 })
+      stub(vim.uv or vim.loop, "fs_unlink")
+      stub(vim, "schedule_wrap").invokes(function(fn)
+        return fn
+      end)
+
+      local callback_success = nil
+      local callback_err = nil
+      local on_exit_fn = nil
+      stub(vim.fn, "jobstart").invokes(function(cmd, opts)
+        on_exit_fn = opts.on_exit
+        return 123
+      end)
+
+      download.download_async("http://example.com/file", "/tmp/test", "size-test", function(success, err)
+        callback_success = success
+        callback_err = err
+      end)
+
+      -- Simulate successful exit but tiny file
+      on_exit_fn(0, 0, "exit")
+
+      assert.is_false(callback_success, "Should fail when file is too small")
+      assert.truthy(callback_err.message:match("too small") or callback_err.message:match("empty"))
+    end)
+
+    it("parses HTTP code from curl stdout on success", function()
+      stub(download, "get_available_tool").returns("curl")
+      stub(vim.uv or vim.loop, "fs_stat").returns({ size = 1000 })
+      stub(vim, "schedule_wrap").invokes(function(fn)
+        return fn
+      end)
+
+      local callback_success = nil
+      local callback_err = nil
+      local captured_opts = nil
+      stub(vim.fn, "jobstart").invokes(function(cmd, opts)
+        captured_opts = opts
+        return 123
+      end)
+
+      download.download_async("http://example.com/file", "/tmp/test", "http-test", function(success, err)
+        callback_success = success
+        callback_err = err
+      end)
+
+      -- Feed stdout data through the captured on_stdout callback
+      if captured_opts and captured_opts.on_stdout then
+        captured_opts.on_stdout(0, { "200" })
+      end
+
+      if captured_opts and captured_opts.on_exit then
+        captured_opts.on_exit(0, 0, "exit")
+      end
+
+      assert.is_true(callback_success, "Should succeed with valid file size")
+      assert.is_nil(callback_err, "Should not return error on success")
+    end)
+  end)
 end)
