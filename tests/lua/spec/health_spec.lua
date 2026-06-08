@@ -209,7 +209,9 @@ describe("hermes.health", function()
 
 		it("reports ok when log directory is writable", function()
 			-- Default config has file logging disabled, so writable check still reports ok
+			local access = stub(vim.uv, "fs_access").returns(true)
 			health.check()
+			access:revert()
 			assert.is_true(has_call(calls.ok, "Log directory is writable"))
 		end)
 
@@ -242,7 +244,9 @@ describe("hermes.health", function()
 		end)
 
 		it("reports ok when registry cache directory is writable", function()
+			local access = stub(vim.uv, "fs_access").returns(true)
 			health.check()
+			access:revert()
 			assert.is_true(has_call(calls.ok, "Registry cache directory is writable"))
 		end)
 
