@@ -421,7 +421,6 @@ jobs:
   unit_tests:
     environment:
       CARGO_TARGET_DIR: target
-      CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
@@ -436,7 +435,7 @@ jobs:
       - run:
           name: Install coverage tools
           command: |
-            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.6.13
+            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.8.7
             command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Run unit tests
@@ -450,7 +449,6 @@ jobs:
       NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
-      CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
@@ -473,7 +471,7 @@ jobs:
       - run:
           name: Install coverage tools
           command: |
-            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.6.13
+            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.8.7
             command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Run integration tests
@@ -482,9 +480,6 @@ jobs:
             cargo llvm-cov clean --workspace
             cargo build --all-features --package hermes-integration
             cargo nextest run --package hermes-integration --all-features
-            # Collect profraw files from wherever show-env placed them
-            mkdir -p target/llvm-cov-target
-            find target -path target/llvm-cov-target -prune -o -name "*.profraw" -exec mv {} target/llvm-cov-target/ \; 2>/dev/null || true
             cargo llvm-cov report --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: integration.coverage.info
@@ -495,7 +490,6 @@ jobs:
       NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
-      CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
@@ -518,7 +512,7 @@ jobs:
       - run:
           name: Install coverage tools
           command: |
-            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.6.13
+            command -v cargo-llvm-cov &> /dev/null || cargo install cargo-llvm-cov@0.8.7
             command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Install Opencode
@@ -533,9 +527,6 @@ jobs:
             eval "$(cargo llvm-cov show-env --export-prefix)"
             cargo llvm-cov clean --workspace
             cargo nextest run --package hermes-e2e --all-features --no-capture
-            # Collect profraw files from wherever show-env placed them
-            mkdir -p target/llvm-cov-target
-            find target -path target/llvm-cov-target -prune -o -name "*.profraw" -exec mv {} target/llvm-cov-target/ \; 2>/dev/null || true
             cargo llvm-cov report --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: e2e.coverage.info
@@ -546,7 +537,6 @@ jobs:
       NEOVIM_VERSION: 0.11.6
       TERM: xterm-256color
       LANG: en_US.UTF-8
-      CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
@@ -586,7 +576,6 @@ jobs:
       NEOVIM_VERSION: 0.12.2
       TERM: xterm-256color
       LANG: en_US.UTF-8
-      CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
@@ -654,7 +643,6 @@ jobs:
       NEOVIM_VERSION: 0.11.6
       TERM: xterm-256color
       LANG: en_US.UTF-8
-      CARGO_INCREMENTAL: "0"
       RUSTFLAGS: "-Clink-arg=-fuse-ld=mold"
     executor: ubuntu
     steps:
