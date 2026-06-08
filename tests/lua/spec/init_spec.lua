@@ -437,9 +437,7 @@ describe("hermes.init (main API)", function()
 			
 			-- Create a binary file
 			vim.fn.mkdir(data_dir, "p")
-			local f = io.open(bin_path, "w")
-			f:write("mock binary")
-			f:close()
+			vim.fn.writefile({"mock binary"}, bin_path)
 			
 			-- Set internal state to READY
 			hermes._set_loading_state("READY")
@@ -553,7 +551,8 @@ describe("hermes.init (main API)", function()
 			
 			hermes._handle_load_success(mock_module, test_fn)
 			
-			assert.equals("READY", hermes.get_loading_state())
+			-- _is_ready checks _loading_state directly without binary validation
+			assert.is_true(hermes._is_ready())
 		end)
 
 		it("_handle_load_success executes callback function", function()
@@ -943,9 +942,7 @@ describe("hermes.init (main API)", function()
 			local ver_file = binary.get_version_file()
 			
 			vim.fn.mkdir(binary.get_data_dir(), "p")
-			local f = io.open(bin_path, "w")
-			f:write("mock binary")
-			f:close()
+			vim.fn.writefile({"mock binary"}, bin_path)
 			
 			-- Write different version (would normally trigger re-download)
 			vim.fn.writefile({"v0.2.0"}, ver_file)

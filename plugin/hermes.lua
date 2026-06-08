@@ -3,7 +3,8 @@
 local logger = require("hermes.logging")
 
 -- Version check
-if vim.fn.has("nvim-0.11") ~= 1 then
+local nvim_ver = vim.version()
+if nvim_ver.major == 0 and nvim_ver.minor < 11 then
 	vim.api.nvim_err_writeln("Hermes requires Neovim >= 0.11")
 	return
 end
