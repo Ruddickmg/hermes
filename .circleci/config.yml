@@ -440,7 +440,11 @@ jobs:
             command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Run unit tests
-          command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
+          command: |
+            eval "$(cargo llvm-cov show-env --export-prefix)"
+            cargo llvm-cov clean --workspace
+            cargo nextest run --package hermes --all-features
+            cargo llvm-cov report --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: unit.coverage.info
 
