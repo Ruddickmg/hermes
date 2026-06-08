@@ -49,8 +49,8 @@ fn download_to_file_succeeds_for_valid_url() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
 
-    let temp_dir = std::env::temp_dir();
-    let dest = temp_dir.join("hermes_test_download.bin");
+    let temp_dir = tempfile::tempdir().expect("Should create temp dir");
+    let dest = temp_dir.path().join("hermes_test_download.bin");
 
     let result = downloader.download_to_file(
         TEST_URL,
@@ -64,8 +64,6 @@ fn download_to_file_succeeds_for_valid_url() {
         "download_to_file should succeed: {:?}",
         result.err()
     );
-
-    let _ = std::fs::remove_file(&dest);
 }
 
 #[nvim_oxi::test]
@@ -73,8 +71,8 @@ fn download_to_file_contents_match_expected() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
 
-    let temp_dir = std::env::temp_dir();
-    let dest = temp_dir.join("hermes_test_download.bin");
+    let temp_dir = tempfile::tempdir().expect("Should create temp dir");
+    let dest = temp_dir.path().join("hermes_test_download.bin");
 
     downloader
         .download_to_file(
@@ -95,8 +93,6 @@ fn download_to_file_contents_match_expected() {
         text.contains("hermes"),
         "Downloaded file should contain expected content"
     );
-
-    let _ = std::fs::remove_file(&dest);
 }
 
 #[nvim_oxi::test]
@@ -121,8 +117,8 @@ fn download_to_file_with_bad_url_returns_error() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
     let downloader = Downloader::new(messenger);
 
-    let temp_dir = std::env::temp_dir();
-    let dest = temp_dir.join("hermes_test_404.bin");
+    let temp_dir = tempfile::tempdir().expect("Should create temp dir");
+    let dest = temp_dir.path().join("hermes_test_404.bin");
 
     let result = downloader.download_to_file(
         "https://httpbin.org/status/404",
@@ -135,6 +131,4 @@ fn download_to_file_with_bad_url_returns_error() {
         result.is_err(),
         "download_to_file should fail for a 404 URL"
     );
-
-    let _ = std::fs::remove_file(&dest);
 }
