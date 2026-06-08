@@ -42,31 +42,18 @@ describe("plugin.hermes", function()
   end)
   
   describe("subcommands via :Hermes", function()
-    it("accepts 'version' subcommand", function()
-      -- Just verify it doesn't crash
-      assert.has_no.errors(function()
-        vim.cmd("Hermes version")
-      end)
-    end)
-    
     it("accepts 'clean' subcommand", function()
       assert.has_no.errors(function()
         vim.cmd("Hermes clean")
       end)
     end)
-    
-    it("accepts 'setup' subcommand", function()
-      assert.has_no.errors(function()
-        vim.cmd("Hermes setup")
-      end)
-    end)
-    
+
     it("accepts no arguments (shows help)", function()
       assert.has_no.errors(function()
         vim.cmd("Hermes")
       end)
     end)
-    
+
     it("accepts 'install' subcommand (may fail to download but won't crash)", function()
       -- This will try to download but may fail - we just verify it doesn't crash
       -- Use pcall because download may fail in test environment
@@ -76,7 +63,7 @@ describe("plugin.hermes", function()
       -- pcall returns boolean status - if we reach here, no unhandled crash occurred
       assert.is_boolean(ok, "pcall should return status without crashing")
     end)
-    
+
     it("accepts 'build' subcommand (may fail to build but won't crash)", function()
       -- This will try to build but may fail - we just verify it doesn't crash
       -- Use pcall because build may fail in test environment

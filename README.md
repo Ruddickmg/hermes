@@ -110,19 +110,9 @@ cargo build --release
 
 ## Commands
 
-Show loading state, configuration, and current status of Hermes.
-```
-:Hermes status
-```
-
 Show recent log messages and current state information.
 ```
 :Hermes log
-```
-
-Show installed version, platform info, and binary status.
-```
-:Hermes version
 ```
 
 Fetch the latest release from GitHub and replaces the current binary.
@@ -148,11 +138,6 @@ Compile from source (requires Rust toolchain). Runs asynchronously without block
 Cancel an in-progress source build. Shows warning if no build is running.
 ```
 :Hermes cancel
-```
-
-Show current Hermes configuration settings.
-```
-:Hermes setup
 ```
 
 ## API
@@ -2288,6 +2273,13 @@ Available formats:
 - **compact** - Condensed single-line format (default)
 - **full** - Complete information including timestamps and metadata
 - **json** - Machine-readable JSON format
+
+### Health & Configuration details
+
+Run the health check to see full diagnostics including Neovim version, binary status, platform info, download tools, log files, registry binaries, and configuration.
+```
+:checkhealth hermes
+```
 
 ## TODO:
 

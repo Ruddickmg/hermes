@@ -39,8 +39,9 @@
 
 ---@class HermesTerminalConfig
 ---Terminal configuration options
----@field delete? boolean Auto-delete terminals on exit (default: true)
+---@field delete? boolean Auto-delete terminals on exit (default: false)
 ---@field enabled? boolean Enable terminal functionality (default: true)
+---@field hidden? boolean Hide terminal windows (default: true)
 ---@field buffered? boolean Buffer terminal output (default: true)
 
 ---@class HermesBufferConfig
@@ -67,15 +68,18 @@
 ---File logging configuration
 ---@field level? number|string Log level (vim.log.levels.* or string)
 ---@field format? "compact"|"pretty"|"full"|"json" Log format (default: "json")
----@field path? string Path to log file (default: vim.fn.stdpath('state') .. "/nvim/hermes.log")
+---@field path? string Path to log directory (default: vim.fn.stdpath('state') .. "/hermes")
+---@field name? string Log file name (default: "hermes.log")
 ---@field max_size? number Maximum file size in bytes (default: 10485760 = 10MB)
 ---@field max_files? number Maximum number of log files to keep (default: 5)
 
 ---@class ConnectionOptions
 ---Options for connecting to an agent
----@field protocol? "stdio"|"http"|"socket" Connection protocol (default: "stdio")
+---@field protocol? "stdio"|"http"|"socket"|"tcp" Connection protocol (default: "stdio")
 ---@field command? string Command to run for stdio connections
 ---@field args? string[] Command arguments for stdio connections
+---@field host? string Host for socket/tcp/http connections
+---@field port? number Port for socket/tcp/http connections
 ---@field url? string URL for http/sse connections
 ---@field distribution? "npx"|"uvx"|"binary" Preferred distribution type for registry agents (default: auto-select npx > uvx > binary)
 
@@ -120,6 +124,8 @@
 ---@field type "link" Type identifier
 ---@field name string Human-readable resource name
 ---@field uri string Resource URI (file path or URL)
+---@field description? string Optional description
+---@field mimeType? string Optional MIME type
 
 ---@class EmbeddedResource
 ---Embedded resource data
@@ -138,6 +144,7 @@
 ---@field type "image" Type identifier
 ---@field data string Base64-encoded image data
 ---@field mimeType string MIME type (e.g., "image/png", "image/jpeg")
+---@field uri? string Optional resource URI
 
 ---@class AudioContent
 ---Audio content for prompts
@@ -507,11 +514,8 @@ end
 function M.setup(opts)
 	opts = opts or {}
 
-	-- Store installation-related config locally
-	require("hermes.config").setup({
-		download = opts.download,
-		log = opts.log,
-	})
+	-- Store full configuration locally (used by health check and internal tools)
+	require("hermes.config").setup(opts)
 
 	-- Check if version changed and we need to re-download (only if auto-download is enabled)
 	if should_auto_download() then
@@ -728,146 +732,6 @@ end
 -- @param error table|nil Error information if state is "FAILED"
 -- @return table lines Array of strings to display
 -- @return table highlights Array of highlight specifications
-local function build_status_content(state, error)
-	local lines = {}
-	local highlights = {}
-	local line_count = 0
-
-	local function add_line(text, hl)
-		table.insert(lines, text)
-		line_count = line_count + 1
-		if hl then
-			table.insert(highlights, { hl, line_count - 1, 0, -1, -1 })
-		end
-		return line_count
-	end
-
-	-- Header
-	add_line("Hermes Status", "Title")
-	add_line(string.rep("=", 60))
-	add_line("")
-
-	-- Current state with appropriate highlight
-	local state_line = "State: " .. state
-	add_line(state_line)
-	if state == "READY" then
-		table.insert(highlights, { "DiagnosticOk", line_count - 1, 7, -1, -1 })
-	elseif state == "FAILED" then
-		table.insert(highlights, { "DiagnosticError", line_count - 1, 7, -1, -1 })
-	elseif state == "DOWNLOADING" or state == "LOADING" then
-		table.insert(highlights, { "DiagnosticWarn", line_count - 1, 7, -1, -1 })
-	end
-
-	-- Binary information
-	local binary = require("hermes.binary")
-	add_line("Binary Path: " .. binary.get_binary_path())
-
-	local version = require("hermes.version")
-	add_line("Version: " .. version.get_wanted())
-
-	-- Check if binary exists
-	local bin_path = binary.get_binary_path()
-	if vim.fn.filereadable(bin_path) == 1 then
-		local size = vim.fn.getfsize(bin_path)
-		add_line("Binary Size: " .. size .. " bytes")
-	else
-		add_line("Binary Size: Not found")
-	end
-
-	add_line("")
-
-	-- Error details if failed
-	if state == "FAILED" and error then
-		add_line("Error Details:", "DiagnosticError")
-		add_line(string.rep("-", 60))
-
-		local error_text = format_error_for_display(error)
-		-- Split error text into lines and add with indentation
-		for _, err_line in ipairs(vim.split(error_text, "\n")) do
-			add_line("  " .. err_line)
-		end
-
-		add_line("")
-		add_line("Suggested Fix:", "DiagnosticWarn")
-		add_line("  " .. get_error_suggestion(error))
-
-		add_line("")
-		add_line("Troubleshooting:")
-		add_line("  1. Check your internet connection")
-		add_line("  2. Verify the version exists at:")
-		add_line("     https://github.com/Ruddickmg/hermes.nvim/releases")
-		add_line("  3. Try building manually: :Hermes build")
-		add_line("  4. Check logs: :Hermes log")
-	end
-
-	-- Platform info
-	add_line("")
-	add_line("Platform Information:")
-	add_line(string.rep("-", 60))
-	local platform = require("hermes.platform")
-	add_line("  OS: " .. (platform.get_os() or "unknown"))
-	add_line("  Architecture: " .. (platform.get_arch() or "unknown"))
-	add_line("  Platform Key: " .. (platform.get_platform_key() or "unknown"))
-
-	-- Download tool info
-	add_line("")
-	add_line("Download Tools:")
-	add_line(string.rep("-", 60))
-	local download = require("hermes.download")
-	add_line("  curl: " .. (download.is_curl_available() and "available" or "not found"))
-	add_line("  wget: " .. (download.is_wget_available() and "available" or "not found"))
-	add_line("  PowerShell: " .. (download.is_powershell_available() and "available" or "not found"))
-
-	return lines, highlights
-end
-
--- Show detailed status information including any download errors
--- Creates a formatted buffer with status details
-local function show_status()
-	local lines, highlights = build_status_content(_loading_state, _loading_error)
-
-	-- Create floating window
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-
-	-- Apply highlights
-	for _, hl in ipairs(highlights) do
-		vim.api.nvim_buf_add_highlight(buf, -1, hl[1], hl[2], hl[3], hl[4])
-	end
-
-	-- Calculate window size
-	local width = 70
-	local height = math.min(#lines + 2, vim.o.lines - 4)
-
-	-- Center window
-	local col = math.floor((vim.o.columns - width) / 2)
-	local row = math.floor((vim.o.lines - height) / 2)
-
-	local win = vim.api.nvim_open_win(buf, true, {
-		relative = "editor",
-		width = width,
-		height = height,
-		col = col,
-		row = row,
-		style = "minimal",
-		border = "rounded",
-		title = " Hermes Status ",
-		title_pos = "center",
-	})
-
-	-- Set buffer options
-	vim.bo[buf].modifiable = false
-	vim.bo[buf].buftype = "nofile"
-
-	-- Add keymaps to close
-	vim.keymap.set("n", "q", function()
-		vim.api.nvim_win_close(win, true)
-	end, { buffer = buf, silent = true })
-	vim.keymap.set("n", "<Esc>", function()
-		vim.api.nvim_win_close(win, true)
-	end, { buffer = buf, silent = true })
-end
-
 -- ============================================================================
 -- Export internal functions for testing (marked private to hide from LSP)
 -- ============================================================================
@@ -912,12 +776,6 @@ M._format_error_for_display = format_error_for_display
 
 ---@private
 M._get_error_suggestion = get_error_suggestion
-
----@private
-M._show_status = show_status
-
----@private
-M._build_status_content = build_status_content
 
 -- luacov: enable
 

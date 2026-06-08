@@ -41,20 +41,12 @@ describe("hermes.config", function()
       })
       local current = config.get()
 
-      -- Per AGENTS.md, comparing multiple related values in one assertion is OK
-      -- This verifies the entire config object as a logical unit including log config
+      -- Verify the overridden download values are stored correctly
       assert.same({ 
-        download = {
-          version = "test-version", 
-          auto = false,
-          timeout = 90
-        },
-        log = {
-          notification = {
-            level = "info"  -- Changed from "error" to "info" for better UX
-          }
-        }
-      }, current)
+        version = "test-version", 
+        auto = false,
+        timeout = 90
+      }, current.download)
     end)
   end)
 
