@@ -39,8 +39,9 @@
 
 ---@class HermesTerminalConfig
 ---Terminal configuration options
----@field delete? boolean Auto-delete terminals on exit (default: true)
+---@field delete? boolean Auto-delete terminals on exit (default: false)
 ---@field enabled? boolean Enable terminal functionality (default: true)
+---@field hidden? boolean Hide terminal windows (default: true)
 ---@field buffered? boolean Buffer terminal output (default: true)
 
 ---@class HermesBufferConfig
@@ -67,15 +68,18 @@
 ---File logging configuration
 ---@field level? number|string Log level (vim.log.levels.* or string)
 ---@field format? "compact"|"pretty"|"full"|"json" Log format (default: "json")
----@field path? string Path to log file (default: vim.fn.stdpath('state') .. "/nvim/hermes.log")
+---@field path? string Path to log directory (default: vim.fn.stdpath('state') .. "/hermes")
+---@field name? string Log file name (default: "hermes.log")
 ---@field max_size? number Maximum file size in bytes (default: 10485760 = 10MB)
 ---@field max_files? number Maximum number of log files to keep (default: 5)
 
 ---@class ConnectionOptions
 ---Options for connecting to an agent
----@field protocol? "stdio"|"http"|"socket" Connection protocol (default: "stdio")
+---@field protocol? "stdio"|"http"|"socket"|"tcp" Connection protocol (default: "stdio")
 ---@field command? string Command to run for stdio connections
 ---@field args? string[] Command arguments for stdio connections
+---@field host? string Host for socket/tcp/http connections
+---@field port? number Port for socket/tcp/http connections
 ---@field url? string URL for http/sse connections
 ---@field distribution? "npx"|"uvx"|"binary" Preferred distribution type for registry agents (default: auto-select npx > uvx > binary)
 
@@ -120,6 +124,8 @@
 ---@field type "link" Type identifier
 ---@field name string Human-readable resource name
 ---@field uri string Resource URI (file path or URL)
+---@field description? string Optional description
+---@field mimeType? string Optional MIME type
 
 ---@class EmbeddedResource
 ---Embedded resource data
@@ -138,6 +144,7 @@
 ---@field type "image" Type identifier
 ---@field data string Base64-encoded image data
 ---@field mimeType string MIME type (e.g., "image/png", "image/jpeg")
+---@field uri? string Optional resource URI
 
 ---@class AudioContent
 ---Audio content for prompts
