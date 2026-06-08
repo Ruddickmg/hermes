@@ -2284,7 +2284,6 @@ Run the health check to see full diagnostics including Neovim version, binary st
 ## TODO:
 
 -- functionality
-
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
@@ -2305,8 +2304,6 @@ Run the health check to see full diagnostics including Neovim version, binary st
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
-- [ ] add health check
-- [ ] Download progress updates
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 
   - [ ] add references made by agent to quickfix list

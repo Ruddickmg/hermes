@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::{
     acp::{
         self,
-        registry::{Registry, distribution::Distribution, entry::AgentEntry},
+        registry::{distribution::Distribution, entry::AgentEntry},
     },
     api::Api,
     nvim::autocommands::Commands,
@@ -96,24 +96,33 @@ impl Api {
         let url = config.url.as_deref().unwrap_or(DEFAULT_REGISTRY_URL);
         let update = config.update.unwrap_or(false);
         let state = self.state.lock().await;
-        let mut registry = state.registry.clone();
+        let registry = state.registry.clone();
         let config_distributions = state.config.distributions.clone();
         drop(state);
 
         if update {
-            registry = Some(match Registry::fetch(url).await {
-                Err(e) => registry.ok_or(acp::error::Error::Network(e.to_string())),
-                success => success,
-            }?);
-            let mut state = self.state.lock().await;
-            state.registry = registry.clone();
-            drop(state);
+            let current = registry
+                .as_ref()
+                .ok_or_else(|| acp::error::Error::Network("No registry loaded".to_string()))?;
+            match current.fetch(url).await {
+                Ok(reg) => {
+                    let mut state = self.state.lock().await;
+                    state.registry = Some(reg.clone());
+                    drop(state);
+                }
+                Err(e) => {
+                    if registry.is_none() {
+                        return Err(acp::error::Error::Network(e.to_string()));
+                    }
+                }
+            }
         }
 
         let agents: Vec<AgentListEntry> = registry
             .as_ref()
             .map(|r| {
-                r.agents
+                r.data
+                    .agents
                     .values()
                     .cloned()
                     .map(|agent| AgentListEntry {

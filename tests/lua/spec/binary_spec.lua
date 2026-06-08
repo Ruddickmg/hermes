@@ -514,8 +514,10 @@ describe("hermes.binary", function()
 			-- Mock version module
 			stub(require("hermes.version"), "get_wanted").returns("v0.0.1")
 
-			-- Mock download to succeed
-			stub(binary, "download").returns(true)
+			-- Mock download async to succeed
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(true, nil)
+			end)
 			stub(vim.fn, "writefile")
 			stub(download, "get_available_tool").returns("curl")
 
@@ -549,8 +551,10 @@ describe("hermes.binary", function()
 			stub(vim.fn, "readfile").returns({ "v0.9.0" })
 			stub(vim.fn, "writefile")
 
-			-- Mock download to succeed
-			stub(binary, "download").returns(true)
+			-- Mock download async to succeed
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(true, nil)
+			end)
 			stub(download, "get_available_tool").returns("curl")
 
 			local callback_called = false

@@ -9,17 +9,69 @@ use std::sync::LazyLock;
 use tracing::warn;
 
 use crate::acp::registry::entry::AgentEntry;
+use crate::utilities::downloader::Downloader;
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Registry {
+/// Pure data object deserialized from the registry JSON.
+/// Can be serialized, cloned, and passed around freely.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct RegistryData {
     pub version: String,
     #[serde(deserialize_with = "deserialize_agents")]
     pub agents: HashMap<String, AgentEntry>,
 }
 
-impl Registry {
+impl RegistryData {
     pub fn get_entry(&self, id: &str) -> Option<&AgentEntry> {
         self.agents.get(id)
+    }
+
+    pub fn bundled() -> Option<RegistryData> {
+        REGISTRY_DATA.as_ref().map(|d| RegistryData {
+            version: d.version.clone(),
+            agents: d.agents.clone(),
+        })
+    }
+}
+
+/// Functional wrapper that holds registry data plus runtime utilities
+/// like the notification messenger for progress reporting.
+#[derive(Clone, Debug)]
+pub struct Registry {
+    pub data: RegistryData,
+    downloader: Downloader,
+}
+
+impl PartialEq for Registry {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
+}
+
+impl Eq for Registry {}
+
+impl std::hash::Hash for Registry {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data.hash(state);
+    }
+}
+
+impl Registry {
+    pub fn new(downloader: Downloader) -> Option<Self> {
+        RegistryData::bundled().map(|data| Self { data, downloader })
+    }
+
+    pub async fn fetch(&self, url: &str) -> crate::acp::Result<Registry> {
+        let url = url.to_owned();
+        let downloader = self.downloader.clone();
+        let text = blocking::unblock(move || {
+            downloader.download_to_string(&url, "hermes-registry-update", "Updating agent registry")
+        })
+        .await?;
+
+        Ok(Self {
+            data: serde_json::from_str(&text)?,
+            downloader: self.downloader.clone(),
+        })
     }
 }
 
@@ -53,28 +105,17 @@ pub struct PackageDistribution {
     pub env: Option<HashMap<String, String>>,
 }
 
-impl Registry {
-    pub fn bundled() -> Option<&'static Self> {
-        REGISTRY.as_ref()
-    }
-
-    pub async fn fetch(url: &str) -> crate::acp::Result<Self> {
-        let url = url.to_owned();
-        let text = blocking::unblock(move || -> crate::acp::Result<String> {
-            let mut response = ureq::get(&url)
-                .call()
-                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))?;
-            response
-                .body_mut()
-                .read_to_string()
-                .map_err(|e| crate::acp::error::Error::Network(e.to_string()))
-        })
-        .await?;
-        serde_json::from_str(&text).map_err(Into::into)
+impl std::hash::Hash for RegistryData {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.version.hash(state);
+        for (key, agent) in &self.agents {
+            key.hash(state);
+            agent.hash(state);
+        }
     }
 }
 
-static REGISTRY: LazyLock<Option<Registry>> = LazyLock::new(|| {
+static REGISTRY_DATA: LazyLock<Option<RegistryData>> = LazyLock::new(|| {
     let json = include_str!("registry.json");
     serde_json::from_str(json)
         .inspect_err(|e| warn!("Failed to parse bundled registry: {e}"))
@@ -87,19 +128,16 @@ mod tests {
 
     #[test]
     fn bundled_registry_parses_successfully() {
-        let registry = Registry::bundled();
-        assert!(
-            !registry.unwrap().version.is_empty(),
-            "version should not be empty"
-        );
+        let data = REGISTRY_DATA.as_ref().unwrap();
+        assert!(!data.version.is_empty(), "version should not be empty");
     }
 
     #[test]
     fn bundled_registry_agents_have_required_fields() {
-        let registry = Registry::bundled();
+        let data = REGISTRY_DATA.as_ref().unwrap();
         // Stub has empty agents (local dev); real registry has 35+ agents (CI)
         // Both are valid — verify structure when agents exist
-        for agent in registry.unwrap().agents.values() {
+        for agent in data.agents.values() {
             assert!(!agent.id.is_empty(), "agent id should not be empty");
             assert!(!agent.name.is_empty(), "agent name should not be empty");
             assert!(

@@ -5,6 +5,7 @@ use nvim_oxi::libuv::AsyncHandle;
 use nvim_oxi::{Array, Dictionary, Object, api};
 use std::ptr;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// A notification message to be delivered to Neovim
 #[derive(Debug, Clone, PartialEq)]
@@ -13,11 +14,46 @@ pub struct NotificationMessage {
     pub level: LogLevel,
 }
 
-/// A messenger that sends notifications from any thread to be delivered on Neovim's main thread
+/// A progress update to be delivered to Neovim
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProgressMessage {
+    pub id: String,
+    pub title: String,
+    pub status: ProgressStatus,
+    pub percent: Option<u32>,
+    pub text: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProgressStatus {
+    Begin,
+    Report,
+    End,
+}
+
+impl ProgressStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ProgressStatus::Begin => "begin",
+            ProgressStatus::Report => "report",
+            ProgressStatus::End => "end",
+        }
+    }
+}
+
+/// A messenger that sends notifications and progress updates from any thread
+/// to be delivered on Neovim's main thread
 #[derive(Clone)]
 pub struct NotificationMessenger {
     handle: Arc<AsyncHandle>,
-    sender: Arc<Sender<NotificationMessage>>,
+    sender: Arc<Sender<MessengerMessage>>,
+}
+
+/// Internal enum for routing messages through the same channel
+#[derive(Debug, Clone, PartialEq)]
+pub enum MessengerMessage {
+    Notification(NotificationMessage),
+    Progress(ProgressMessage),
 }
 
 impl PartialEq for NotificationMessenger {
@@ -52,7 +88,7 @@ impl NotificationMessenger {
     ///
     /// This is the low-level constructor for testing and custom initialization.
     /// For standard use, prefer `NotificationMessenger::initialize()`.
-    pub fn new(sender: Sender<NotificationMessage>, handle: AsyncHandle) -> Self {
+    pub fn new(sender: Sender<MessengerMessage>, handle: AsyncHandle) -> Self {
         Self {
             handle: Arc::new(handle),
             sender: Arc::new(sender),
@@ -64,33 +100,56 @@ impl NotificationMessenger {
     /// This creates a bounded channel with capacity 1000 and sets up the AsyncHandle callback.
     /// Must be called from Neovim's main thread.
     pub fn initialize() -> Result<Self> {
-        let (sender, receiver) = bounded::<NotificationMessage>(1000);
+        let (sender, receiver) = bounded::<MessengerMessage>(1000);
 
         let handle = AsyncHandle::new(move || {
-            while let Ok(notification) = receiver.try_recv() {
+            while let Ok(msg) = receiver.try_recv() {
                 // CRITICAL: Defer Neovim API calls via vim.schedule to avoid
                 // calling them during uv_run() which can crash Neovim.
                 // See NvimMessenger::initialize for full explanation.
                 nvim_oxi::schedule(move |_| {
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        let is_err = matches!(notification.level, LogLevel::Error);
-                        let hl_group = hl_group_for_level(notification.level);
-                        // Bypass EchoOpts builder (version-dependent struct layout) by calling
-                        // nvim_echo directly via call_function with a constructed Array/Dictionary.
-                        let chunk = Array::from((
-                            Object::from(notification.message.as_str()),
-                            Object::from(hl_group),
-                        ));
-                        let chunks = Array::from((chunk,));
-                        let mut opts = Dictionary::default();
-                        if is_err {
-                            opts.insert("err", Object::from(true));
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match msg {
+                        MessengerMessage::Notification(notification) => {
+                            let is_err = matches!(notification.level, LogLevel::Error);
+                            let hl_group = hl_group_for_level(notification.level);
+                            let chunk = Array::from((
+                                Object::from(notification.message.as_str()),
+                                Object::from(hl_group),
+                            ));
+                            let chunks = Array::from((chunk,));
+                            let mut opts = Dictionary::default();
+                            if is_err {
+                                opts.insert("err", Object::from(true));
+                            }
+                            api::call_function::<(Array, bool, Dictionary), Object>(
+                                "nvim_echo",
+                                (chunks, true, opts),
+                            )
+                            .ok();
                         }
-                        api::call_function::<(Array, bool, Dictionary), Object>(
-                            "nvim_echo",
-                            (chunks, true, opts),
-                        )
-                        .ok();
+                        MessengerMessage::Progress(progress) => {
+                            let chunk = Array::from((
+                                Object::from(progress.title.as_str()),
+                                Object::from(""),
+                            ));
+                            let chunks = Array::from((chunk,));
+                            let mut opts = Dictionary::default();
+                            opts.insert("kind", Object::from("progress"));
+                            opts.insert("id", Object::from(progress.id.as_str()));
+                            opts.insert("source", Object::from("hermes"));
+                            if let Some(percent) = progress.percent {
+                                opts.insert("percent", Object::from(percent as i64));
+                            }
+                            opts.insert("status", Object::from(progress.status.as_str()));
+                            if let Some(text) = &progress.text {
+                                opts.insert("title", Object::from(text.as_str()));
+                            }
+                            api::call_function::<(Array, bool, Dictionary), Object>(
+                                "nvim_echo",
+                                (chunks, true, opts),
+                            )
+                            .ok();
+                        }
                     }))
                     .ok();
                     Ok::<_, nvim_oxi::Error>(())
@@ -106,21 +165,28 @@ impl NotificationMessenger {
     ///
     /// The notification is queued and will be delivered on Neovim's main thread
     /// via the AsyncHandle callback.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// - The channel is full (capacity 1000 exceeded)
-    /// - The AsyncHandle fails to signal
     pub fn send(&self, message: String, level: LogLevel) -> Result<()> {
         self.sender
-            .try_send(NotificationMessage { message, level })
+            .try_send(MessengerMessage::Notification(NotificationMessage {
+                message,
+                level,
+            }))
             .map_err(|e| Error::Internal(format!("Failed to queue notification: {}", e)))?;
 
-        // Signal the AsyncHandle to process on main thread
         self.handle
             .send()
             .map_err(|e| Error::Internal(format!("Failed to signal notification handler: {}", e)))
+    }
+
+    /// Send a progress update (can be called from any thread)
+    pub fn send_progress(&self, progress: ProgressMessage) -> Result<()> {
+        self.sender
+            .try_send(MessengerMessage::Progress(progress))
+            .map_err(|e| Error::Internal(format!("Failed to queue progress: {}", e)))?;
+
+        self.handle
+            .send()
+            .map_err(|e| Error::Internal(format!("Failed to signal progress handler: {}", e)))
     }
 
     /// Get the number of messages in the queue
@@ -130,14 +196,49 @@ impl NotificationMessenger {
     }
 }
 
+/// A simple debouncing progress tracker for a single download operation
+#[derive(Debug, Clone)]
+pub struct ProgressTracker {
+    last_percent: u32,
+    last_emit: Instant,
+    min_delta_percent: u32,
+    min_delta_time: Duration,
+}
+
+impl ProgressTracker {
+    pub fn new(min_delta_percent: u32, min_delta_time_ms: u64) -> Self {
+        Self {
+            last_percent: 0,
+            last_emit: Instant::now(),
+            min_delta_percent,
+            min_delta_time: Duration::from_millis(min_delta_time_ms),
+        }
+    }
+
+    /// Returns true if progress should be emitted based on debounce rules
+    pub fn should_emit(&mut self, percent: u32) -> bool {
+        let now = Instant::now();
+        let percent_delta = percent.saturating_sub(self.last_percent);
+        let time_delta = now.duration_since(self.last_emit);
+
+        if percent_delta >= self.min_delta_percent || time_delta >= self.min_delta_time {
+            self.last_percent = percent;
+            self.last_emit = now;
+            true
+        } else {
+            false
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use proptest::prelude::*;
 
     struct TestableMessenger {
-        sender: Sender<NotificationMessage>,
-        receiver: crossbeam_channel::Receiver<NotificationMessage>,
+        sender: Sender<MessengerMessage>,
+        receiver: crossbeam_channel::Receiver<MessengerMessage>,
     }
 
     impl std::fmt::Debug for TestableMessenger {
@@ -150,17 +251,26 @@ mod tests {
 
     impl TestableMessenger {
         fn new(capacity: usize) -> Self {
-            let (sender, receiver) = bounded::<NotificationMessage>(capacity);
+            let (sender, receiver) = bounded::<MessengerMessage>(capacity);
             Self { sender, receiver }
         }
 
-        fn try_send(&self, message: String, level: LogLevel) -> Result<()> {
+        fn try_send_notification(&self, message: String, level: LogLevel) -> Result<()> {
             self.sender
-                .try_send(NotificationMessage { message, level })
+                .try_send(MessengerMessage::Notification(NotificationMessage {
+                    message,
+                    level,
+                }))
                 .map_err(|e| Error::Internal(format!("Failed to queue notification: {}", e)))
         }
 
-        fn try_recv(&self) -> Option<NotificationMessage> {
+        fn try_send_progress(&self, progress: ProgressMessage) -> Result<()> {
+            self.sender
+                .try_send(MessengerMessage::Progress(progress))
+                .map_err(|e| Error::Internal(format!("Failed to queue progress: {}", e)))
+        }
+
+        fn try_recv(&self) -> Option<MessengerMessage> {
             self.receiver.try_recv().ok()
         }
     }
@@ -216,9 +326,7 @@ mod tests {
 
     #[test]
     fn test_notification_messenger_new() {
-        let (_sender, receiver) = bounded::<NotificationMessage>(10);
-        // Note: We can't easily test with real AsyncHandle without Neovim
-        // but we can verify the channel setup
+        let (_sender, receiver) = bounded::<MessengerMessage>(10);
         assert_eq!(receiver.capacity(), Some(10));
     }
 
@@ -226,13 +334,15 @@ mod tests {
     fn test_notification_messenger_send_success() {
         let messenger = TestableMessenger::new(10);
 
-        let result = messenger.try_send("Test message".to_string(), LogLevel::Info);
+        let result = messenger.try_send_notification("Test message".to_string(), LogLevel::Info);
         assert!(result.is_ok());
 
-        // Verify message is in queue
         let msg = messenger.try_recv();
         assert!(msg.is_some());
-        assert_eq!(msg.unwrap().message, "Test message");
+        match msg.unwrap() {
+            MessengerMessage::Notification(n) => assert_eq!(n.message, "Test message"),
+            _ => panic!("Expected notification message"),
+        }
     }
 
     #[test]
@@ -240,15 +350,19 @@ mod tests {
         let messenger = TestableMessenger::new(10);
 
         for i in 0..5 {
-            let result = messenger.try_send(format!("Message {}", i), LogLevel::Info);
+            let result = messenger.try_send_notification(format!("Message {}", i), LogLevel::Info);
             assert!(result.is_ok());
         }
 
-        // Verify all messages are queued
         for i in 0..5 {
             let msg = messenger.try_recv();
             assert!(msg.is_some());
-            assert_eq!(msg.unwrap().message, format!("Message {}", i));
+            match msg.unwrap() {
+                MessengerMessage::Notification(n) => {
+                    assert_eq!(n.message, format!("Message {}", i))
+                }
+                _ => panic!("Expected notification message"),
+            }
         }
     }
 
@@ -256,16 +370,14 @@ mod tests {
     fn test_notification_messenger_send_channel_full() {
         let messenger = TestableMessenger::new(2);
 
-        // Fill the channel
         messenger
-            .try_send("msg1".to_string(), LogLevel::Info)
+            .try_send_notification("msg1".to_string(), LogLevel::Info)
             .unwrap();
         messenger
-            .try_send("msg2".to_string(), LogLevel::Info)
+            .try_send_notification("msg2".to_string(), LogLevel::Info)
             .unwrap();
 
-        // Third send should fail
-        let result = messenger.try_send("msg3".to_string(), LogLevel::Info);
+        let result = messenger.try_send_notification("msg3".to_string(), LogLevel::Info);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Failed to queue"));
     }
@@ -282,7 +394,7 @@ mod tests {
         ];
 
         for level in levels {
-            let result = messenger.try_send(format!("{:?}", level), level);
+            let result = messenger.try_send_notification(format!("{:?}", level), level);
             assert!(result.is_ok());
         }
     }
@@ -291,12 +403,15 @@ mod tests {
     fn test_notification_messenger_send_empty_message() {
         let messenger = TestableMessenger::new(10);
 
-        let result = messenger.try_send("".to_string(), LogLevel::Info);
+        let result = messenger.try_send_notification("".to_string(), LogLevel::Info);
         assert!(result.is_ok());
 
         let msg = messenger.try_recv();
         assert!(msg.is_some());
-        assert_eq!(msg.unwrap().message, "");
+        match msg.unwrap() {
+            MessengerMessage::Notification(n) => assert_eq!(n.message, ""),
+            _ => panic!("Expected notification message"),
+        }
     }
 
     #[test]
@@ -304,12 +419,15 @@ mod tests {
         let messenger = TestableMessenger::new(10);
 
         let special = r#"Special chars: <>&"' and unicode: 🎉"#;
-        let result = messenger.try_send(special.to_string(), LogLevel::Info);
+        let result = messenger.try_send_notification(special.to_string(), LogLevel::Info);
         assert!(result.is_ok());
 
         let msg = messenger.try_recv();
         assert!(msg.is_some());
-        assert_eq!(msg.unwrap().message, special);
+        match msg.unwrap() {
+            MessengerMessage::Notification(n) => assert_eq!(n.message, special),
+            _ => panic!("Expected notification message"),
+        }
     }
 
     #[test]
@@ -317,19 +435,20 @@ mod tests {
         let messenger = TestableMessenger::new(10);
 
         let long_message = "a".repeat(10000);
-        let result = messenger.try_send(long_message.clone(), LogLevel::Info);
+        let result = messenger.try_send_notification(long_message.clone(), LogLevel::Info);
         assert!(result.is_ok());
 
         let msg = messenger.try_recv();
         assert!(msg.is_some());
-        assert_eq!(msg.unwrap().message.len(), 10000);
+        match msg.unwrap() {
+            MessengerMessage::Notification(n) => assert_eq!(n.message.len(), 10000),
+            _ => panic!("Expected notification message"),
+        }
     }
 
     #[test]
     fn test_notification_messenger_debug_trait() {
-        let (sender, _receiver) = bounded::<NotificationMessage>(100);
-        // We can't create a real AsyncHandle in tests, but we can verify
-        // the struct fields are correct
+        let (sender, _receiver) = bounded::<MessengerMessage>(100);
         assert_eq!(sender.capacity(), Some(100));
     }
 
@@ -339,15 +458,14 @@ mod tests {
         fn test_send_never_panics_with_any_message(msg in any::<String>()) {
             let messenger = TestableMessenger::new(100);
             let level = LogLevel::Info;
-            // Should never panic regardless of input
-            let _ = messenger.try_send(msg, level);
+            let _ = messenger.try_send_notification(msg, level);
         }
 
         #[test]
         fn test_send_never_panics_with_any_level(level in 0i64..6) {
             let messenger = TestableMessenger::new(100);
             let level = LogLevel::from(level);
-            let _ = messenger.try_send("test".to_string(), level);
+            let _ = messenger.try_send_notification("test".to_string(), level);
         }
 
         #[test]
@@ -355,10 +473,10 @@ mod tests {
             let messenger = TestableMessenger::new(100);
             let level = LogLevel::Debug;
 
-            messenger.try_send(msg.clone(), level).ok();
+            messenger.try_send_notification(msg.clone(), level).ok();
 
             let received = messenger.try_recv();
-            if let Some(received_msg) = received {
+            if let Some(MessengerMessage::Notification(received_msg)) = received {
                 assert_eq!(received_msg.message, msg);
                 assert_eq!(received_msg.level, level);
             }
@@ -399,7 +517,7 @@ mod tests {
     fn test_notification_messenger_queue_len_after_send() {
         let messenger = TestableMessenger::new(10);
         messenger
-            .try_send("msg1".to_string(), LogLevel::Info)
+            .try_send_notification("msg1".to_string(), LogLevel::Info)
             .unwrap();
         assert_eq!(messenger.sender.len(), 1);
     }
@@ -409,7 +527,7 @@ mod tests {
         let messenger = TestableMessenger::new(10);
         for i in 0..5 {
             messenger
-                .try_send(format!("msg{}", i), LogLevel::Info)
+                .try_send_notification(format!("msg{}", i), LogLevel::Info)
                 .unwrap();
         }
         assert_eq!(messenger.sender.len(), 5);
@@ -419,7 +537,7 @@ mod tests {
     fn test_notification_messenger_queue_len_after_recv() {
         let messenger = TestableMessenger::new(10);
         messenger
-            .try_send("msg1".to_string(), LogLevel::Info)
+            .try_send_notification("msg1".to_string(), LogLevel::Info)
             .unwrap();
         assert_eq!(messenger.sender.len(), 1);
         messenger.try_recv();
@@ -463,10 +581,127 @@ mod tests {
     fn test_notification_messenger_remaining_capacity() {
         let messenger = TestableMessenger::new(10);
         messenger
-            .try_send("msg".to_string(), LogLevel::Info)
+            .try_send_notification("msg".to_string(), LogLevel::Info)
             .unwrap();
-        // Remaining capacity should be 9 after one send
         assert_eq!(messenger.sender.capacity(), Some(10));
+    }
+
+    #[test]
+    fn test_progress_message_creation() {
+        let msg = ProgressMessage {
+            id: "test-id".to_string(),
+            title: "Downloading".to_string(),
+            status: ProgressStatus::Begin,
+            percent: Some(0),
+            text: Some("Starting download".to_string()),
+        };
+        assert_eq!(msg.id, "test-id");
+        assert_eq!(msg.status, ProgressStatus::Begin);
+    }
+
+    #[test]
+    fn test_progress_status_as_str() {
+        assert_eq!(ProgressStatus::Begin.as_str(), "begin");
+        assert_eq!(ProgressStatus::Report.as_str(), "report");
+        assert_eq!(ProgressStatus::End.as_str(), "end");
+    }
+
+    #[test]
+    fn test_progress_messenger_send_success() {
+        let messenger = TestableMessenger::new(10);
+        let msg = ProgressMessage {
+            id: "id".to_string(),
+            title: "title".to_string(),
+            status: ProgressStatus::Report,
+            percent: Some(50),
+            text: None,
+        };
+        let result = messenger.try_send_progress(msg);
+        assert!(result.is_ok());
+
+        let received = messenger.try_recv();
+        assert!(received.is_some());
+        match received.unwrap() {
+            MessengerMessage::Progress(p) => assert_eq!(p.percent, Some(50)),
+            _ => panic!("Expected progress message"),
+        }
+    }
+
+    #[test]
+    fn test_progress_messenger_send_channel_full() {
+        let messenger = TestableMessenger::new(2);
+        for i in 0..2 {
+            let msg = ProgressMessage {
+                id: format!("id{}", i),
+                title: "title".to_string(),
+                status: ProgressStatus::Report,
+                percent: None,
+                text: None,
+            };
+            messenger.try_send_progress(msg).unwrap();
+        }
+        let extra = ProgressMessage {
+            id: "extra".to_string(),
+            title: "title".to_string(),
+            status: ProgressStatus::Report,
+            percent: None,
+            text: None,
+        };
+        let result = messenger.try_send_progress(extra);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_progress_tracker_initial_emit() {
+        let mut tracker = ProgressTracker::new(2, 250);
+        assert!(tracker.should_emit(1));
+        assert_eq!(tracker.last_percent, 1);
+    }
+
+    #[test]
+    fn test_progress_tracker_debounce_by_percent() {
+        let mut tracker = ProgressTracker::new(2, 250);
+        assert!(tracker.should_emit(0));
+        assert!(!tracker.should_emit(1));
+        assert!(tracker.should_emit(2));
+    }
+
+    #[test]
+    fn test_progress_tracker_debounce_by_time() {
+        let mut tracker = ProgressTracker::new(100, 0);
+        assert!(tracker.should_emit(0));
+        assert!(tracker.should_emit(1));
+    }
+
+    #[test]
+    fn test_progress_tracker_no_backward_progress() {
+        let mut tracker = ProgressTracker::new(2, 250);
+        assert!(tracker.should_emit(50));
+        assert!(!tracker.should_emit(49));
+    }
+
+    #[test]
+    fn test_messenger_message_is_send() {
+        fn assert_send<T: Send>() {}
+        assert_send::<MessengerMessage>();
+    }
+
+    #[test]
+    fn test_messenger_message_is_sync() {
+        fn assert_sync<T: Sync>() {}
+        assert_sync::<MessengerMessage>();
+    }
+
+    #[test]
+    fn test_progress_message_is_send() {
+        fn assert_send<T: Send>() {}
+        assert_send::<ProgressMessage>();
+    }
+
+    #[test]
+    fn test_progress_message_is_sync() {
+        fn assert_sync<T: Sync>() {}
+        assert_sync::<ProgressMessage>();
     }
 
     #[test]
