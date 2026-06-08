@@ -5,12 +5,12 @@ use agent_client_protocol::schema::{
     DeleteSessionResponse, ExtResponse, Implementation, InitializeResponse, ListSessionsResponse,
     LoadSessionResponse, McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionId,
     PermissionOptionKind, PromptCapabilities, ProtocolVersion, ReadTextFileRequest,
-    ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse, SessionCapabilities,
-    SessionCloseCapabilities, SessionDeleteCapabilities, SessionForkCapabilities, SessionId,
-    SessionInfo, SessionListCapabilities, SessionResumeCapabilities,
-    SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
-    TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
-    WaitForTerminalExitRequest, WriteTextFileRequest,
+    ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse,
+    SessionAdditionalDirectoriesCapabilities, SessionCapabilities, SessionCloseCapabilities,
+    SessionDeleteCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
+    SessionListCapabilities, SessionResumeCapabilities, SetSessionConfigOptionResponse,
+    SetSessionModeResponse, SetSessionModelResponse, TerminalOutputRequest, ToolCallId,
+    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -81,7 +81,10 @@ impl Default for MockConfig {
                                 .fork(Some(SessionForkCapabilities::new()))
                                 .resume(Some(SessionResumeCapabilities::new()))
                                 .close(Some(SessionCloseCapabilities::new()))
-                                .delete(Some(SessionDeleteCapabilities::new())),
+                                .delete(Some(SessionDeleteCapabilities::new()))
+                                .additional_directories(Some(
+                                    SessionAdditionalDirectoriesCapabilities::new(),
+                                )),
                         ),
                 ),
             authenticate_response: AuthenticateResponse::default(),

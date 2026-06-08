@@ -14,6 +14,7 @@ pub enum CreateSessionArgs {
     Default,
     Configuration {
         cwd: Option<PathBuf>,
+        additional_directories: Option<Vec<PathBuf>>,
         mcp_servers: Option<Vec<McpServer>>,
     },
 }
@@ -34,11 +35,33 @@ impl FromObject for CreateSessionArgs {
                 .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
         });
 
-        // Updated key to "mcpServers" to match README
-        let mcp_servers: Option<Vec<McpServer>> =
-            dict.get("mcpServers").and_then(parse_mcp_servers);
+        let additional_directories: Option<Vec<PathBuf>> =
+            dict.get("additional_directories").and_then(|obj| {
+                if let nvim_oxi::ObjectKind::Array = obj.kind() {
+                    let array = unsafe { obj.clone().into_array_unchecked() };
+                    Some(
+                        array
+                            .into_iter()
+                            .filter_map(|v| {
+                                v.try_into()
+                                    .ok()
+                                    .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
+                            })
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            });
 
-        Ok(Self::Configuration { cwd, mcp_servers })
+        let mcp_servers: Option<Vec<McpServer>> =
+            dict.get("mcp_servers").and_then(parse_mcp_servers);
+
+        Ok(Self::Configuration {
+            cwd,
+            additional_directories,
+            mcp_servers,
+        })
     }
 }
 
@@ -63,10 +86,21 @@ impl Pushable for CreateSessionArgs {
     ) -> Result<i32, nvim_oxi::lua::Error> {
         let obj = match self {
             Self::Default => Object::nil(),
-            Self::Configuration { cwd, mcp_servers } => {
+            Self::Configuration {
+                cwd,
+                additional_directories,
+                mcp_servers,
+            } => {
                 let mut dict = Dictionary::new();
                 if let Some(cwd) = cwd {
                     dict.insert("cwd", cwd.to_string_lossy().to_string());
+                }
+                if let Some(dirs) = additional_directories {
+                    let arr: nvim_oxi::Array = dirs
+                        .into_iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect();
+                    dict.insert("additional_directories", arr);
                 }
                 if let Some(servers) = mcp_servers {
                     let array = servers
@@ -138,7 +172,7 @@ impl Pushable for CreateSessionArgs {
                             ))),
                         })
                         .collect::<Result<nvim_oxi::Array, nvim_oxi::lua::Error>>()?;
-                    dict.insert("mcpServers", array);
+                    dict.insert("mcp_servers", array);
                 }
                 Object::from(dict)
             }
@@ -161,19 +195,28 @@ impl Api {
             CreateSessionArgs::Default => {
                 agent_client_protocol::schema::NewSessionRequest::new(project_root)
             }
-            CreateSessionArgs::Configuration { cwd, mcp_servers } => {
-                agent_client_protocol::schema::NewSessionRequest::new(cwd.unwrap_or(project_root))
-                    .mcp_servers(
-                        mcp_servers
-                            .unwrap_or_default()
-                            .into_iter()
-                            .filter(|mcp| match mcp {
-                                McpServer::Http(_) => can_connect_over_http,
-                                McpServer::Sse(_) => can_connect_over_sse,
-                                _ => true,
-                            })
-                            .collect(),
-                    )
+            CreateSessionArgs::Configuration {
+                cwd,
+                additional_directories,
+                mcp_servers,
+            } => {
+                let mut req = agent_client_protocol::schema::NewSessionRequest::new(
+                    cwd.unwrap_or(project_root),
+                );
+                if agent_info.can_use_additional_directories() {
+                    req = req.additional_directories(additional_directories.unwrap_or_default());
+                }
+                req.mcp_servers(
+                    mcp_servers
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|mcp| match mcp {
+                            McpServer::Http(_) => can_connect_over_http,
+                            McpServer::Sse(_) => can_connect_over_sse,
+                            _ => true,
+                        })
+                        .collect(),
+                )
             }
         };
 
@@ -324,7 +367,7 @@ mod session_args_tests {
         server.insert("command", "test-cmd");
 
         let servers = vec![server].into_iter().collect::<nvim_oxi::Array>();
-        dict.insert("mcpServers", servers);
+        dict.insert("mcp_servers", servers);
 
         let obj = Object::from(dict);
         CreateSessionArgs::from_object(obj).unwrap()
@@ -405,7 +448,7 @@ mod session_args_tests {
         let servers = vec![sse_server, http_server, stdio_server]
             .into_iter()
             .collect::<nvim_oxi::Array>();
-        dict.insert("mcpServers", servers);
+        dict.insert("mcp_servers", servers);
 
         let obj = Object::from(dict);
         CreateSessionArgs::from_object(obj).unwrap()
@@ -542,7 +585,7 @@ mod session_args_tests {
             .into_iter()
             .collect::<nvim_oxi::Array>();
 
-        dict.insert("mcpServers", servers);
+        dict.insert("mcp_servers", servers);
 
         let obj = Object::from(dict);
         let args = CreateSessionArgs::from_object(obj).unwrap();
@@ -593,7 +636,7 @@ mod session_args_tests {
         server_dict.insert("name", "http-srv");
         server_dict.insert("url", "http://example.com");
         let servers = vec![server_dict].into_iter().collect::<nvim_oxi::Array>();
-        dict.insert("mcpServers", servers);
+        dict.insert("mcp_servers", servers);
         CreateSessionArgs::from_object(Object::from(dict)).unwrap()
     }
 
@@ -604,7 +647,7 @@ mod session_args_tests {
         server_dict.insert("name", "sse-srv");
         server_dict.insert("url", "http://sse.example.com");
         let servers = vec![server_dict].into_iter().collect::<nvim_oxi::Array>();
-        dict.insert("mcpServers", servers);
+        dict.insert("mcp_servers", servers);
         CreateSessionArgs::from_object(Object::from(dict)).unwrap()
     }
 
@@ -615,7 +658,7 @@ mod session_args_tests {
         server_dict.insert("name", "stdio-srv");
         server_dict.insert("command", "my-cmd");
         let servers = vec![server_dict].into_iter().collect::<nvim_oxi::Array>();
-        dict.insert("mcpServers", servers);
+        dict.insert("mcp_servers", servers);
         CreateSessionArgs::from_object(Object::from(dict)).unwrap()
     }
 
@@ -704,6 +747,82 @@ mod session_args_tests {
                     McpServer::Stdio(s) => assert_eq!(s.command, PathBuf::from("my-cmd")),
                     _ => panic!("Expected Stdio server after round-trip"),
                 }
+            }
+            _ => panic!("Expected Configuration variant"),
+        }
+    }
+
+    #[test]
+    fn test_from_object_with_additional_directories() {
+        let mut dict = Dictionary::new();
+        let dirs = vec!["src", "tests"]
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let args = CreateSessionArgs::from_object(Object::from(dict)).unwrap();
+        match args {
+            CreateSessionArgs::Configuration {
+                additional_directories,
+                ..
+            } => {
+                assert_eq!(
+                    additional_directories,
+                    Some(vec![PathBuf::from("src"), PathBuf::from("tests")])
+                );
+            }
+            _ => panic!("Expected Configuration variant"),
+        }
+    }
+
+    #[test]
+    fn test_from_object_without_additional_directories() {
+        let mut dict = Dictionary::new();
+        dict.insert("cwd", "/tmp/test");
+        let args = CreateSessionArgs::from_object(Object::from(dict)).unwrap();
+        match args {
+            CreateSessionArgs::Configuration {
+                additional_directories,
+                ..
+            } => {
+                assert_eq!(additional_directories, None);
+            }
+            _ => panic!("Expected Configuration variant"),
+        }
+    }
+
+    #[test]
+    fn test_pushable_with_additional_directories() {
+        let args = CreateSessionArgs::Configuration {
+            cwd: Some(PathBuf::from("/project")),
+            additional_directories: Some(vec![PathBuf::from("src")]),
+            mcp_servers: None,
+        };
+        // Verify the struct can be constructed with additional_directories
+        match args {
+            CreateSessionArgs::Configuration {
+                additional_directories,
+                ..
+            } => {
+                assert_eq!(additional_directories, Some(vec![PathBuf::from("src")]));
+            }
+            _ => panic!("Expected Configuration variant"),
+        }
+    }
+
+    #[test]
+    fn test_from_object_empty_additional_directories_array() {
+        let mut dict = Dictionary::new();
+        let dirs = Vec::<String>::new()
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let args = CreateSessionArgs::from_object(Object::from(dict)).unwrap();
+        match args {
+            CreateSessionArgs::Configuration {
+                additional_directories,
+                ..
+            } => {
+                assert_eq!(additional_directories, Some(vec![]));
             }
             _ => panic!("Expected Configuration variant"),
         }
