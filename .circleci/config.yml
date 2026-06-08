@@ -440,11 +440,7 @@ jobs:
             command -v cargo-nextest &> /dev/null || cargo install cargo-nextest --locked
       - run:
           name: Run unit tests
-          command: |
-            eval "$(cargo llvm-cov show-env --export-prefix)"
-            cargo llvm-cov clean --workspace
-            cargo nextest run --package hermes --all-features
-            cargo llvm-cov report --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
+          command: cargo llvm-cov nextest --package hermes --bins --lib --all-features --lcov --output-path unit.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: unit.coverage.info
 
@@ -484,7 +480,11 @@ jobs:
           command: |
             eval "$(cargo llvm-cov show-env --export-prefix)"
             cargo llvm-cov clean --workspace
+            cargo build --all-features --package hermes-integration
             cargo nextest run --package hermes-integration --all-features
+            # Collect profraw files from wherever show-env placed them
+            mkdir -p target/llvm-cov-target
+            find target -path target/llvm-cov-target -prune -o -name "*.profraw" -exec mv {} target/llvm-cov-target/ \; 2>/dev/null || true
             cargo llvm-cov report --lcov --output-path integration.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: integration.coverage.info
@@ -533,6 +533,9 @@ jobs:
             eval "$(cargo llvm-cov show-env --export-prefix)"
             cargo llvm-cov clean --workspace
             cargo nextest run --package hermes-e2e --all-features --no-capture
+            # Collect profraw files from wherever show-env placed them
+            mkdir -p target/llvm-cov-target
+            find target -path target/llvm-cov-target -prune -o -name "*.profraw" -exec mv {} target/llvm-cov-target/ \; 2>/dev/null || true
             cargo llvm-cov report --lcov --output-path e2e.coverage.info --ignore-filename-regex 'tests/.*'
       - upload-coverage:
           file: e2e.coverage.info
