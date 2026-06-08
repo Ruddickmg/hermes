@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn bundled_registry_opencode_has_binary_target_for_current_platform() {
         let json = include_str!("registry.json");
-        let data: super::super::Registry =
+        let data: super::super::RegistryData =
             serde_json::from_str(json).expect("Bundled registry should parse");
 
         let opencode = data
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn bundled_registry_all_binary_keys_follow_os_arch_format() {
         let json = include_str!("registry.json");
-        let data: super::super::Registry =
+        let data: super::super::RegistryData =
             serde_json::from_str(json).expect("Bundled registry should parse");
 
         let mut checked = 0u32;

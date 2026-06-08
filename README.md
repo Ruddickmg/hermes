@@ -2307,9 +2307,6 @@ Run the health check to see full diagnostics including Neovim version, binary st
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 
   - [ ] add references made by agent to quickfix list
-- [ ] Integrate with signs
-  - [ ] Configurable
-  - [ ] Show lines edited by agent
 - [ ] look into ways of improving ai integration
   - [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
   - [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)

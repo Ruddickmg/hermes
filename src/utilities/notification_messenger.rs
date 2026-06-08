@@ -652,18 +652,18 @@ mod tests {
     }
 
     #[test]
-    fn test_progress_tracker_initial_emit() {
+    fn test_progress_tracker_initial_emit_when_delta_met() {
         let mut tracker = ProgressTracker::new(2, 250);
-        assert!(tracker.should_emit(1));
-        assert_eq!(tracker.last_percent, 1);
+        assert!(tracker.should_emit(2));
+        assert_eq!(tracker.last_percent, 2);
     }
 
     #[test]
     fn test_progress_tracker_debounce_by_percent() {
         let mut tracker = ProgressTracker::new(2, 250);
-        assert!(tracker.should_emit(0));
-        assert!(!tracker.should_emit(1));
         assert!(tracker.should_emit(2));
+        assert!(!tracker.should_emit(3));
+        assert!(tracker.should_emit(4));
     }
 
     #[test]

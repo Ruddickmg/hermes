@@ -2,6 +2,7 @@
 pub mod autocmd;
 pub mod buf_options;
 pub mod buffer;
+pub mod downloader;
 pub mod file;
 pub mod job;
 pub mod logging;

@@ -35,15 +35,13 @@ impl Downloader {
     }
 
     pub fn download_to_string(&self, url: &str, id: &str, title: &str) -> Result<String> {
-        let mut result = String::new();
+        let mut body = Vec::new();
         self.download(url, id, title, |bytes| {
-            String::from_utf8(bytes)
-                .map_err(|e| Error::Network(format!("Failed to decode response: {e}")))
-                .map(|s| {
-                    result += &s;
-                })
+            body.extend_from_slice(&bytes);
+            Ok(())
         })?;
-        Ok(result)
+        String::from_utf8(body)
+            .map_err(|e| Error::Network(format!("Failed to decode response: {e}")))
     }
 
     /// Download a URL to a buffer in memory, streaming with progress reporting.
@@ -54,7 +52,7 @@ impl Downloader {
         self.messenger.send_progress(ProgressMessage {
             id: id.to_string(),
             title: title.to_string(),
-            status: ProgressStatus::End,
+            status: ProgressStatus::Begin,
             percent: Some(0),
             text: Some(format!("Downloading from {}", url)),
         })?;
@@ -92,7 +90,7 @@ impl Downloader {
                     self.messenger.send_progress(ProgressMessage {
                         id: id.to_string(),
                         title: title.to_string(),
-                        status: ProgressStatus::End,
+                        status: ProgressStatus::Report,
                         percent: Some(percent),
                         text: Some(format!("{}% downloaded", percent)),
                     })?;

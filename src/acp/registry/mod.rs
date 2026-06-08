@@ -125,6 +125,7 @@ static REGISTRY_DATA: LazyLock<Option<RegistryData>> = LazyLock::new(|| {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::acp::registry::entry::AgentEntry;
 
     #[test]
     fn bundled_registry_parses_successfully() {
@@ -149,5 +150,69 @@ mod tests {
                 "agent description should not be empty"
             );
         }
+    }
+
+    #[test]
+    fn registry_data_get_entry_returns_some_for_existing_agent() {
+        let data = REGISTRY_DATA.as_ref().unwrap();
+        if let Some(agent) = data.agents.keys().next() {
+            assert!(
+                data.get_entry(agent).is_some(),
+                "Should find existing agent"
+            );
+        }
+    }
+
+    #[test]
+    fn registry_data_get_entry_returns_none_for_missing_agent() {
+        let data = REGISTRY_DATA.as_ref().unwrap();
+        assert!(
+            data.get_entry("definitely-not-a-real-agent-xyz").is_none(),
+            "Should return None for missing agent"
+        );
+    }
+
+    #[test]
+    fn registry_data_bundled_returns_some() {
+        let data = RegistryData::bundled();
+        assert!(
+            data.is_some(),
+            "Bundled registry should always be available"
+        );
+    }
+
+    #[test]
+    fn registry_data_bundled_contains_version() {
+        let data = RegistryData::bundled().unwrap();
+        assert!(
+            !data.version.is_empty(),
+            "Bundled registry should have a version"
+        );
+    }
+
+    #[test]
+    fn registry_data_equality_matches_data_only() {
+        let data1 = RegistryData {
+            version: "1.0.0".to_string(),
+            agents: HashMap::new(),
+        };
+        let data2 = RegistryData {
+            version: "1.0.0".to_string(),
+            agents: HashMap::new(),
+        };
+        assert_eq!(data1, data2, "Identical data should be equal");
+    }
+
+    #[test]
+    fn registry_data_inequality_detects_version_difference() {
+        let data1 = RegistryData {
+            version: "1.0.0".to_string(),
+            agents: HashMap::new(),
+        };
+        let data2 = RegistryData {
+            version: "2.0.0".to_string(),
+            agents: HashMap::new(),
+        };
+        assert_ne!(data1, data2, "Different versions should not be equal");
     }
 }
