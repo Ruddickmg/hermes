@@ -433,8 +433,7 @@ describe("hermes.init (main API)", function()
 		it("get_loading_state returns READY when binary exists", function()
 			local binary = require("hermes.binary")
 			local bin_path = binary.get_binary_path()
-			local data_dir = binary.get_data_dir()
-			
+
 			-- Ensure filereadable reports the binary exists (avoids CI filesystem timing issues)
 			local orig_filereadable = vim.fn.filereadable
 			local fr_stub = stub(vim.fn, "filereadable").invokes(function(path)
