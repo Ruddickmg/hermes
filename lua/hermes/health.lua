@@ -225,7 +225,17 @@ M.check = function()
 		local size = vim.fn.getfsize(bin_path)
 		vim.health.ok("Binary exists (" .. format_bytes(size) .. ")")
 	else
-		vim.health.error("Binary not found — will download on first use")
+		local download_cfg = require("hermes.config").get_download()
+		if download_cfg and download_cfg.auto == false then
+			vim.health.error("Binary not found — needs to be built from source (auto-download disabled)")
+			if vim.fn.executable("cargo") == 1 then
+				vim.health.ok("Rust/Cargo is installed")
+			else
+				vim.health.error("Rust/Cargo is not installed — required to build from source")
+			end
+		else
+			vim.health.error("Binary not found — will download on first use")
+		end
 	end
 
 	-- =========================================================================
@@ -276,7 +286,12 @@ M.check = function()
 	if platform.is_supported() then
 		vim.health.ok("Platform is supported")
 	else
-		vim.health.error("Platform is not supported")
+		vim.health.error("Platform is not supported — build from source required")
+		if vim.fn.executable("cargo") == 1 then
+			vim.health.ok("Rust/Cargo is installed")
+		else
+			vim.health.error("Rust/Cargo is not installed — required to build from source")
+		end
 	end
 
 	-- =========================================================================

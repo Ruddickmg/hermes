@@ -141,11 +141,42 @@ describe("hermes.health", function()
 			assert.is_true(has_call(calls.ok, "Binary exists"))
 		end)
 
-		it("reports error when binary file missing", function()
+		it("reports error when binary file missing with auto-download enabled", function()
 			local fr = stub(vim.fn, "filereadable").returns(0)
 			health.check()
 			fr:revert()
-			assert.is_true(has_call(calls.error, "Binary not found"))
+			assert.is_true(has_call(calls.error, "will download on first use"))
+		end)
+
+		it("reports error when binary file missing with auto-download disabled", function()
+			local config = require("hermes.config")
+			config.setup({ download = { auto = false } })
+			local fr = stub(vim.fn, "filereadable").returns(0)
+			health.check()
+			fr:revert()
+			assert.is_true(has_call(calls.error, "needs to be built from source"))
+		end)
+
+		it("reports ok for cargo when binary missing and auto-download disabled", function()
+			local config = require("hermes.config")
+			config.setup({ download = { auto = false } })
+			local fr = stub(vim.fn, "filereadable").returns(0)
+			local exe = stub(vim.fn, "executable").returns(1)
+			health.check()
+			fr:revert()
+			exe:revert()
+			assert.is_true(has_call(calls.ok, "Rust/Cargo is installed"))
+		end)
+
+		it("reports error for cargo when binary missing and auto-download disabled", function()
+			local config = require("hermes.config")
+			config.setup({ download = { auto = false } })
+			local fr = stub(vim.fn, "filereadable").returns(0)
+			local exe = stub(vim.fn, "executable").returns(0)
+			health.check()
+			fr:revert()
+			exe:revert()
+			assert.is_true(has_call(calls.error, "Rust/Cargo is not installed"))
 		end)
 
 		it("includes Version section", function()
@@ -173,6 +204,37 @@ describe("hermes.health", function()
 		it("reports ok for supported platform", function()
 			health.check()
 			assert.is_true(has_call(calls.ok, "Platform is supported"))
+		end)
+
+		it("reports error for unsupported platform and notes source build", function()
+			local platform = require("hermes.platform")
+			local orig = platform.is_supported
+			platform.is_supported = function() return false end
+			health.check()
+			platform.is_supported = orig
+			assert.is_true(has_call(calls.error, "build from source required"))
+		end)
+
+		it("reports error for missing cargo on unsupported platform", function()
+			local platform = require("hermes.platform")
+			local orig = platform.is_supported
+			platform.is_supported = function() return false end
+			local exe = stub(vim.fn, "executable").returns(0)
+			health.check()
+			platform.is_supported = orig
+			exe:revert()
+			assert.is_true(has_call(calls.error, "Rust/Cargo is not installed"))
+		end)
+
+		it("reports ok for cargo on unsupported platform", function()
+			local platform = require("hermes.platform")
+			local orig = platform.is_supported
+			platform.is_supported = function() return false end
+			local exe = stub(vim.fn, "executable").returns(1)
+			health.check()
+			platform.is_supported = orig
+			exe:revert()
+			assert.is_true(has_call(calls.ok, "Rust/Cargo is installed"))
 		end)
 
 		it("includes Download Tools section", function()
