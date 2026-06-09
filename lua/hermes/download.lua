@@ -191,7 +191,8 @@ end
 ---@return number|nil job_id The jobstart id, or nil if failed to start
 ---@private
 -- luacov: enable
-function M.download_async(url, dest_path, progress_id, on_complete)
+function M.download_async(url, dest_path, progress_id, on_complete, title)
+	title = title or "Downloading Hermes binary"
 	local tool = M.get_available_tool()
 
 	if not tool then
@@ -247,7 +248,7 @@ function M.download_async(url, dest_path, progress_id, on_complete)
 	local debounce_ms = 250
 	local min_delta_percent = 2
 
-	M.emit_progress(progress_id, "Downloading Hermes binary", "begin", 0, "Starting download...")
+	M.emit_progress(progress_id, title, "begin", 0, "Starting download...")
 
 	local job_id = vim.fn.jobstart(cmd, {
 		on_stdout = function(_, data)
@@ -280,49 +281,49 @@ function M.download_async(url, dest_path, progress_id, on_complete)
 							if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
 								last_percent = percent
 								last_emit_time = now
-								M.emit_progress(
-									progress_id,
-									"Downloading Hermes binary",
-									"report",
-									percent,
-									percent .. "% downloaded"
-								)
-							end
+							M.emit_progress(
+								progress_id,
+								title,
+								"report",
+								percent,
+								percent .. "% downloaded"
+							)
 						end
 					end
 				end
-			elseif tool == "wget" then
-				-- wget dot progress: each dot is ~1KB, hard to convert to percent
-				-- Just emit a heartbeat every few seconds to show activity
-				for _, line in ipairs(data) do
-					if line and line:match("%d+%%") then
-						local pct = tonumber(line:match("(%d+)%%"))
-						if pct then
-							local now = vim.loop.now()
-							local delta_pct = pct - last_percent
-							local delta_time = now - last_emit_time
-							if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
-								last_percent = pct
-								last_emit_time = now
-								M.emit_progress(
-									progress_id,
-									"Downloading Hermes binary",
-									"report",
-									pct,
-									pct .. "% downloaded"
-								)
+			end
+		elseif tool == "wget" then
+			-- wget dot progress: each dot is ~1KB, hard to convert to percent
+			-- Just emit a heartbeat every few seconds to show activity
+			for _, line in ipairs(data) do
+				if line and line:match("%d+%%") then
+					local pct = tonumber(line:match("(%d+)%%"))
+					if pct then
+						local now = vim.loop.now()
+						local delta_pct = pct - last_percent
+						local delta_time = now - last_emit_time
+						if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
+							last_percent = pct
+							last_emit_time = now
+							M.emit_progress(
+								progress_id,
+								title,
+								"report",
+								pct,
+								pct .. "% downloaded"
+							)
 							end
 						end
 					end
 				end
 			end
 		end,
-		on_exit = vim.schedule_wrap(function(_, exit_code, _)
+			on_exit = vim.schedule_wrap(function(_, exit_code, _)
 			if exit_code ~= 0 then
 				local stderr_output = table.concat(stdout_data, "\n")
 				M.emit_progress(
 					progress_id,
-					"Download failed",
+					title,
 					"end",
 					nil,
 					"Download failed with exit code " .. exit_code
@@ -353,7 +354,7 @@ function M.download_async(url, dest_path, progress_id, on_complete)
 				uv.fs_unlink(dest_path)
 				M.emit_progress(
 					progress_id,
-					"Download failed",
+					title,
 					"end",
 					nil,
 					"Downloaded file is too small or empty"
@@ -368,7 +369,7 @@ function M.download_async(url, dest_path, progress_id, on_complete)
 
 			M.emit_progress(
 				progress_id,
-				"Download complete",
+				title,
 				"end",
 				100,
 				"Download finished successfully"

@@ -693,67 +693,83 @@ function M.ensure_binary_async(timeout, on_complete)
 		return
 	end
 
-	-- Use vim.schedule to make the entire process async
-	vim.schedule(function()
-		local bin_path = M.get_binary_path()
-		local ver_file = M.get_version_file()
-		local wanted_ver = version.get_wanted()
+	local bin_path = M.get_binary_path()
+	local ver_file = M.get_version_file()
+	local wanted_ver = version.get_wanted()
 
-		-- Check if binary already exists
-		if vim.fn.filereadable(bin_path) == 1 then
-			-- Binary exists - check if version matches config
-			if vim.fn.filereadable(ver_file) == 1 then
-				local current_ver = vim.fn.readfile(ver_file)[1]
-				-- If versions match, use existing binary
-				if current_ver == wanted_ver then
-					on_complete(true, bin_path)
-					return
-				end
-				-- Versions differ - will download new version
-			end
-			-- No version file or version mismatch - will download
-		end
-
-		-- Ensure data directory exists
-		vim.fn.mkdir(M.get_data_dir(), "p")
-
-		-- If version is "latest", fetch the actual latest version
-		if wanted_ver == "latest" then
-			local version_mod = require("hermes.version")
-			wanted_ver = version_mod.fetch_latest()
-		end
-
-		-- Construct download URL
-		local url =
-			string.format("https://github.com/Ruddickmg/hermes.nvim/releases/download/%s/%s", wanted_ver, M.get_binary_name())
-
-		-- Binary doesn't exist or version differs, need to download
-		_download_in_progress = true
-		local progress_id = "hermes-binary-download"
-
-		local job_id = download_mod.download_async(url, bin_path, progress_id, function(download_ok, download_err)
-			_download_in_progress = false
-			_download_job = nil
-
-			if download_ok then
-				-- Make executable (Unix-like systems)
-				if vim.fn.has("win32") ~= 1 then
-					vim.fn.system({ "chmod", "+x", bin_path })
-				end
-				-- Save version for reference
-				vim.fn.writefile({ wanted_ver }, ver_file)
+	-- Check if binary already exists
+	if vim.fn.filereadable(bin_path) == 1 then
+		-- Binary exists - check if version matches config
+		if vim.fn.filereadable(ver_file) == 1 then
+			local current_ver = vim.fn.readfile(ver_file)[1]
+			-- If versions match, use existing binary
+			if current_ver == wanted_ver then
 				on_complete(true, bin_path)
-			else
-				on_complete(false, download_err or "Download failed")
+				return
 			end
-		end)
+			-- Versions differ - will download new version
+		end
+		-- No version file or version mismatch - will download
+	end
 
-		if job_id and job_id > 0 then
-			_download_job = job_id
+	-- Ensure data directory exists
+	vim.fn.mkdir(M.get_data_dir(), "p")
+
+	-- If version is "latest", fetch the actual latest version asynchronously
+	if wanted_ver == "latest" then
+		local version_mod = require("hermes.version")
+		version_mod.fetch_latest_async(function(tag, _err)
+			if not tag then
+				on_complete(false, "Failed to fetch latest version")
+				return
+			end
+			M._download_binary_async(tag, bin_path, ver_file, on_complete)
+		end)
+	else
+		M._download_binary_async(wanted_ver, bin_path, ver_file, on_complete)
+	end
+end
+
+-- luacov: disable
+---Download binary asynchronously (internal helper)
+---@param wanted_ver string Version to download
+---@param bin_path string Binary path
+---@param ver_file string Version file path
+---@param on_complete function Callback function(success: boolean, result: string)
+-- luacov: enable
+function M._download_binary_async(wanted_ver, bin_path, ver_file, on_complete)
+	local download_mod = get_download()
+
+	-- Construct download URL
+	local url =
+		string.format("https://github.com/Ruddickmg/hermes.nvim/releases/download/%s/%s", wanted_ver, M.get_binary_name())
+
+	-- Binary doesn't exist or version differs, need to download
+	_download_in_progress = true
+	local progress_id = "hermes-binary-download"
+
+	local job_id = download_mod.download_async(url, bin_path, progress_id, function(download_ok, download_err)
+		_download_in_progress = false
+		_download_job = nil
+
+		if download_ok then
+			-- Make executable (Unix-like systems)
+			if vim.fn.has("win32") ~= 1 then
+				vim.fn.system({ "chmod", "+x", bin_path })
+			end
+			-- Save version for reference
+			vim.fn.writefile({ wanted_ver }, ver_file)
+			on_complete(true, bin_path)
 		else
-			_download_in_progress = false
+			on_complete(false, download_err or "Download failed")
 		end
 	end)
+
+	if job_id and job_id > 0 then
+		_download_job = job_id
+	else
+		_download_in_progress = false
+	end
 end
 
 return M

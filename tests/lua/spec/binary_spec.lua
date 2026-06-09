@@ -59,6 +59,11 @@ describe("hermes.binary", function()
 				vim.fn.executable:revert()
 			end
 		end)
+		pcall(function()
+			if vim.fn.filereadable.revert then
+				vim.fn.filereadable:revert()
+			end
+		end)
 	end)
 
 	describe("get_data_dir()", function()
