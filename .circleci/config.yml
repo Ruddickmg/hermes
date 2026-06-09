@@ -169,13 +169,13 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - v1-cargo-{{ checksum "Cargo.lock" }}
-            - v1-cargo-
+            - v1-cargo-{{ arch }}-{{ checksum "Cargo.lock" }}
+            - v1-cargo-{{ arch }}-
 
   save-cargo-cache:
     steps:
       - save_cache:
-          key: v1-cargo-{{ checksum "Cargo.lock" }}
+          key: v1-cargo-{{ arch }}-{{ checksum "Cargo.lock" }}
           paths:
             - ~/.cargo/registry/index
             - ~/.cargo/registry/cache
@@ -297,6 +297,7 @@ jobs:
       - run:
           name: Build for aarch64
           command: cargo build --release
+      - save-cargo-cache
       - run:
           name: Rename binary
           command: mv target/release/libhermes.so target/release/libhermes-linux-aarch64.so
