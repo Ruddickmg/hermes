@@ -1,6 +1,7 @@
 pub mod autocmd;
 pub mod buf_options;
 pub mod buffer;
+pub mod downloader;
 pub mod file;
 pub mod job;
 pub mod logging;
@@ -15,6 +16,7 @@ pub mod ui;
 pub use autocmd::*;
 pub use buf_options::*;
 pub use buffer::*;
+pub use downloader::*;
 pub use file::*;
 pub use job::*;
 pub use logging::*;

@@ -5,6 +5,7 @@
 //!
 //! See request/handler.rs for examples of actual integration tests.
 
+pub mod delete_session;
 pub mod load_session;
 pub mod logout;
 pub mod models;

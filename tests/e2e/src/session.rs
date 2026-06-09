@@ -5,16 +5,17 @@ use crate::{
     utilities::{autocommand, mock_agent::MockAgent, test_helpers::connect_to_mock_agent},
 };
 use agent_client_protocol::schema::{
-    AgentCapabilities, CloseSessionResponse, InitializeResponse, ListSessionsResponse,
-    LoadSessionResponse, NewSessionResponse, PromptResponse, ProtocolVersion,
+    AgentCapabilities, CloseSessionResponse, DeleteSessionResponse, InitializeResponse,
+    ListSessionsResponse, LoadSessionResponse, NewSessionResponse, PromptResponse, ProtocolVersion,
     ResumeSessionResponse, SessionCapabilities, SessionConfigOption, SessionConfigOptionCategory,
     SessionConfigSelectOption, SessionMode, SessionModeState, SessionResumeCapabilities,
     StopReason,
 };
 use hermes::{
     api::{
-        ConnectionArgs, CreateSessionArgs, DisconnectArgs, ListSessionsConfig, LoadSessionConfig,
-        PromptArgs, PromptContent, ResumeSessionConfig, SetModeArgs,
+        ConnectionArgs, CreateSessionArgs, DeleteSessionArg, DeleteSessionOptions, DisconnectArgs,
+        ListSessionsConfig, LoadSessionConfig, PromptArgs, PromptContent, ResumeSessionConfig,
+        SetModeArgs,
     },
     nvim::{autocommands::Commands, hermes},
 };
@@ -95,6 +96,7 @@ fn test_custom_session_creation() -> Result<(), nvim_oxi::Error> {
     // Create session with custom configuration
     create_session.call(CreateSessionArgs::Configuration {
         cwd: Some(".".into()),
+        additional_directories: None,
         mcp_servers: None,
     })?;
 
@@ -218,6 +220,7 @@ fn test_load_session() -> Result<(), nvim_oxi::Error> {
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -435,6 +438,7 @@ fn test_load_session_with_legacy_modes() -> Result<(), nvim_oxi::Error> {
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -498,6 +502,7 @@ fn test_load_session_with_config_options() -> Result<(), nvim_oxi::Error> {
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -562,6 +567,7 @@ fn test_load_session_then_set_mode_uses_legacy_path() -> Result<(), nvim_oxi::Er
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -635,6 +641,7 @@ fn test_load_session_then_set_mode_uses_config_path() -> Result<(), nvim_oxi::Er
 
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.clone(), Some(config)))?;
@@ -703,6 +710,108 @@ fn test_close_session_fires_session_closed() -> Result<(), nvim_oxi::Error> {
 }
 
 #[nvim_oxi::test]
+fn test_delete_session_fires_session_deleted() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let delete_session: Function<(DeleteSessionArg, Option<DeleteSessionOptions>), ()> =
+        FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_session_deleted =
+        autocommand::listen_for_autocommand::<DeleteSessionResponse>(Commands::SessionDeleted);
+
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        config.delete_session_response = Some(DeleteSessionResponse::new());
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    connect_to_mock_agent(&connect, &mock_handle)?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id.to_string();
+
+    delete_session.call((
+        DeleteSessionArg::Single(session_id),
+        None::<DeleteSessionOptions>,
+    ))?;
+
+    let deleted = wait_for_session_deleted(Duration::from_secs(TIMEOUT_IN_SECONDS));
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert!(deleted.is_ok(), "SessionDeleted autocommand should fire");
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_delete_session_with_cancel_false() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+    let create_session: Function<CreateSessionArgs, ()> =
+        FromObject::from_object(dict.get("create_session").unwrap().clone())?;
+    let delete_session: Function<(DeleteSessionArg, Option<DeleteSessionOptions>), ()> =
+        FromObject::from_object(dict.get("delete_session").unwrap().clone())?;
+
+    let wait_for_initialization =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+    let wait_for_session =
+        autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
+    let wait_for_session_deleted =
+        autocommand::listen_for_autocommand::<DeleteSessionResponse>(Commands::SessionDeleted);
+
+    let (agent, conn_rx) = MockAgent::new();
+    {
+        let mut config = agent.config().lock().unwrap();
+        config.delete_session_response = Some(DeleteSessionResponse::new());
+    }
+    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+
+    connect_to_mock_agent(&connect, &mock_handle)?;
+
+    wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    create_session.call(CreateSessionArgs::Default)?;
+
+    let session = wait_for_session(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+    let session_id = session.session_id.to_string();
+
+    delete_session.call((
+        DeleteSessionArg::Single(session_id),
+        Some(DeleteSessionOptions { cancel: false }),
+    ))?;
+
+    let deleted = wait_for_session_deleted(Duration::from_secs(TIMEOUT_IN_SECONDS));
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert!(
+        deleted.is_ok(),
+        "SessionDeleted autocommand should fire with cancel=false"
+    );
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn test_resume_session() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> =
@@ -738,6 +847,7 @@ fn test_resume_session() -> Result<(), nvim_oxi::Error> {
 
     let config = ResumeSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     resume_session.call((session_id.clone(), Some(config)))?;
@@ -822,6 +932,7 @@ fn test_resume_session_replays_history() -> Result<(), nvim_oxi::Error> {
     // Load session to replay history
     let config = LoadSessionConfig {
         cwd: Some(std::path::PathBuf::from(".")),
+        additional_directories: None,
         mcp_servers: Vec::new(),
     };
     load_session.call((session_id.to_string(), Some(config)))?;

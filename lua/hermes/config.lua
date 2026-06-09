@@ -1,12 +1,7 @@
 -- luacov: disable
----Configuration management for Hermes (Installation-only)
+---Configuration management for Hermes
 ---@module hermes.config
----Only stores installation-related configuration:
----  - download.version: which binary version to download
----  - download.auto: whether to auto-download or require manual build
----  - download.timeout: download timeout in seconds
----  - log.notification.level: log level for vim.notify filtering
----All other configuration is passed directly to the Rust binary
+---Stores the full user configuration with defaults matching the Rust binary.
 -- luacov: enable
 
 local M = {}
@@ -18,18 +13,98 @@ local M = {}
 ---@field auto? boolean Whether to auto-download binary (default: true)
 ---@field timeout? number Download timeout in seconds (default: 60)
 
----@class HermesInstallConfig
----Installation-specific configuration (subset of full HermesConfig)
----@field download? HermesDownloadConfig Download configuration
----@field log? {notification?: {level?: number|string}} Log configuration for notifications
+---@class HermesLogTargetConfig
+---@field level? number|string Log level (default: "off")
+---@field format? string Log format (default: "compact")
 
----@type HermesInstallConfig
--- luacov: enable
-local _config = {}
+---@class HermesLogFileConfig
+---@field level? number|string Log level (default: "off")
+---@field format? string Log format (default: "json")
+---@field path? string Path to log directory (default: vim.fn.stdpath("state") .. "/hermes")
+---@field name? string Log file name (default: "hermes.log")
+---@field max_size? number Maximum file size in bytes (default: 10485760 = 10MB)
+---@field max_files? number Maximum number of log files to keep (default: 5)
+
+---@class HermesLogConfig
+---@field stdio? HermesLogTargetConfig Stdio logging settings
+---@field notification? HermesLogTargetConfig Notification logging settings
+---@field message? HermesLogTargetConfig Message logging settings
+---@field file? HermesLogFileConfig File logging settings
+
+---@class HermesPermissionsConfig
+---@field fs_write_access? boolean Allow agent to write files (default: true)
+---@field fs_read_access? boolean Allow agent to read files (default: true)
+---@field terminal_access? boolean Allow agent to execute terminal commands (default: true)
+---@field request_permissions? boolean Allow agent to send permission requests (default: true)
+---@field send_notifications? boolean Allow agent to send notifications (default: true)
+
+---@class HermesTerminalConfig
+---@field delete? boolean Auto-delete terminals on exit (default: false)
+---@field enabled? boolean Enable terminal functionality (default: true)
+---@field hidden? boolean Hide terminal windows (default: true)
+---@field buffered? boolean Buffer terminal output (default: true)
+
+---@class HermesBufferConfig
+---@field auto_save? boolean Auto-save modified files after writing (default: false)
+
+---@class HermesSessionConfig
+---@field store_history? boolean Store session history locally (default: true)
+
+---@class HermesDistributionsBinaryConfig
+---@field enabled? boolean Enable binary distribution (default: true)
+---@field path? string Custom cache directory (default: "")
+
+---@class HermesDistributionsConfig
+---@field binary? HermesDistributionsBinaryConfig Binary distribution settings
+---@field uvx? boolean Enable uvx distribution (default: true)
+---@field npx? boolean Enable npx distribution (default: true)
+
+---@class HermesConfig
+---Full Hermes configuration
+---@field download? HermesDownloadConfig Download configuration
+---@field log? HermesLogConfig Logging configuration
+---@field permissions? HermesPermissionsConfig Permission settings
+---@field terminal? HermesTerminalConfig Terminal configuration
+---@field buffer? HermesBufferConfig Buffer configuration
+---@field session? HermesSessionConfig Session configuration
+---@field distributions? HermesDistributionsConfig Distribution settings
+---@field root_markers? string[] Files/directories to identify project root (default: {".git"})
 
 -- luacov: disable
----Default configuration values
----@type HermesInstallConfig
+---Deep merge a user table into a base table (shallow for leaf values)
+---@param base table The base configuration table
+---@param user table The user-provided overrides
+---@return table The merged configuration
+-- luacov: enable
+local function merge_config(base, user)
+	local result = {}
+	for k, v in pairs(base) do
+		if type(v) == "table" then
+			if user[k] ~= nil and type(user[k]) == "table" then
+				result[k] = merge_config(v, user[k])
+			else
+				result[k] = merge_config(v, {})
+			end
+		else
+			if user[k] ~= nil then
+				result[k] = user[k]
+			else
+				result[k] = v
+			end
+		end
+	end
+	-- Add any user keys not in base
+	for k, v in pairs(user) do
+		if base[k] == nil then
+			result[k] = v
+		end
+	end
+	return result
+end
+
+-- luacov: disable
+---Default configuration values matching Rust defaults
+---@type HermesConfig
 -- luacov: enable
 local default_config = {
 	download = {
@@ -38,47 +113,73 @@ local default_config = {
 		timeout = 60,
 	},
 	log = {
+		stdio = {
+			level = "off",
+			format = "compact",
+		},
 		notification = {
-			level = "info", -- Show INFO and above by default
+			level = "error",
+			format = "compact",
+		},
+		message = {
+			level = "off",
+			format = "compact",
+		},
+		file = {
+			level = "off",
+			format = "json",
+			path = vim.fn.stdpath("state") .. "/hermes",
+			name = "hermes.log",
+			max_size = 10485760,
+			max_files = 5,
 		},
 	},
+	permissions = {
+		fs_write_access = true,
+		fs_read_access = true,
+		terminal_access = true,
+		request_permissions = true,
+		send_notifications = true,
+	},
+	terminal = {
+		delete = false,
+		enabled = true,
+		hidden = true,
+		buffered = true,
+	},
+	buffer = {
+		auto_save = false,
+	},
+	session = {
+		store_history = true,
+	},
+	distributions = {
+		binary = {
+			enabled = true,
+			path = "",
+		},
+		uvx = true,
+		npx = true,
+	},
+	root_markers = { ".git" },
 }
 
+---@type HermesConfig
+-- luacov: enable
+local _config = default_config
+
 -- luacov: disable
----Setup hermes installation configuration
----Only stores download config (version, auto, timeout) and log.notification.level settings
----All other configuration is passed directly to Rust binary
----@param opts? HermesInstallConfig User configuration options
+---Setup hermes configuration with user overrides
+---@param opts? HermesConfig User configuration options
 -- luacov: enable
 function M.setup(opts)
 	opts = opts or {}
-
-	-- Initialize download config with defaults
-	_config.download = {
-		version = (opts.download and opts.download.version) or default_config.download.version,
-		auto = (opts.download and opts.download.auto) ~= false, -- default true
-		timeout = (opts.download and opts.download.timeout) or default_config.download.timeout,
-	}
-
-	-- Store log.notification.level for internal filtering
-	if opts.log and opts.log.notification and opts.log.notification.level then
-		_config.log = _config.log or {}
-		_config.log.notification = _config.log.notification or {}
-		_config.log.notification.level = opts.log.notification.level
-	else
-		-- Ensure default is set
-		_config.log = {
-			notification = {
-				level = default_config.log.notification.level,
-			},
-		}
-	end
+	_config = merge_config(default_config, opts)
 end
 
 -- luacov: disable
----Get current installation configuration
----@return HermesInstallConfig Current configuration
----@private
+---Get current full configuration
+---@return HermesConfig Current configuration
 -- luacov: enable
 function M.get()
 	return _config
@@ -86,11 +187,11 @@ end
 
 -- luacov: disable
 ---Get download configuration
----@return HermesDownloadConfig Download configuration with version, auto, and timeout
+---@return HermesDownloadConfig Download configuration
 ---@private
 -- luacov: enable
 function M.get_download()
-	return _config.download or default_config.download
+	return _config.download
 end
 
 -- luacov: disable
@@ -99,7 +200,7 @@ end
 ---@private
 -- luacov: enable
 function M.get_version()
-	return (_config.download and _config.download.version) or default_config.download.version
+	return _config.download.version
 end
 
 -- luacov: disable
@@ -108,7 +209,7 @@ end
 ---@private
 -- luacov: enable
 function M.get_auto_download()
-	return (_config.download and _config.download.auto) ~= false
+	return _config.download.auto ~= false
 end
 
 -- luacov: disable
@@ -117,19 +218,43 @@ end
 ---@private
 -- luacov: enable
 function M.get_download_timeout()
-	return (_config.download and _config.download.timeout) or default_config.download.timeout
+	return _config.download.timeout
 end
 
 -- luacov: disable
 ---Get notification log level for vim.notify filtering
----@return number|string Log level (vim.log.levels.* or string)
+---@return number|string Log level
 ---@private
 -- luacov: enable
 function M.get_notification_level()
-	if _config.log and _config.log.notification then
-		return _config.log.notification.level
+	return _config.log.notification.level
+end
+
+-- luacov: disable
+---Get log file path
+---@return string Full path to log file
+---@private
+-- luacov: enable
+function M.get_log_file_path()
+	return _config.log.file.path .. "/" .. _config.log.file.name
+end
+
+-- luacov: disable
+---Get registry binary cache directory
+---@return string Path to agent binary cache
+---@private
+-- luacov: enable
+function M.get_registry_cache_dir()
+	local dist_config = _config.distributions and _config.distributions.binary
+	if dist_config and dist_config.path and dist_config.path ~= "" then
+		return dist_config.path .. "/hermes/agents"
 	end
-	return default_config.log.notification.level
+	local data_home = os.getenv("XDG_DATA_HOME")
+	if not data_home then
+		local home = os.getenv("HOME") or "."
+		data_home = home .. "/.local/share"
+	end
+	return data_home .. "/hermes/agents"
 end
 
 return M

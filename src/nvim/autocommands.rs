@@ -35,6 +35,7 @@ pub enum Commands {
     SessionForked,
     SessionResumed,
     SessionClosed,
+    SessionDeleted,
     SessionModelUpdated,
     ThoughtLevelUpdated,
     UsageUpdate,
@@ -102,6 +103,7 @@ impl TryFrom<&str> for Commands {
             "SessionForked" => Ok(Commands::SessionForked),
             "SessionResumed" => Ok(Commands::SessionResumed),
             "SessionClosed" => Ok(Commands::SessionClosed),
+            "SessionDeleted" => Ok(Commands::SessionDeleted),
             "SessionModelUpdated" => Ok(Commands::SessionModelUpdated),
             "ThoughtLevelUpdated" => Ok(Commands::ThoughtLevelUpdated),
             "UsageUpdate" => Ok(Commands::UsageUpdate),
@@ -419,6 +421,14 @@ mod tests {
     }
 
     #[test]
+    fn test_commands_session_deleted() {
+        assert_eq!(
+            Commands::try_from("SessionDeleted").unwrap(),
+            Commands::SessionDeleted
+        );
+    }
+
+    #[test]
     fn test_commands_usage_update() {
         assert_eq!(
             Commands::try_from("UsageUpdate").unwrap(),
@@ -545,6 +555,7 @@ mod tests {
         assert_eq!(format!("{}", Commands::Models), "Models");
         assert_eq!(format!("{}", Commands::ThoughtLevels), "ThoughtLevels");
         assert_eq!(format!("{}", Commands::SessionClosed), "SessionClosed");
+        assert_eq!(format!("{}", Commands::SessionDeleted), "SessionDeleted");
     }
 
     #[test]

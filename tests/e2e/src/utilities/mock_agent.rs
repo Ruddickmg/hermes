@@ -13,16 +13,17 @@ use agent_client_protocol::{
     schema::{
         AuthenticateRequest, AuthenticateResponse, CancelNotification, CloseSessionRequest,
         CloseSessionResponse, ContentBlock, ContentChunk, CreateTerminalRequest,
-        CreateTerminalResponse, InitializeRequest, InitializeResponse, ListSessionsRequest,
-        ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, LogoutRequest,
-        LogoutResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse,
-        ReadTextFileRequest, ReadTextFileResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
-        RequestPermissionOutcome, RequestPermissionRequest, ResumeSessionRequest,
-        ResumeSessionResponse, SessionNotification, SessionUpdate, SetSessionConfigOptionRequest,
-        SetSessionConfigOptionResponse, SetSessionModeRequest, SetSessionModeResponse,
-        SetSessionModelRequest, SetSessionModelResponse, StopReason, TerminalOutputRequest,
-        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
-        WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
+        CreateTerminalResponse, DeleteSessionRequest, DeleteSessionResponse, InitializeRequest,
+        InitializeResponse, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest,
+        LoadSessionResponse, LogoutRequest, LogoutResponse, NewSessionRequest, NewSessionResponse,
+        PromptRequest, PromptResponse, ReadTextFileRequest, ReadTextFileResponse,
+        ReleaseTerminalRequest, ReleaseTerminalResponse, RequestPermissionOutcome,
+        RequestPermissionRequest, ResumeSessionRequest, ResumeSessionResponse, SessionNotification,
+        SessionUpdate, SetSessionConfigOptionRequest, SetSessionConfigOptionResponse,
+        SetSessionModeRequest, SetSessionModeResponse, SetSessionModelRequest,
+        SetSessionModelResponse, StopReason, TerminalOutputRequest, TerminalOutputResponse,
+        TextContent, WaitForTerminalExitRequest, WaitForTerminalExitResponse, WriteTextFileRequest,
+        WriteTextFileResponse,
     },
 };
 use async_channel::{Receiver, Sender, bounded, unbounded};
@@ -594,6 +595,30 @@ fn build_mock_agent_builder(
                         })
                         .await
                         .map_err(|_| internal_error("close_session timed out"))
+                        .and_then(|r| r);
+                        responder.respond_with_result(result)
+                    }
+                }
+            },
+            on_receive_request!(),
+        )
+        .on_receive_request(
+            {
+                let config = config.clone();
+                move |_req: DeleteSessionRequest,
+                      responder: Responder<DeleteSessionResponse>,
+                      _cx: ConnectionTo<acp::Client>| {
+                    let config = config.clone();
+                    async move {
+                        let dur = config.lock().unwrap().timeout;
+                        let result = timeout(dur, async {
+                            let config = config.lock().unwrap();
+                            Ok::<_, acp::Error>(
+                                config.delete_session_response.clone().unwrap_or_default(),
+                            )
+                        })
+                        .await
+                        .map_err(|_| internal_error("delete_session timed out"))
                         .and_then(|r| r);
                         responder.respond_with_result(result)
                     }

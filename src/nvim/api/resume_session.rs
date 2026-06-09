@@ -14,6 +14,7 @@ use crate::{
 #[derive(Debug, Clone, Default)]
 pub struct ResumeSessionConfig {
     pub cwd: Option<PathBuf>,
+    pub additional_directories: Option<Vec<PathBuf>>,
     pub mcp_servers: Vec<agent_client_protocol::schema::McpServer>,
 }
 
@@ -28,12 +29,35 @@ impl FromObject for ResumeSessionConfig {
                 .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
         });
 
+        let additional_directories: Option<Vec<PathBuf>> =
+            dict.get("additional_directories").and_then(|obj| {
+                if let nvim_oxi::ObjectKind::Array = obj.kind() {
+                    let array = unsafe { obj.clone().into_array_unchecked() };
+                    Some(
+                        array
+                            .into_iter()
+                            .filter_map(|v| {
+                                v.try_into()
+                                    .ok()
+                                    .map(|s: nvim_oxi::String| PathBuf::from(s.to_string()))
+                            })
+                            .collect(),
+                    )
+                } else {
+                    None
+                }
+            });
+
         let mcp_servers: Vec<agent_client_protocol::schema::McpServer> = dict
-            .get("mcpServers")
+            .get("mcp_servers")
             .and_then(parse_mcp_servers)
             .unwrap_or_default();
 
-        Ok(Self { cwd, mcp_servers })
+        Ok(Self {
+            cwd,
+            additional_directories,
+            mcp_servers,
+        })
     }
 }
 
@@ -62,6 +86,13 @@ impl Pushable for ResumeSessionConfig {
         if let Some(cwd) = self.cwd {
             dict.insert("cwd", cwd.to_string_lossy().to_string());
         }
+        if let Some(dirs) = self.additional_directories {
+            let arr: nvim_oxi::Array = dirs
+                .into_iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            dict.insert("additional_directories", arr);
+        }
         unsafe { Object::from(dict).push(lua_state) }
     }
 }
@@ -84,11 +115,15 @@ impl Api {
             return Ok(());
         }
 
-        let request = agent_client_protocol::schema::ResumeSessionRequest::new(
+        let mut request = agent_client_protocol::schema::ResumeSessionRequest::new(
             agent_client_protocol::schema::SessionId::from(session_id),
             config.cwd.unwrap_or(project_root),
-        )
-        .mcp_servers(config.mcp_servers);
+        );
+        if agent_info.can_use_additional_directories() {
+            request =
+                request.additional_directories(config.additional_directories.unwrap_or_default());
+        }
+        request = request.mcp_servers(config.mcp_servers);
 
         let connection = self
             .connection
@@ -112,6 +147,7 @@ mod tests {
             let root = utilities::get_project_root(current_directory, vec![".git".to_string()]);
             Self {
                 cwd: Some(root),
+                additional_directories: None,
                 mcp_servers: Vec::new(),
             }
         }
@@ -121,6 +157,7 @@ mod tests {
         if let Some(path) = cwd {
             ResumeSessionConfig {
                 cwd: Some(PathBuf::from(path)),
+                additional_directories: None,
                 mcp_servers: Vec::new(),
             }
         } else {
@@ -151,6 +188,7 @@ mod tests {
     fn config_with_mcp_servers() {
         let config = ResumeSessionConfig {
             cwd: Some(PathBuf::from("/project")),
+            additional_directories: None,
             mcp_servers: vec![],
         };
         assert_eq!(config.cwd, Some(PathBuf::from("/project")));
@@ -161,9 +199,43 @@ mod tests {
     fn config_pushable_without_cwd() {
         let config = ResumeSessionConfig {
             cwd: None,
+            additional_directories: None,
             mcp_servers: vec![],
         };
         assert!(config.cwd.is_none());
         assert!(config.mcp_servers.is_empty());
+    }
+
+    #[test]
+    fn test_from_object_with_additional_directories() {
+        let mut dict = Dictionary::new();
+        let dirs = vec!["src", "tests"]
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let config = ResumeSessionConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(
+            config.additional_directories,
+            Some(vec![PathBuf::from("src"), PathBuf::from("tests")])
+        );
+    }
+
+    #[test]
+    fn test_from_object_without_additional_directories() {
+        let mut dict = Dictionary::new();
+        dict.insert("cwd", "/tmp/test");
+        let config = ResumeSessionConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(config.additional_directories, None);
+    }
+
+    #[test]
+    fn test_from_object_empty_additional_directories_array() {
+        let mut dict = Dictionary::new();
+        let dirs = Vec::<String>::new()
+            .into_iter()
+            .collect::<nvim_oxi::Array>();
+        dict.insert("additional_directories", dirs);
+        let config = ResumeSessionConfig::from_object(Object::from(dict)).unwrap();
+        assert_eq!(config.additional_directories, Some(vec![]));
     }
 }

@@ -24,6 +24,16 @@ local _build_in_progress = false
 -- luacov: enable
 local _build_job = nil
 
+---Download state tracking for async operations
+-- luacov: disable
+---@type boolean
+-- luacov: enable
+local _download_in_progress = false
+
+---@type number|nil
+-- luacov: enable
+local _download_job = nil
+
 ---Get download module (lazy-load)
 -- luacov: disable
 ---@return table download_module The download module
@@ -436,6 +446,36 @@ function M.cancel_build()
 		return true
 	end
 end
+
+-- luacov: disable
+---Cancel an in-progress download
+---@return boolean cancelled Whether a download was cancelled
+---@private
+-- luacov: enable
+function M.cancel_download()
+	local notification_options = { title = "Hermes - download" }
+	local logging = require("hermes.logging")
+
+	if _download_job ~= nil then
+		vim.fn.jobstop(_download_job)
+		_download_in_progress = false
+		_download_job = nil
+		logging.notify("Download cancelled", vim.log.levels.INFO, notification_options)
+		return true
+	else
+		if not _download_in_progress then
+			logging.notify("No download in progress to cancel", vim.log.levels.WARN, notification_options)
+			return false
+		end
+
+		_download_in_progress = false
+		_download_job = nil
+
+		logging.notify("Download cancelled", vim.log.levels.INFO, notification_options)
+		return true
+	end
+end
+
 -- luacov: disable
 ---Check if a build is currently in progress
 ---@return boolean in_progress Whether a build is in progress
@@ -674,15 +714,44 @@ function M.ensure_binary_async(timeout, on_complete)
 			-- No version file or version mismatch - will download
 		end
 
-		-- Binary doesn't exist or version differs, need to download
-		local download_ok, download_err = M.download(bin_path, wanted_ver)
+		-- Ensure data directory exists
+		vim.fn.mkdir(M.get_data_dir(), "p")
 
-		if download_ok then
-			-- Save version for reference
-			vim.fn.writefile({ wanted_ver }, ver_file)
-			on_complete(true, bin_path)
+		-- If version is "latest", fetch the actual latest version
+		if wanted_ver == "latest" then
+			local version_mod = require("hermes.version")
+			wanted_ver = version_mod.fetch_latest()
+		end
+
+		-- Construct download URL
+		local url =
+			string.format("https://github.com/Ruddickmg/hermes.nvim/releases/download/%s/%s", wanted_ver, M.get_binary_name())
+
+		-- Binary doesn't exist or version differs, need to download
+		_download_in_progress = true
+		local progress_id = "hermes-binary-download"
+
+		local job_id = download_mod.download_async(url, bin_path, progress_id, function(download_ok, download_err)
+			_download_in_progress = false
+			_download_job = nil
+
+			if download_ok then
+				-- Make executable (Unix-like systems)
+				if vim.fn.has("win32") ~= 1 then
+					vim.fn.system({ "chmod", "+x", bin_path })
+				end
+				-- Save version for reference
+				vim.fn.writefile({ wanted_ver }, ver_file)
+				on_complete(true, bin_path)
+			else
+				on_complete(false, download_err or "Download failed")
+			end
+		end)
+
+		if job_id and job_id > 0 then
+			_download_job = job_id
 		else
-			on_complete(false, download_err or "Download failed")
+			_download_in_progress = false
 		end
 	end)
 end

@@ -55,11 +55,39 @@ function M.get_available_tool()
 end
 
 -- luacov: disable
----Download file from URL using available tool
+---Emit a Neovim progress notification via nvim_echo(kind='progress')
+---@param id string Unique progress id
+---@param title string Human-readable title
+---@param status string "begin", "report", or "end"
+---@param percent number|nil Percentage 0-100
+---@param text string|nil Optional detail text
+---@private
+-- luacov: enable
+function M.emit_progress(id, title, status, percent, text)
+	local opts = {
+		kind = "progress",
+		id = id,
+		source = "hermes",
+		status = status,
+	}
+	if percent then
+		opts.percent = percent
+	end
+	if text then
+		opts.title = text
+	end
+	local ok, err = pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
+	if not ok then
+		-- Fallback: if nvim_echo with progress fails, just log silently
+		local _ = err
+	end
+end
+
+-- luacov: disable
+---Download file from URL using available tool (synchronous)
 ---Cross-platform: curl (Unix), wget (Unix fallback), PowerShell (Windows)
 ---@param url string URL to download
 ---@param dest_path string Destination path
-
 ---@return boolean success Whether download succeeded
 ---@return table|nil error Error info table if failed, containing:
 ---   - message: Human readable error message
@@ -151,6 +179,220 @@ function M.download(url, dest_path)
 	end
 
 	return true, nil
+end
+
+-- luacov: disable
+---Download file asynchronously with progress reporting
+---Uses jobstart for non-blocking download and emits nvim_echo(kind='progress')
+---@param url string URL to download
+---@param dest_path string Destination path
+---@param progress_id string Unique id for progress tracking
+---@param on_complete function Callback function(success: boolean, err: table|nil)
+---@return number|nil job_id The jobstart id, or nil if failed to start
+---@private
+-- luacov: enable
+function M.download_async(url, dest_path, progress_id, on_complete)
+	local tool = M.get_available_tool()
+
+	if not tool then
+		on_complete(false, {
+			message = "No download tool available (tried curl, wget, PowerShell). Please install curl or wget.",
+			url = url,
+		})
+		return nil
+	end
+
+	local cmd
+	local http_code_pattern = nil
+
+	if tool == "curl" then
+		-- -# outputs hash marks to stderr for progress; each # ≈ 2%
+		cmd = {
+			"curl",
+			"-#",
+			"-L",
+			"-H",
+			"User-Agent: " .. USER_AGENT,
+			"-o",
+			dest_path,
+			"-w",
+			"%{http_code}",
+			url,
+		}
+		http_code_pattern = "(%d%d%d)$"
+	elseif tool == "wget" then
+		-- wget sends progress to stderr in a parseable format
+		cmd = {
+			"wget",
+			"--progress=dot:mega",
+			"--user-agent=" .. USER_AGENT,
+			"-O",
+			dest_path,
+			url,
+		}
+	else
+		-- PowerShell for Windows
+		local ps_cmd = string.format(
+			'Invoke-WebRequest -Uri "%s" -OutFile "%s" -UseBasicParsing -UserAgent "%s"',
+			url,
+			dest_path,
+			USER_AGENT
+		)
+		cmd = { "powershell", "-Command", ps_cmd }
+	end
+
+	local stdout_data = {}
+	local last_percent = 0
+	local last_emit_time = 0
+	local debounce_ms = 250
+	local min_delta_percent = 2
+
+	M.emit_progress(progress_id, "Downloading Hermes binary", "begin", 0, "Starting download...")
+
+	local job_id = vim.fn.jobstart(cmd, {
+		on_stdout = function(_, data)
+			if data then
+				for _, line in ipairs(data) do
+					if line and line ~= "" then
+						table.insert(stdout_data, line)
+					end
+				end
+			end
+		end,
+		on_stderr = function(_, data)
+			if not data then
+				return
+			end
+			if tool == "curl" then
+				-- Parse curl -# stderr: lines of hash marks
+				for _, line in ipairs(data) do
+					if line then
+						local hash_count = 0
+						for _ in line:gmatch("#") do
+							hash_count = hash_count + 1
+						end
+						if hash_count > 0 then
+							-- Each # from curl -# represents ~2% of total
+							local percent = math.min(hash_count * 2, 100)
+							local now = vim.loop.now()
+							local delta_pct = percent - last_percent
+							local delta_time = now - last_emit_time
+							if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
+								last_percent = percent
+								last_emit_time = now
+								M.emit_progress(
+									progress_id,
+									"Downloading Hermes binary",
+									"report",
+									percent,
+									percent .. "% downloaded"
+								)
+							end
+						end
+					end
+				end
+			elseif tool == "wget" then
+				-- wget dot progress: each dot is ~1KB, hard to convert to percent
+				-- Just emit a heartbeat every few seconds to show activity
+				for _, line in ipairs(data) do
+					if line and line:match("%d+%%") then
+						local pct = tonumber(line:match("(%d+)%%"))
+						if pct then
+							local now = vim.loop.now()
+							local delta_pct = pct - last_percent
+							local delta_time = now - last_emit_time
+							if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
+								last_percent = pct
+								last_emit_time = now
+								M.emit_progress(
+									progress_id,
+									"Downloading Hermes binary",
+									"report",
+									pct,
+									pct .. "% downloaded"
+								)
+							end
+						end
+					end
+				end
+			end
+		end,
+		on_exit = vim.schedule_wrap(function(_, exit_code, _)
+			if exit_code ~= 0 then
+				local stderr_output = table.concat(stdout_data, "\n")
+				M.emit_progress(
+					progress_id,
+					"Download failed",
+					"end",
+					nil,
+					"Download failed with exit code " .. exit_code
+				)
+				on_complete(false, {
+					message = "Download failed with exit code: " .. exit_code,
+					url = url,
+					exit_code = exit_code,
+					stderr = stderr_output,
+				})
+				return
+			end
+
+			-- Parse HTTP code for curl
+			local http_code = nil
+			if tool == "curl" and #stdout_data > 0 then
+				local last_line = stdout_data[#stdout_data]
+				http_code = last_line:match(http_code_pattern)
+				if http_code then
+					http_code = tonumber(http_code)
+				end
+			end
+
+			-- Verify downloaded file
+			local uv = vim.uv or vim.loop
+			local stat = uv.fs_stat(dest_path)
+			if not stat or stat.size < 100 then
+				uv.fs_unlink(dest_path)
+				M.emit_progress(
+					progress_id,
+					"Download failed",
+					"end",
+					nil,
+					"Downloaded file is too small or empty"
+				)
+				on_complete(false, {
+					message = "Downloaded file is too small or empty",
+					url = url,
+					http_code = http_code,
+				})
+				return
+			end
+
+			M.emit_progress(
+				progress_id,
+				"Download complete",
+				"end",
+				100,
+				"Download finished successfully"
+			)
+			on_complete(true, nil)
+		end),
+	})
+
+	if job_id <= 0 then
+		M.emit_progress(
+			progress_id,
+			"Download failed",
+			"end",
+			nil,
+			"Failed to start download job"
+		)
+		on_complete(false, {
+			message = "Failed to start download job",
+			url = url,
+		})
+		return nil
+	end
+
+	return job_id
 end
 
 -- luacov: disable

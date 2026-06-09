@@ -35,16 +35,6 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 }
 ```
 
-**paq.nvim**
-```lua
-
-require("paq") {
-  "Ruddickmg/hermes.nvim"
-}
-require("hermes").setup()
-```
-
-
 ### Requirements
 
 - Neovim 0.11 or later
@@ -120,50 +110,35 @@ cargo build --release
 
 ## Commands
 
-```
-:Hermes status
-```
-Shows loading state, configuration, and current status of Hermes.
-
+Show recent log messages and current state information.
 ```
 :Hermes log
 ```
-Shows recent log messages and current state information.
 
-```
-:Hermes version
-```
-Shows installed version, platform info, and binary status.
-
+Fetch the latest release from GitHub and replaces the current binary.
 ```
 :Hermes update
 ```
-Fetches the latest release from GitHub and replaces the current binary.
 
+Download the currently configured version.
 ```
 :Hermes install
 ```
-Download the currently configured version.
 
+Remove the binary. Run `:Hermes install` or use Hermes API to re-download.
 ```
 :Hermes clean
 ```
-Removes the binary. Run `:Hermes install` or use Hermes API to re-download.
 
+Compile from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
 ```
 :Hermes build
 ```
-Compiles from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
 
+Cancel an in-progress source build. Shows warning if no build is running.
 ```
 :Hermes cancel
 ```
-Cancels an in-progress source build. Shows warning if no build is running.
-
-```
-:Hermes setup
-```
-Shows current Hermes configuration settings.
 
 ## API
 
@@ -491,14 +466,15 @@ hermes.create_session()
 -- customize connection configuration
 hermes.create_session({
   cwd = ".", -- path to create the session in (optional)
-  mcpServers = {
+  additional_directories = {}, -- more directories to include in addition to the root directory (relative paths are relative to cwd)
+  mcp_servers = {
   { -- Http or Sse MCP server definition
     type = "http", -- or "sse"
     name = "Human readable name for MCP server",
     url = "http://url-to-mcp-server.com",
     headers = {
       { ["Content-Type"] = "application/json" },
-      { headerName = "header value" },
+      { header_name = "header value" },
     },
   },
   {  -- Stdio MCP server definition
@@ -523,21 +499,23 @@ Load an existing session (replays session history)
 
 ```lua
 local hermes = require("hermes")
+local session_id = "some-session-id"
 
 -- call signature (uses defaults)
-hermes.load_session(sessionId)
+hermes.load_session(session_id)
 
 -- call signature (with further configuration)
-hermes.load_session(sessionId, {
+hermes.load_session(session_id, {
   cwd = ".", -- path to load the session from (optional, defaults to either project root or current directory)
-  mcpServers = {
+  additional_directories = {}, -- more directories to include in addition to the root directory (relative paths are relative to cwd)
+  mcp_servers = {
     { -- Http or Sse MCP server definition
       type = "http", -- or "sse"
       name = "Human readable name for MCP server",
       url = "http://url-to-mcp-server.com",
       headers = {
         { ["Content-Type"] = "application/json" },
-        { headerName = "header value" },
+        { header_name = "header value" },
       },
     },
     {  -- Stdio MCP server definition
@@ -558,9 +536,9 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "SessionCreated",
   callback = function(args)
-    local sessionId = args.data.sessionId
+    local session_id = args.data.sessionId
 
-    hermes.load_session(sessionId)
+    hermes.load_session(session_id)
   end,
 })
 ```
@@ -573,21 +551,23 @@ Resume an existing session (without replaying the session history)
 
 ```lua
 local hermes = require("hermes")
+local session_id = "some-session-id"
 
 -- call signature (uses defaults)
-hermes.resume_session(sessionId)
+hermes.resume_session(session_id)
 
 -- call signature (with further configuration)
-hermes.resume_session(sessionId, {
+hermes.resume_session(session_id, {
   cwd = ".", -- path to load the session from (optional, defaults to either project root or current directory)
-  mcpServers = {
+  additional_directories = {}, -- more directories to include in addition to the root directory (relative paths are relative to cwd)
+  mcp_Servers = {
     { -- Http or Sse MCP server definition
       type = "http", -- or "sse"
       name = "Human readable name for MCP server",
       url = "http://url-to-mcp-server.com",
       headers = {
         { ["Content-Type"] = "application/json" },
-        { headerName = "header value" },
+        { header_name = "header value" },
       },
     },
     {  -- Stdio MCP server definition
@@ -607,9 +587,9 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "SessionCreated",
   callback = function(args)
-    local sessionId = args.data.sessionId
+    local seesion_id = args.data.sessionId
 
-    hermes.resume_session(sessionId)
+    hermes.resume_session(session_id)
   end,
 })
 ```
@@ -661,24 +641,56 @@ Close active session and free all resources associated with it
 
 ```lua
 local hermes = require("hermes")
-local sessionId = "session-id-from-create-session-response"
+local session_id = "session-id-from-create-session-response"
 
 -- call signature
-hermes.close_session(sessionId)
+hermes.close_session(session_id)
 
 -- example
 vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "SessionCreated",
   callback = function(args)
-    local sessionId = args.data.sessionId
+    local session_id = args.data.sessionId
 
-    hermes.close_session(sessionId)
+    hermes.close_session(session_id)
   end,
 })
 ```
 
 > **Triggers:** [SessionClosed](#sessionclosed) autocommand upon completion
+
+### Delete Session (**Optional**)
+
+Delete session from the session list
+
+```lua
+local hermes = require("hermes")
+local session_id = "session-id-from-create-session-response"
+
+-- call signature
+hermes.delete_session(session_id)
+
+-- delete multiple sessions
+hermes.delete_session({ session_id, "other-session-id" })
+
+-- cancel session(s) before deleting them (defaults to true; set to false to disable this behavior)
+hermes.delete_session(session_id, { cancel = true })
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "SessionCreated",
+  callback = function(args)
+    local session_id = args.data.sessionId
+
+    hermes.delete_session(session_id)
+  end,
+})
+```
+
+> **Triggers:** [SessionDeleted](#sessiondeleted) autocommand upon completion
+> [!WARNING]
 
 ### Cancel (**Optional**)
 
@@ -709,9 +721,11 @@ Set what mode the agent is in (the plan/build modes for opencode for example)
 
 ```lua
 local hermes = require("hermes")
+local session_id = "some-session-id"
+local mode_id = "some-mode-id"
 
 -- call signature
-hermes.set_mode(sessionId, modeId)
+hermes.set_mode(session_id, mode_id)
 
 -- example
 vim.api.nvim_create_autocmd("User", {
@@ -735,7 +749,7 @@ Fires a `Modes` User autocommand with the selection data instead of returning it
 local hermes = require("hermes")
 
 -- call signature
-hermes.modes(sessionId)
+hermes.modes(session_id)
 
 -- example
 vim.api.nvim_create_autocmd("User", {
@@ -784,9 +798,10 @@ Fires a `Models` User autocommand with the selection data instead of returning i
 
 ```lua
 local hermes = require("hermes")
+local session_id = "some-session-id"
 
 -- call signature
-hermes.models(sessionId)
+hermes.models(session_id)
 
 -- example
 vim.api.nvim_create_autocmd("User", {
@@ -876,10 +891,10 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "PermissionRequest",
   callback = function(args)
-    local selectedOptionId = table.remove(args.data.options).optionId -- select id somehow
-    local requestId = args.data.requestId
+    local selected_option_id = table.remove(args.data.options).optionId -- select id somehow
+    local request_id = args.data.requestId
 
-    hermes.respond(requestId, selectedOptionId)
+    hermes.respond(request_id, selected_option_id)
   end,
 })
 ```
@@ -902,10 +917,10 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "WriteTextFile",
   callback = function(args)
-    local requestId = args.data.requestId
+    local request_id = args.data.requestId
 
     -- writing to a file doesn't take any data, but a notification is required when it is finished
-    hermes.respond(requestId)
+    hermes.respond(request_id)
   end,
 })
 ```
@@ -967,8 +982,8 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "TerminalCreate",
   callback = function(event)
-    local terminalId = "your-generated-terminal-id" -- generate a unique id for terminal
-    local requestId = event.data.requestId
+    local terminal_id = "your-generated-terminal-id" -- generate a unique id for terminal
+    local request_id = event.data.requestId
     local command = event.data.command
     local term_args = event.data.args or {}
     local byte_limit = event.data.output_byte_limit
@@ -976,12 +991,12 @@ vim.api.nvim_create_autocmd("User", {
     -- lua combines args and command (add command to the beginning of args)
     table.insert(term_args, 1, command)
 
-    terminals[terminalId] = vim.fn.jobstart(term_args, {
+    terminals[terminal_id] = vim.fn.jobstart(term_args, {
       env = event.data.env,
       cwd = event.data.cwd,
     })
 
-    hermes.respond(requestId, terminalId);
+    hermes.respond(request_id, terminal_id);
   end,
 })
 ```
@@ -1084,9 +1099,9 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "TerminalKill",
   callback = function(args)
-    local requestId = args.data.requestId
+    local request_id = args.data.requestId
 
-    hermes.respond(requestId);
+    hermes.respond(request_id);
   end,
 })
 ```
@@ -1110,9 +1125,9 @@ vim.api.nvim_create_autocmd("User", {
   group = "hermes",
   pattern = "TerminalRelease",
   callback = function(args)
-    local requestId = args.data.requestId
+    local request_id = args.data.requestId
 
-    hermes.respond(requestId);
+    hermes.respond(request_id);
   end,
 })
 ```
@@ -1647,7 +1662,9 @@ Below is a list of all autocommands and their associated data (passed to the cal
       <td><code>SessionClosed</code></td>
       <td>Active session closed</td>
       <td>⚡ <a href="#close-session-optional">close_session()</a></td>
-      <td><pre><code class="language-json">{}</code></pre></td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string"
+}</code></pre></td>
     </tr>
     <tr id="sessioncreated">
       <td><code>SessionCreated</code></td>
@@ -1687,6 +1704,14 @@ Below is a list of all autocommands and their associated data (passed to the cal
       }
     }
   ]
+}</code></pre></td>
+    </tr>
+    <tr id="sessiondeleted">
+      <td><code>SessionDeleted</code></td>
+      <td>Session deleted</td>
+      <td>⚡ <a href="#delete-session-optional">delete_session()</a></td>
+      <td><pre><code class="language-json">{
+  "sessionId": "string"
 }</code></pre></td>
     </tr>
     <tr id="sessionforked">
@@ -1827,6 +1852,7 @@ Below is a list of all autocommands and their associated data (passed to the cal
     {
       "sessionId": "string",
       "cwd": "string",
+      "additionalDirectories": ["string"],
       "title": "string (optional)",
       "updatedAt": "string (optional)"
     }
@@ -2248,12 +2274,16 @@ Available formats:
 - **full** - Complete information including timestamps and metadata
 - **json** - Machine-readable JSON format
 
+### Health & Configuration details
+
+Run the health check to see full diagnostics including Neovim version, binary status, platform info, download tools, log files, registry binaries, and configuration.
+```
+:checkhealth hermes
+```
+
 ## TODO:
 
 -- functionality
-
-- [ ] [Delete sessions](https://agentclientprotocol.com/rfds/session-delete)
-- [ ] [Additional directories for assistant scope](https://agentclientprotocol.com/rfds/additional-directories)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
@@ -2274,13 +2304,9 @@ Available formats:
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
-- [ ] Download progress updates
 - [ ] quickfix list integration
   - [ ] add files updated by agent to quickfix list 
   - [ ] add references made by agent to quickfix list
-- [ ] Integrate with signs
-  - [ ] Configurable
-  - [ ] Show lines edited by agent
 - [ ] look into ways of improving ai integration
   - [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
   - [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)

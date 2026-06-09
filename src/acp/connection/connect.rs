@@ -93,6 +93,11 @@ async fn dispatch(
             let response = cx.send_request(request).block_task().await?;
             client.session_closed(session_id, response).await?;
         }
+        UserRequest::DeleteSession(request) => {
+            let session_id = request.session_id.to_string();
+            let response = cx.send_request(request).block_task().await?;
+            client.session_deleted(session_id, response).await?;
+        }
         UserRequest::Logout(request) => {
             let response = cx.send_request(request).block_task().await?;
             client.logged_out(response).await?;
