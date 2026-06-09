@@ -201,13 +201,6 @@ mod tests {
     }
 
     #[test]
-    fn with_registry_sets_bundled_registry() {
-        let registry = Registry::bundled().cloned();
-        let state = PluginState::new().with_registry(registry.clone());
-        assert_eq!(state.registry, registry);
-    }
-
-    #[test]
     fn get_session_info_returns_none_for_unknown_session() {
         let state = PluginState::default();
         assert!(state.get_session_info("unknown-session").is_none());

@@ -3,7 +3,8 @@
 local logger = require("hermes.logging")
 
 -- Version check
-if vim.fn.has("nvim-0.11") ~= 1 then
+local nvim_ver = vim.version()
+if nvim_ver.major == 0 and nvim_ver.minor < 11 then
 	vim.api.nvim_err_writeln("Hermes requires Neovim >= 0.11")
 	return
 end
@@ -101,7 +102,7 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 		-- Build from source asynchronously (non-blocking)
 		local binary = require("hermes.binary")
 		local data_dir = binary.get_data_dir()
-		local started = binary.build_from_source_async(data_dir, function(success, err)
+		binary.build_from_source_async(data_dir, function(success, err)
 			if success then
 				logger.notify("Hermes built from source successfully!", vim.log.levels.DEBUG)
 
@@ -136,9 +137,12 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 			end
 		end)
 	elseif subcmd == "cancel" then
-		-- Cancel an in-progress build
+		-- Cancel an in-progress build or download
 		local binary = require("hermes.binary")
-		binary.cancel_build()
+		local cancelled = binary.cancel_build()
+		if not cancelled then
+			binary.cancel_download()
+		end
 	elseif subcmd == "clean" then
 		-- Clear binary
 		logger.notify("Cleaning Hermes installation...", vim.log.levels.DEBUG)

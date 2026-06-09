@@ -73,6 +73,13 @@ describe("plugin.hermes", function()
       -- pcall returns boolean status - if we reach here, no unhandled crash occurred
       assert.is_boolean(ok, "pcall should return status without crashing")
     end)
+
+    it("accepts 'cancel' subcommand without crashing", function()
+      local ok = pcall(function()
+        vim.cmd("Hermes cancel")
+      end)
+      assert.is_true(ok, "Hermes cancel should not crash")
+    end)
   end)
   
   describe("tab completion", function()

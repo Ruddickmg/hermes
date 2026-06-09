@@ -165,6 +165,25 @@ commands:
               ./codecov upload-coverage --file << parameters.file >> --disable-search
             fi
 
+  restore-cargo-cache:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-cargo-{{ checksum "Cargo.lock" }}
+            - v1-cargo-
+
+  save-cargo-cache:
+    steps:
+      - save_cache:
+          key: v1-cargo-{{ checksum "Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry/index
+            - ~/.cargo/registry/cache
+            - ~/.cargo/git/db
+            - ~/.cargo/bin
+            - ~/.cargo/.crates.toml
+            - ~/.cargo/.crates2.json
+
 jobs:
   update-cargo-version:
     executor: node
@@ -222,9 +241,10 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - run:
           name: Install cargo-deny
-          command: cargo install --locked cargo-deny
+          command: command -v cargo-deny &> /dev/null || cargo install --locked cargo-deny
       - run:
           name: Check for license
           command: cargo deny check licenses
@@ -233,12 +253,17 @@ jobs:
     executor: rust-linux-x86_64
     steps:
       - checkout
+      - restore-cargo-cache
       - run:
           name: Download ACP Agent Registry
           command: |
             mkdir -p src/acp/registry
             curl -fsSL https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json \
               -o src/acp/registry/registry.json
+      - run:
+          name: Fetch Cargo dependencies
+          command: cargo fetch
+      - save-cargo-cache
       - persist_to_workspace:
           root: .
           paths:
@@ -250,6 +275,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - run:
           name: Build for x86_64
           command: cargo build --release
@@ -267,6 +293,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - run:
           name: Build for aarch64
           command: cargo build --release
@@ -365,6 +392,7 @@ jobs:
     executor: rust-linux-x86_64
     steps:
       - checkout
+      - restore-cargo-cache
       - run:
           name: Check Rust formatting
           command: cargo fmt -- --check
@@ -372,7 +400,7 @@ jobs:
           name: Install Lua tooling
           command: |
             # Install selene for Lua linting
-            cargo install selene --locked
+            command -v selene &> /dev/null || cargo install selene --locked
       - run:
           name: Lint Lua code
           command: |
@@ -386,6 +414,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
           name: Install coverage tool
@@ -409,6 +438,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
           name: Install Neovim from tarball
@@ -445,6 +475,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
           name: Install Neovim from tarball
@@ -487,6 +518,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
           name: Install Neovim from tarball
@@ -521,6 +553,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
           name: Install Neovim from tarball
@@ -584,6 +617,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - restore-cargo-cache
       - rust/install
       - run:
           name: Install Neovim from tarball

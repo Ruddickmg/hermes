@@ -78,16 +78,13 @@ describe("hermes.health", function()
 		end)
 
 		it("reports error for unsupported Neovim version", function()
-			local orig_has = vim.fn.has
-			vim.fn.has = function(feature)
-				if feature == "nvim-0.11" then
-					return 0
-				end
-				return orig_has(feature)
+			local orig_version = vim.version
+			vim.version = function()
+				return { major = 0, minor = 10, patch = 0 }
 			end
 			health.check()
 			assert.is_true(has_call(calls.error, "Neovim >= 0%.11 is required"))
-			vim.fn.has = orig_has
+			vim.version = orig_version
 		end)
 
 		it("includes Hermes Binary section", function()

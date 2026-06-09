@@ -64,6 +64,8 @@ pub enum Assistant {
         configuration: DistributionsConfig,
         command: Option<String>,
         args: Option<Vec<String>>,
+        #[serde(skip)]
+        registry: Option<crate::acp::registry::Registry>,
     },
     CustomStdio {
         name: String,
@@ -119,12 +121,19 @@ impl Assistant {
                 configuration,
                 command,
                 args,
+                registry,
             } => {
+                let registry = registry.as_ref().ok_or_else(|| {
+                    Error::Internal(
+                        "Agent registry not available for registered assistant".to_string(),
+                    )
+                })?;
                 let Assistant::CustomStdio {
                     command: registry_command,
                     args: registry_args,
                     ..
-                } = fetch_agent_from_registry(agent, *distribution, configuration).await?
+                } = fetch_agent_from_registry(agent, *distribution, configuration, registry)
+                    .await?
                 else {
                     return Err(Error::Internal(
                         "agent registry should only return CustomStdio".to_string(),
@@ -584,6 +593,7 @@ mod tests {
             distribution: Some(Distribution::Npx),
             command: None,
             args: None,
+            registry: None,
         };
         assert_eq!(format!("{}", assistant), "test-agent (npx)");
     }
@@ -608,6 +618,7 @@ mod tests {
             distribution: None,
             command: None,
             args: None,
+            registry: None,
         };
         assert_eq!(format!("{}", assistant), "test-agent");
     }
