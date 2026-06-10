@@ -17,6 +17,7 @@ Hermes focuses on:
 - [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
+- [x] Neovim 0.12 progress integration via `nvim_echo` with `kind="progress"`
 
 ## Installation
 
@@ -119,11 +120,13 @@ Fetch the latest release from GitHub and replaces the current binary.
 ```
 :Hermes update
 ```
+> Triggers [Progress](#progress) autocommand while downloading
 
 Download the currently configured version.
 ```
 :Hermes install
 ```
+> Triggers [Progress](#progress) autocommand while downloading
 
 Remove the binary. Run `:Hermes install` or use Hermes API to re-download.
 ```
@@ -227,6 +230,9 @@ hermes.setup({
       max_files = 5, -- Max log files to generate
     },
   },
+  progress = {
+    cmdline = false, -- Show progress messages in cmdline (0.12+ only)
+  },
 })
 ```
 
@@ -253,7 +259,9 @@ hermes.agents({
 })
 ```
 
-> **Triggers:** [AgentList](#agentslist) autocommand upon completion.
+> **Triggers:**
+>   - [AgentList](#agentslist) autocommand upon completion.
+>   - [Progress](#progress) autocommand if the `update` option is enabled (for registry download progress)
 
 ### Connect
 
@@ -310,7 +318,9 @@ vim.api.nvim_create_autocmd("User", {
 })
 ```
 
-> **Triggers:** [ConnectionInitialized](#connectioninitialized) autocommand upon completion.
+> **Triggers:**
+>   - [ConnectionInitialized](#connectioninitialized) autocommand upon completion.
+>   - [Progress](#progress) autocommand if the `distributions.binary.enabled` configuration is enabled (reports binary download progress)
 
 ### Disconnect
 
@@ -1636,6 +1646,19 @@ Below is a list of all autocommands and their associated data (passed to the cal
       { "content": "string", "priority": "High | Medium | Low", "status": "Pending | InProgress | Completed | Cancelled" }
     ]
   }
+}</code></pre></td>
+    </tr>
+    <tr id="progress">
+      <td><code>Progress</code></td>
+      <td>Download progress update (binary, registry, agent)</td>
+      <td>⚡ <a href="#commands">:Hermes install</a>, <a href="#commands">:Hermes update</a>, <a href="#agents">agents()</a>, <a href="#connect">connect()</a>, <a href="#setup">setup()</a></td>
+      <td><pre><code class="language-json">{
+  "id": "string",
+  "title": "string",
+  "source": "string",
+  "status": "running | success | failure",
+  "percent": "number (optional)",
+  "text": ["string (optional)"]
 }</code></pre></td>
     </tr>
     <tr id="prompted">
