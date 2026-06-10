@@ -10,6 +10,9 @@ local M = {}
 local USER_AGENT = "hermes.nvim/0.1"
 M.USER_AGENT = USER_AGENT
 
+local PROGRESS_INTERVAL_MS = 50
+M.PROGRESS_INTERVAL_MS = PROGRESS_INTERVAL_MS
+
 -- luacov: disable
 ---Check if curl is available on the system
 ---@return boolean available
@@ -76,11 +79,101 @@ function M.emit_progress(id, title, status, percent, text)
 	if text then
 		opts.title = text
 	end
-	local ok = pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
-	if not ok then
-		-- Fallback: if nvim_echo with progress fails, just log silently
-		-- local _ = err
+	pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
+end
+
+-- luacov: disable
+---Get content length of a URL asynchronously via range request
+---Uses a partial GET (bytes 0-1) to force CDN to include Content-Length/Content-Range
+---@param url string URL to check
+---@param callback function Callback function(content_length: number|nil)
+---@return number|nil job_id The jobstart id, or nil if failed
+---@private
+-- luacov: enable
+function M.get_content_length(url, callback)
+	local tool = M.get_available_tool()
+
+	if not tool then
+		callback(nil)
+		return nil
 	end
+
+	local cmd
+
+	if tool == "curl" then
+		-- -r 0-1: request first byte (forces CDN to return Content-Range/Content-Length)
+		-- -s: silent, -L: follow redirects, -i: include headers
+		cmd = { "curl", "-sL", "-i", "-r", "0-1", "-H", "User-Agent: " .. USER_AGENT, url }
+	elseif tool == "wget" then
+		-- --header="Range: bytes=0-1": send Range header
+		-- --server-response: show headers, -O /dev/null: discard tiny body
+		cmd = { "wget", "--header=Range: bytes=0-1", "--server-response", "--user-agent=" .. USER_AGENT, "-O", "/dev/null", url }
+	else
+		-- PowerShell: GET request with Range header
+		local ps_cmd = string.format(
+			'$headers = @{Range="bytes=0-1"}; Invoke-WebRequest -Uri "%s" -Headers $headers -UseBasicParsing -UserAgent "%s"',
+			url,
+			USER_AGENT
+		)
+		cmd = { "powershell", "-Command", ps_cmd }
+	end
+
+	local stdout_data = {}
+	local stderr_data = {}
+
+	local job_id = vim.fn.jobstart(cmd, {
+		on_stdout = function(_, data)
+			if data then
+				for _, line in ipairs(data) do
+					if line and line ~= "" then
+						table.insert(stdout_data, line)
+					end
+				end
+			end
+		end,
+		on_stderr = function(_, data)
+			if data then
+				for _, line in ipairs(data) do
+					if line and line ~= "" then
+						table.insert(stderr_data, line)
+					end
+				end
+			end
+		end,
+		on_exit = vim.schedule_wrap(function(_, exit_code, _)
+			if exit_code ~= 0 then
+				callback(nil)
+				return
+			end
+
+			local content_length = nil
+			-- Combine stdout and stderr for parsing
+			local all_output = table.concat(stdout_data, "\n") .. "\n" .. table.concat(stderr_data, "\n")
+
+			-- Try Content-Range first (from 206 Partial Content response, e.g. "bytes 0-1/12345678")
+			content_length = all_output:match("[Cc]ontent%-[Rr]ange:%s*bytes%s+%d+%-%d+%/(%d+)")
+			if content_length then
+				content_length = tonumber(content_length)
+			end
+
+			-- Fallback to Content-Length header
+			if not content_length then
+				content_length = all_output:match("[Cc]ontent%-[Ll]ength:%s*(%d+)")
+				if content_length then
+					content_length = tonumber(content_length)
+				end
+			end
+
+			callback(content_length)
+		end),
+	})
+
+	if job_id <= 0 then
+		callback(nil)
+		return nil
+	end
+
+	return job_id
 end
 
 -- luacov: disable
@@ -243,11 +336,41 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 
 	local stdout_data = {}
 	local stderr_data = {}
+	local download_finished = false
+	local total_size = nil
 
 	M.emit_progress(progress_id, title, "running", 0, "Starting download...")
 
 	local uv = vim.uv or vim.loop
-  
+
+	-- Get content length asynchronously
+	M.get_content_length(url, function(size)
+		total_size = size
+	end)
+
+	-- Start progress timer
+	local timer = uv.new_timer()
+	timer:start(PROGRESS_INTERVAL_MS, PROGRESS_INTERVAL_MS, function()
+		if download_finished then
+			timer:stop()
+			timer:close()
+			return
+		end
+
+		local stat = uv.fs_stat(dest_path)
+		if stat and stat.size > 0 then
+			local percent = nil
+			if total_size and total_size > 0 then
+				percent = math.floor((stat.size / total_size) * 100)
+				percent = math.min(percent, 99) -- Don't show 100% until actually done
+			end
+
+			vim.schedule(function()
+				M.emit_progress(progress_id, title, "running", percent, "Downloading...")
+			end)
+		end
+	end)
+
 	local job_id = vim.fn.jobstart(cmd, {
 		on_stdout = function(_, data)
 			if data then
@@ -268,6 +391,13 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 			end
 		end,
 		on_exit = vim.schedule_wrap(function(_, exit_code, _)
+			download_finished = true
+			if timer then
+				timer:stop()
+				timer:close()
+				timer = nil
+			end
+
 			if exit_code ~= 0 then
 				local stderr_output = table.concat(stderr_data, "\n")
 				M.emit_progress(
@@ -327,6 +457,12 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 	})
 
 	if job_id <= 0 then
+		download_finished = true
+		if timer then
+			timer:stop()
+			timer:close()
+			timer = nil
+		end
 		M.emit_progress(
 			progress_id,
 			title,

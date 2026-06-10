@@ -426,6 +426,26 @@ describe("hermes.download", function()
 	end)
 
 	describe("download_async()", function()
+		local timer_stub = nil
+
+		before_each(function()
+			local uv = vim.uv or vim.loop
+			timer_stub = stub(uv, "new_timer").invokes(function()
+				return {
+					start = function() end,
+					stop = function() end,
+					close = function() end,
+				}
+			end)
+		end)
+
+		after_each(function()
+			if timer_stub then
+				timer_stub:revert()
+				timer_stub = nil
+			end
+		end)
+
 		it("returns nil when no tool available", function()
 			stub(download, "get_available_tool").returns(nil)
 
@@ -496,7 +516,7 @@ describe("hermes.download", function()
 			assert.equals(1, #running, "Should emit only one running progress at start")
 		end)
 
-		it("emits only start and end progress notifications", function()
+		it("emits start progress notification", function()
 			stub(download, "get_available_tool").returns("curl")
 
 			local progress_calls = {}
@@ -512,7 +532,7 @@ describe("hermes.download", function()
 
 			progress_stub:revert()
 
-			assert.equals(1, #progress_calls, "Should emit only one progress (start) before completion")
+			assert.equals(1, #progress_calls, "Should emit start progress before completion")
 			assert.equals("running", progress_calls[1].status)
 			assert.equals(0, progress_calls[1].percent)
 		end)
@@ -665,6 +685,145 @@ describe("hermes.download", function()
 			end
 
 			assert.is_nil(callback_err, "Should not return error on success")
+		end)
+	end)
+
+	describe("get_content_length()", function()
+		it("parses Content-Range from curl output", function()
+			stub(download, "get_available_tool").returns("curl")
+
+			local captured_opts = nil
+			stub(vim.fn, "jobstart").invokes(function(_cmd, opts)
+				captured_opts = opts
+				return 123
+			end)
+
+			local callback_size = nil
+			download.get_content_length("http://example.com/file", function(size)
+				callback_size = size
+			end)
+
+			-- Simulate 206 Partial Content response with Content-Range
+			if captured_opts and captured_opts.on_stdout then
+				captured_opts.on_stdout(0, { "HTTP/1.1 206 Partial Content", "Content-Range: bytes 0-1/12345" })
+			end
+
+			if captured_opts and captured_opts.on_exit then
+				captured_opts.on_exit(0, 0, "exit")
+			end
+
+			assert.equals(12345, callback_size)
+		end)
+
+		it("falls back to Content-Length when Content-Range is absent", function()
+			stub(download, "get_available_tool").returns("curl")
+
+			local captured_opts = nil
+			stub(vim.fn, "jobstart").invokes(function(_cmd, opts)
+				captured_opts = opts
+				return 123
+			end)
+
+			local callback_size = nil
+			download.get_content_length("http://example.com/file", function(size)
+				callback_size = size
+			end)
+
+			-- Simulate 200 OK with Content-Length but no Content-Range
+			if captured_opts and captured_opts.on_stdout then
+				captured_opts.on_stdout(0, { "HTTP/1.1 200 OK", "Content-Length: 67890" })
+			end
+
+			if captured_opts and captured_opts.on_exit then
+				captured_opts.on_exit(0, 0, "exit")
+			end
+
+			assert.equals(67890, callback_size)
+		end)
+
+		it("returns nil when range request fails", function()
+			stub(download, "get_available_tool").returns("curl")
+
+			local captured_opts = nil
+			stub(vim.fn, "jobstart").invokes(function(_cmd, opts)
+				captured_opts = opts
+				return 123
+			end)
+
+			local callback_size = "not-called"
+			download.get_content_length("http://example.com/file", function(size)
+				callback_size = size
+			end)
+
+			if captured_opts and captured_opts.on_exit then
+				captured_opts.on_exit(0, 1, "exit")
+			end
+
+			assert.is_nil(callback_size)
+		end)
+
+		it("returns nil when no tool available", function()
+			stub(download, "get_available_tool").returns(nil)
+
+			local callback_size = "not-called"
+			download.get_content_length("http://example.com/file", function(size)
+				callback_size = size
+			end)
+
+			assert.is_nil(callback_size)
+		end)
+	end)
+
+		describe("download progress timer", function()
+		it("emits intermediate progress via timer", function()
+			stub(download, "get_available_tool").returns("curl")
+
+			local progress_calls = {}
+			local progress_stub = stub(download, "emit_progress").invokes(function(id, _title, status, percent, _text)
+				table.insert(progress_calls, { id = id, status = status, percent = percent })
+			end)
+
+			-- Stub uv.new_timer to capture the callback
+			local timer_callback = nil
+			local uv = vim.uv or vim.loop
+			local new_timer_stub = stub(uv, "new_timer").invokes(function()
+				return {
+					start = function(self, interval, repeat_interval, cb)
+						timer_callback = cb
+					end,
+					stop = function() end,
+					close = function() end,
+				}
+			end)
+
+			local captured_opts = nil
+			stub(vim.fn, "jobstart").invokes(function(_cmd, opts)
+				captured_opts = opts
+				return 123
+			end)
+
+			-- Stub vim.schedule to execute immediately
+			local schedule_stub = stub(vim, "schedule").invokes(function(fn)
+				fn()
+			end)
+
+			download.download_async("http://example.com/file", "/tmp/test", "timer-test", function() end)
+
+			-- Simulate timer firing with file size
+			if timer_callback then
+				local fs_stat_stub = stub(uv, "fs_stat").returns({ size = 500 })
+				timer_callback()
+				fs_stat_stub:revert()
+			end
+
+			schedule_stub:revert()
+
+			progress_stub:revert()
+			new_timer_stub:revert()
+
+			-- Should have at least 2 calls: start + intermediate
+			assert.is_true(#progress_calls >= 2, "Should emit intermediate progress, got " .. #progress_calls .. " calls")
+			assert.equals("running", progress_calls[2].status)
 		end)
 	end)
 end)
