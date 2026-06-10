@@ -527,8 +527,11 @@ function M.setup(opts)
 		local config = require("hermes.config")
 		local progress_cfg = config.get_progress()
 		if not progress_cfg or not progress_cfg.cmdline then
-			-- Wrap in pcall: messagesopt may exist but not support progress:none in all 0.12 builds
-			pcall(vim.cmd, "set messagesopt+=progress:none")
+			-- Remove progress:c to suppress cmdline display of progress messages
+			pcall(vim.cmd, "set messagesopt-=progress:c")
+		else
+			-- User wants cmdline output, ensure progress:c is set
+			pcall(vim.cmd, "set messagesopt+=progress:c")
 		end
 	end
 
