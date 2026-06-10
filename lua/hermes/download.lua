@@ -76,10 +76,10 @@ function M.emit_progress(id, title, status, percent, text)
 	if text then
 		opts.title = text
 	end
-	local ok, err = pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
+	local ok = pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
 	if not ok then
 		-- Fallback: if nvim_echo with progress fails, just log silently
-		local _ = err
+		-- local _ = err
 	end
 end
 
@@ -207,11 +207,10 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 	local http_code_pattern = nil
 
 	if tool == "curl" then
-		-- -# outputs hash marks to stderr for progress; each # ≈ 2%
+		-- -sL for silent, follow redirects; -w writes HTTP code to stdout
 		cmd = {
 			"curl",
-			"-#",
-			"-L",
+			"-sL",
 			"-H",
 			"User-Agent: " .. USER_AGENT,
 			"-o",
@@ -222,10 +221,10 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 		}
 		http_code_pattern = "(%d%d%d)$"
 	elseif tool == "wget" then
-		-- wget sends progress to stderr in a parseable format
+		-- wget with -q for quiet (no progress output)
 		cmd = {
 			"wget",
-			"--progress=dot:mega",
+			"-q",
 			"--user-agent=" .. USER_AGENT,
 			"-O",
 			dest_path,
@@ -243,13 +242,12 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 	end
 
 	local stdout_data = {}
-	local last_percent = 0
-	local last_emit_time = 0
-	local debounce_ms = 250
-	local min_delta_percent = 2
+	local stderr_data = {}
 
-	M.emit_progress(progress_id, title, "begin", 0, "Starting download...")
+	M.emit_progress(progress_id, title, "running", 0, "Starting download...")
 
+	local uv = vim.uv or vim.loop
+  
 	local job_id = vim.fn.jobstart(cmd, {
 		on_stdout = function(_, data)
 			if data then
@@ -261,70 +259,21 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 			end
 		end,
 		on_stderr = function(_, data)
-			if not data then
-				return
-			end
-			if tool == "curl" then
-				-- Parse curl -# stderr: lines of hash marks
+			if data then
 				for _, line in ipairs(data) do
-					if line then
-						local hash_count = 0
-						for _ in line:gmatch("#") do
-							hash_count = hash_count + 1
-						end
-						if hash_count > 0 then
-							-- Each # from curl -# represents ~2% of total
-							local percent = math.min(hash_count * 2, 100)
-							local now = vim.loop.now()
-							local delta_pct = percent - last_percent
-							local delta_time = now - last_emit_time
-							if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
-								last_percent = percent
-								last_emit_time = now
-							M.emit_progress(
-								progress_id,
-								title,
-								"report",
-								percent,
-								percent .. "% downloaded"
-							)
-						end
-					end
-				end
-			end
-		elseif tool == "wget" then
-			-- wget dot progress: each dot is ~1KB, hard to convert to percent
-			-- Just emit a heartbeat every few seconds to show activity
-			for _, line in ipairs(data) do
-				if line and line:match("%d+%%") then
-					local pct = tonumber(line:match("(%d+)%%"))
-					if pct then
-						local now = vim.loop.now()
-						local delta_pct = pct - last_percent
-						local delta_time = now - last_emit_time
-						if delta_pct >= min_delta_percent or delta_time >= debounce_ms then
-							last_percent = pct
-							last_emit_time = now
-							M.emit_progress(
-								progress_id,
-								title,
-								"report",
-								pct,
-								pct .. "% downloaded"
-							)
-							end
-						end
+					if line and line ~= "" then
+						table.insert(stderr_data, line)
 					end
 				end
 			end
 		end,
-			on_exit = vim.schedule_wrap(function(_, exit_code, _)
+		on_exit = vim.schedule_wrap(function(_, exit_code, _)
 			if exit_code ~= 0 then
-				local stderr_output = table.concat(stdout_data, "\n")
+				local stderr_output = table.concat(stderr_data, "\n")
 				M.emit_progress(
 					progress_id,
 					title,
-					"end",
+					"failure",
 					nil,
 					"Download failed with exit code " .. exit_code
 				)
@@ -348,14 +297,13 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 			end
 
 			-- Verify downloaded file
-			local uv = vim.uv or vim.loop
 			local stat = uv.fs_stat(dest_path)
 			if not stat or stat.size < 100 then
 				uv.fs_unlink(dest_path)
 				M.emit_progress(
 					progress_id,
 					title,
-					"end",
+					"failure",
 					nil,
 					"Downloaded file is too small or empty"
 				)
@@ -370,7 +318,7 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 			M.emit_progress(
 				progress_id,
 				title,
-				"end",
+				"success",
 				100,
 				"Download finished successfully"
 			)
@@ -381,8 +329,8 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 	if job_id <= 0 then
 		M.emit_progress(
 			progress_id,
-			"Download failed",
-			"end",
+			title,
+			"failure",
 			nil,
 			"Failed to start download job"
 		)

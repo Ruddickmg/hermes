@@ -731,6 +731,45 @@ function M.ensure_binary_async(timeout, on_complete)
 end
 
 -- luacov: disable
+---Download a specific binary version asynchronously
+---Performs platform/tool checks and downloads the specified version
+---@param wanted_ver string Version to download (e.g., "v0.1.0")
+---@param on_complete function Callback function(success: boolean, result: string)
+-- luacov: enable
+function M.download_async(wanted_ver, on_complete)
+	local platform = require("hermes.platform")
+
+	local platform_key = platform.get_platform_key()
+	if not platform_key then
+		on_complete(false, "Unable to determine platform")
+		return
+	end
+
+	if not M.SUPPORTED_PLATFORMS[platform_key] then
+		on_complete(
+			false,
+			"Platform not supported for automatic binary download: "
+				.. platform.get_display_string()
+				.. ". Consider building from source."
+		)
+		return
+	end
+
+	local download_mod = get_download()
+	local download_tool = download_mod.get_available_tool()
+	if not download_tool then
+		on_complete(false, "No download tool available. Please install curl, wget, or PowerShell.")
+		return
+	end
+
+	local bin_path = M.get_binary_path()
+	local ver_file = M.get_version_file()
+
+	vim.fn.mkdir(M.get_data_dir(), "p")
+	M._download_binary_async(wanted_ver, bin_path, ver_file, on_complete)
+end
+
+-- luacov: disable
 ---Download binary asynchronously (internal helper)
 ---@param wanted_ver string Version to download
 ---@param bin_path string Binary path

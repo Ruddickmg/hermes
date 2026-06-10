@@ -35,69 +35,65 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 
 		logger.notify(table.concat(log_lines, "\n"), vim.log.levels.INFO)
 	elseif subcmd == "install" or subcmd == "download" then
-		-- Force download/install
+		-- Force download/install (async, non-blocking)
 		logger.notify("Installing Hermes binary...", vim.log.levels.INFO)
-		local ok, err = pcall(function()
-			local binary = require("hermes.binary")
-			local version = require("hermes.version")
+		local binary = require("hermes.binary")
+		local version = require("hermes.version")
 
-			local ver = version.get_wanted()
+		local ver = version.get_wanted()
+		local path = binary.get_binary_path()
 
-			local path = binary.get_binary_path()
-			-- Remove existing binary if present
-			if vim.fn.filereadable(path) == 1 then
-				vim.fn.delete(path)
+		-- Remove existing binary if present
+		if vim.fn.filereadable(path) == 1 then
+			vim.fn.delete(path)
+		end
+
+		local function on_download_done(success, result)
+			if success then
+				logger.notify("Hermes binary installed successfully!", vim.log.levels.INFO)
+			else
+				logger.notify("Installation failed: " .. tostring(result), vim.log.levels.ERROR)
 			end
+		end
 
-			-- Download fresh
-			local success = binary.download(path, ver)
-			if not success then
-				error("Download failed")
-			end
-
-			-- Save version
-			vim.fn.writefile({ ver }, binary.get_version_file())
-		end)
-
-		if ok then
-			logger.notify("Hermes binary installed successfully!", vim.log.levels.INFO)
+		if ver == "latest" then
+			version.fetch_latest_async(function(tag, _err)
+				if not tag then
+					logger.notify("Failed to fetch latest version", vim.log.levels.ERROR)
+					return
+				end
+				logger.notify("Latest version: " .. tag, vim.log.levels.INFO)
+				binary.download_async(tag, on_download_done)
+			end)
 		else
-			logger.notify("Installation failed: " .. tostring(err), vim.log.levels.ERROR)
+			binary.download_async(ver, on_download_done)
 		end
 	elseif subcmd == "update" then
-		-- Update to latest version (fetches from GitHub and downloads)
+		-- Update to latest version (async, non-blocking)
 		logger.notify("Updating Hermes binary...", vim.log.levels.INFO)
-		local ok, err = pcall(function()
-			local binary = require("hermes.binary")
-			local version = require("hermes.version")
+		local binary = require("hermes.binary")
+		local version = require("hermes.version")
 
-			-- Fetch latest version from GitHub
-			local latest_ver = version.fetch_latest()
-			logger.notify("Latest version: " .. latest_ver, vim.log.levels.INFO)
-
-			local path = binary.get_binary_path()
-			-- Remove existing binary
-			if vim.fn.filereadable(path) == 1 then
-				vim.fn.delete(path)
-			end
-
-			-- Download latest version
-			local success = binary.download(path, latest_ver)
-			if not success then
-				error("Download failed")
-			end
-
-			-- Save version
-			vim.fn.writefile({ latest_ver }, binary.get_version_file())
-
-			return latest_ver
-		end)
-
-		if ok then
-			logger.notify("Hermes updated to version " .. err .. " successfully!", vim.log.levels.INFO)
-		else
-			logger.notify("Update failed: " .. tostring(err), vim.log.levels.ERROR)
+		local path = binary.get_binary_path()
+		-- Remove existing binary
+		if vim.fn.filereadable(path) == 1 then
+			vim.fn.delete(path)
 		end
+
+		version.fetch_latest_async(function(tag, _err)
+			if not tag then
+				logger.notify("Failed to fetch latest version", vim.log.levels.ERROR)
+				return
+			end
+			logger.notify("Latest version: " .. tag, vim.log.levels.INFO)
+			binary.download_async(tag, function(success, result)
+				if success then
+					logger.notify("Hermes updated to version " .. tag .. " successfully!", vim.log.levels.INFO)
+				else
+					logger.notify("Update failed: " .. tostring(result), vim.log.levels.ERROR)
+				end
+			end)
+		end)
 	elseif subcmd == "build" then
 		-- Build from source asynchronously (non-blocking)
 		local binary = require("hermes.binary")
