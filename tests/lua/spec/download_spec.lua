@@ -378,50 +378,92 @@ describe("hermes.download", function()
 	end)
 
 	describe("emit_progress()", function()
-		it("calls nvim_echo with progress options", function()
+		it("fires User Progress autocommand on all versions", function()
+			local autocmd_calls = {}
+			local exec_stub = stub(vim.api, "nvim_exec_autocmds").invokes(function(event, opts)
+				table.insert(autocmd_calls, { event = event, opts = opts })
+			end)
+
+			-- Mock messagesopt not existing (0.11 scenario)
+			local exists_stub = stub(vim.fn, "exists").returns(0)
+
+			download.emit_progress("test-id", "Test Title", "running", 0, "Starting")
+
+			exec_stub:revert()
+			exists_stub:revert()
+
+			assert.equals(1, #autocmd_calls)
+			assert.equals("User", autocmd_calls[1].event)
+			assert.equals("Progress", autocmd_calls[1].opts.pattern)
+			assert.same({
+				id = "test-id",
+				title = "Test Title",
+				source = "hermes",
+				status = "running",
+				percent = 0,
+				text = { "Starting" },
+			}, autocmd_calls[1].opts.data)
+		end)
+
+		it("omits percent and text when nil", function()
+			local autocmd_calls = {}
+			local exec_stub = stub(vim.api, "nvim_exec_autocmds").invokes(function(event, opts)
+				table.insert(autocmd_calls, { event = event, opts = opts })
+			end)
+
+			local exists_stub = stub(vim.fn, "exists").returns(0)
+
+			download.emit_progress("end-id", "Done", "success", nil, nil)
+
+			exec_stub:revert()
+			exists_stub:revert()
+
+			assert.is_nil(autocmd_calls[1].opts.data.percent)
+			assert.is_nil(autocmd_calls[1].opts.data.text)
+		end)
+
+		it("calls nvim_echo on 0.12+ (messagesopt exists)", function()
 			local echo_calls = {}
 			local echo_stub = stub(vim.api, "nvim_echo").invokes(function(chunks, hist, opts)
 				table.insert(echo_calls, { chunks = chunks, hist = hist, opts = opts })
 			end)
 
-			download.emit_progress("test-id", "Test Title", "running", 0, "Starting")
+			local exec_stub = stub(vim.api, "nvim_exec_autocmds")
+			local exists_stub = stub(vim.fn, "exists").returns(1)
+
+			download.emit_progress("test-id", "Test Title", "running", 50, "Downloading")
 
 			echo_stub:revert()
+			exec_stub:revert()
+			exists_stub:revert()
 
+			assert.equals(1, #echo_calls)
 			assert.same({
 				kind = "progress",
 				id = "test-id",
 				source = "hermes",
 				status = "running",
-				percent = 0,
-				title = "Starting",
+				percent = 50,
+				title = "Downloading",
 			}, echo_calls[1].opts)
 		end)
 
-		it("omits percent when nil", function()
+		it("does not call nvim_echo on 0.11 (messagesopt missing)", function()
 			local echo_calls = {}
 			local echo_stub = stub(vim.api, "nvim_echo").invokes(function(chunks, hist, opts)
 				table.insert(echo_calls, { chunks = chunks, hist = hist, opts = opts })
 			end)
 
-			download.emit_progress("end-id", "Done", "success", nil, nil)
+			local exec_stub = stub(vim.api, "nvim_exec_autocmds")
+			local exists_stub = stub(vim.fn, "exists").returns(0)
+
+			download.emit_progress("test-id", "Test Title", "running", 50, "Downloading")
 
 			echo_stub:revert()
+			exec_stub:revert()
+			exists_stub:revert()
 
-			assert.is_nil(echo_calls[1].opts.percent)
-		end)
-
-		it("omits title when nil", function()
-			local echo_calls = {}
-			local echo_stub = stub(vim.api, "nvim_echo").invokes(function(chunks, hist, opts)
-				table.insert(echo_calls, { chunks = chunks, hist = hist, opts = opts })
-			end)
-
-			download.emit_progress("end-id", "Done", "success", nil, nil)
-
-			echo_stub:revert()
-
-			assert.is_nil(echo_calls[1].opts.title)
+			assert.equals(0, #echo_calls)
 		end)
 	end)
 

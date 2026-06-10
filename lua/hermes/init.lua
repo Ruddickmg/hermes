@@ -20,6 +20,9 @@ vim.notify("Running locally")
 ---@field auto? boolean Whether to auto-download pre-built binary (default: true)
 ---@field timeout? number Download timeout in seconds (default: 60)
 
+---@class HermesProgressConfig
+---@field cmdline? boolean Show progress messages in cmdline (0.12+ only, default: false)
+
 ---@class HermesConfig
 ---Hermes plugin configuration options
 ---@field download? HermesDownloadConfig Download configuration for binary management
@@ -29,6 +32,7 @@ vim.notify("Running locally")
 ---@field buffer? HermesBufferConfig Buffer configuration
 ---@field session? HermesSessionConfig Session configuration
 ---@field log? HermesLogConfig Logging configuration
+---@field progress? HermesProgressConfig Progress display configuration
 
 ---@class HermesPermissions
 ---Permission settings for agent operations
@@ -517,6 +521,16 @@ function M.setup(opts)
 
 	-- Store full configuration locally (used by health check and internal tools)
 	require("hermes.config").setup(opts)
+
+	-- 0.12+: suppress cmdline progress output by default (user can re-enable via config)
+	if vim.fn.exists("+messagesopt") == 1 then
+		local config = require("hermes.config")
+		local progress_cfg = config.get_progress()
+		if not progress_cfg or not progress_cfg.cmdline then
+			-- Wrap in pcall: messagesopt may exist but not support progress:none in all 0.12 builds
+			pcall(vim.cmd, "set messagesopt+=progress:none")
+		end
+	end
 
 	-- Check if version changed and we need to re-download (only if auto-download is enabled)
 	if should_auto_download() then

@@ -59,6 +59,9 @@ local M = {}
 ---@field uvx? boolean Enable uvx distribution (default: true)
 ---@field npx? boolean Enable npx distribution (default: true)
 
+---@class HermesProgressConfig
+---@field cmdline? boolean Show progress messages in cmdline (0.12+ only, default: false)
+
 ---@class HermesConfig
 ---Full Hermes configuration
 ---@field download? HermesDownloadConfig Download configuration
@@ -68,6 +71,7 @@ local M = {}
 ---@field buffer? HermesBufferConfig Buffer configuration
 ---@field session? HermesSessionConfig Session configuration
 ---@field distributions? HermesDistributionsConfig Distribution settings
+---@field progress? HermesProgressConfig Progress display configuration
 ---@field root_markers? string[] Files/directories to identify project root (default: {".git"})
 
 -- luacov: disable
@@ -161,6 +165,9 @@ local default_config = {
 		uvx = true,
 		npx = true,
 	},
+	progress = {
+		cmdline = false,
+	},
 	root_markers = { ".git" },
 }
 
@@ -228,6 +235,15 @@ end
 -- luacov: enable
 function M.get_notification_level()
 	return _config.log.notification.level
+end
+
+-- luacov: disable
+---Get progress configuration
+---@return HermesProgressConfig Progress configuration
+---@private
+-- luacov: enable
+function M.get_progress()
+	return _config.progress or { cmdline = false }
 end
 
 -- luacov: disable

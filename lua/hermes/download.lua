@@ -58,28 +58,48 @@ function M.get_available_tool()
 end
 
 -- luacov: disable
----Emit a Neovim progress notification via nvim_echo(kind='progress')
+---Emit a Neovim progress notification via nvim_echo(kind='progress') on 0.12+
+---Also fires User Progress autocommand on all versions for a stable API
 ---@param id string Unique progress id
 ---@param title string Human-readable title
----@param status string "begin", "report", or "end"
+---@param status string "running", "success", or "failure"
 ---@param percent number|nil Percentage 0-100
 ---@param text string|nil Optional detail text
 ---@private
 -- luacov: enable
 function M.emit_progress(id, title, status, percent, text)
-	local opts = {
-		kind = "progress",
+	local data = {
 		id = id,
+		title = title,
 		source = "hermes",
 		status = status,
 	}
 	if percent then
-		opts.percent = percent
+		data.percent = percent
 	end
 	if text then
-		opts.title = text
+		data.text = { text }
 	end
-	pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
+
+	-- 0.12+: use nvim_echo for native progress integration (Progress event, UI events)
+	if vim.fn.exists("+messagesopt") == 1 then
+		local opts = {
+			kind = "progress",
+			id = id,
+			source = "hermes",
+			status = status,
+		}
+		if percent then
+			opts.percent = percent
+		end
+		if text then
+			opts.title = text
+		end
+		pcall(vim.api.nvim_echo, { { title, "" } }, false, opts)
+	end
+
+	-- All versions: fire User Progress autocommand for a stable, consistent API
+	vim.api.nvim_exec_autocmds("User", { pattern = "Progress", data = data })
 end
 
 -- luacov: disable
