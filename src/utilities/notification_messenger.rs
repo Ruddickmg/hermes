@@ -199,7 +199,7 @@ impl NotificationMessenger {
                                     "nvim_echo",
                                     (
                                         chunks,
-                                        true,
+                                        false,
                                         Dictionary::from(ProgressEchoOpts {
                                             id: progress.id.clone(),
                                             status: progress.status.as_str().to_string(),
