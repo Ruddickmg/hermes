@@ -42,6 +42,58 @@ impl ProgressStatus {
     }
 }
 
+/// Dictionary for nvim_echo kind="progress" opts matching Lua's emit_progress format
+struct ProgressEchoOpts {
+    id: String,
+    status: String,
+    percent: Option<i64>,
+    text: Option<String>,
+}
+
+impl From<ProgressEchoOpts> for Dictionary {
+    fn from(opts: ProgressEchoOpts) -> Dictionary {
+        let mut dict = Dictionary::default();
+        dict.insert("kind", Object::from("progress"));
+        dict.insert("id", Object::from(opts.id));
+        dict.insert("source", Object::from("hermes"));
+        dict.insert("status", Object::from(opts.status));
+        if let Some(percent) = opts.percent {
+            dict.insert("percent", Object::from(percent));
+        }
+        if let Some(text) = opts.text {
+            dict.insert("title", Object::from(text));
+        }
+        dict
+    }
+}
+
+/// Dictionary for User Progress autocommand data matching Lua's emit_progress format
+struct ProgressAutocmdData {
+    id: String,
+    title: String,
+    status: String,
+    percent: Option<i64>,
+    text: Option<String>,
+}
+
+impl From<ProgressAutocmdData> for Dictionary {
+    fn from(data: ProgressAutocmdData) -> Dictionary {
+        let mut dict = Dictionary::default();
+        dict.insert("id", Object::from(data.id));
+        dict.insert("title", Object::from(data.title));
+        dict.insert("source", Object::from("hermes"));
+        dict.insert("status", Object::from(data.status));
+        if let Some(percent) = data.percent {
+            dict.insert("percent", Object::from(percent));
+        }
+        if let Some(text) = data.text {
+            let text_array = Array::from((Object::from(text),));
+            dict.insert("text", Object::from(text_array));
+        }
+        dict
+    }
+}
+
 /// A messenger that sends notifications and progress updates from any thread
 /// to be delivered on Neovim's main thread
 #[derive(Clone)]
@@ -145,38 +197,35 @@ impl NotificationMessenger {
                                     Object::from(""),
                                 ));
                                 let chunks = Array::from((chunk,));
-                                let mut opts = Dictionary::default();
-                                opts.insert("kind", Object::from("progress"));
-                                opts.insert("id", Object::from(progress.id.as_str()));
-                                opts.insert("source", Object::from("hermes"));
-                                if let Some(percent) = progress.percent {
-                                    opts.insert("percent", Object::from(percent as i64));
-                                }
-                                opts.insert("status", Object::from(progress.status.as_str()));
-                                if let Some(text) = &progress.text {
-                                    opts.insert("title", Object::from(text.as_str()));
-                                }
                                 api::call_function::<(Array, bool, Dictionary), Object>(
                                     "nvim_echo",
-                                    (chunks, true, opts),
+                                    (
+                                        chunks,
+                                        true,
+                                        Dictionary::from(ProgressEchoOpts {
+                                            id: progress.id.clone(),
+                                            status: progress.status.as_str().to_string(),
+                                            percent: progress.percent.map(|p| p as i64),
+                                            text: progress.text.clone(),
+                                        }),
+                                    ),
                                 )
                                 .ok();
                             }
 
                             // Always fire User Progress autocommand matching Lua's format
-                            let mut data = Dictionary::default();
-                            data.insert("id", Object::from(progress.id.as_str()));
-                            data.insert("title", Object::from(progress.title.as_str()));
-                            data.insert("source", Object::from("hermes"));
-                            data.insert("status", Object::from(progress.status.as_str()));
-                            if let Some(percent) = progress.percent {
-                                data.insert("percent", Object::from(percent as i64));
-                            }
-                            if let Some(text) = &progress.text {
-                                let text_array = Array::from((Object::from(text.as_str()),));
-                                data.insert("text", Object::from(text_array));
-                            }
-                            let _ = exec_autocmd("hermes", "User", "Progress", Object::from(data));
+                            let _ = exec_autocmd(
+                                "hermes",
+                                "User",
+                                "Progress",
+                                Object::from(Dictionary::from(ProgressAutocmdData {
+                                    id: progress.id,
+                                    title: progress.title,
+                                    status: progress.status.as_str().to_string(),
+                                    percent: progress.percent.map(|p| p as i64),
+                                    text: progress.text,
+                                })),
+                            );
                         }
                     }))
                     .ok();
