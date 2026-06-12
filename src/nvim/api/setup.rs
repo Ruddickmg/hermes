@@ -53,9 +53,20 @@ impl Api {
     pub async fn setup(&self, args: SetupArgs) -> Result<()> {
         let config_update = args.into_inner();
         let mut state = self.state.lock().await;
-        config_update.apply_to(&mut state.config);
+        let show_cmdline_progress = state.config.progress.cmdline;
+        config_update.clone().apply_to(&mut state.config);
+        let cmdline = state.config.progress.cmdline;
         let log_config = state.config.log.clone();
         drop(state);
+
+        if let Some(progress) = config_update.progress.clone() {
+            if let Some(show_in_cmdline) = progress.cmdline
+                && show_in_cmdline != show_cmdline_progress
+            {
+                crate::nvim::configuration::show_progress_in_cmdline(cmdline);
+            }
+        }
+
         self.logger.configure(log_config)
     }
 }

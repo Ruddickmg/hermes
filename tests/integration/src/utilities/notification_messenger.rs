@@ -3,6 +3,7 @@
 //! These tests verify that notifications from any thread are safely delivered
 //! to Neovim's main thread via the NotificationMessenger system.
 
+use hermes::utilities::notification_messenger::messagesopt_exists;
 use hermes::utilities::{LogLevel, NotificationMessenger};
 use std::thread;
 
@@ -165,4 +166,9 @@ fn test_notification_delivered_via_schedule() -> nvim_oxi::Result<()> {
     // If we reach here without crash, the schedule path worked correctly
     assert!(true, "Notification delivery via schedule did not crash");
     Ok(())
+}
+
+#[nvim_oxi::test]
+fn messagesopt_exists_returns_true() {
+    assert!(messagesopt_exists());
 }

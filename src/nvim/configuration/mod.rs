@@ -2,6 +2,7 @@ mod buffer;
 mod distribution;
 mod log;
 mod permissions;
+pub mod progress;
 mod session;
 mod terminal;
 
@@ -21,6 +22,7 @@ use nvim_oxi::{
     lua::{self},
 };
 pub use permissions::{Permissions, PermissionsPartial};
+pub use progress::{ProgressConfig, ProgressConfigPartial, show_progress_in_cmdline};
 pub use session::{SessionConfig, SessionConfigPartial};
 pub use terminal::{TerminalConfig, TerminalConfigPartial};
 
@@ -58,6 +60,7 @@ pub struct ClientConfig {
     pub log: LogConfig,
     pub session: SessionConfig,
     pub distributions: DistributionsConfig,
+    pub progress: ProgressConfig,
     pub root_markers: Vec<String>,
     pub project_root: PathBuf,
 }
@@ -79,6 +82,7 @@ pub struct ClientConfigPartial {
     pub log: Option<LogConfigPartial>,
     pub session: Option<SessionConfigPartial>,
     pub distributions: Option<DistributionsConfigPartial>,
+    pub progress: Option<ProgressConfigPartial>,
     pub root_markers: Option<Vec<String>>,
 }
 
@@ -92,6 +96,7 @@ impl Default for ClientConfig {
             log: Default::default(),
             session: Default::default(),
             distributions: Default::default(),
+            progress: Default::default(),
             project_root: default_project_root(root_markers.clone()),
             root_markers,
         }
@@ -118,6 +123,9 @@ impl ClientConfigPartial {
         }
         if let Some(distributions) = self.distributions {
             distributions.apply_to(&mut config.distributions);
+        }
+        if let Some(progress) = self.progress {
+            progress.apply_to(&mut config.progress);
         }
         if let Some(root_markers) = self.root_markers {
             config.project_root = default_project_root(root_markers.clone());
@@ -160,6 +168,11 @@ impl FromObject for ClientConfigPartial {
             .map(|o| DistributionsConfigPartial::from_object(o.clone()))
             .transpose()?;
 
+        let progress = dict
+            .get("progress")
+            .map(|o| ProgressConfigPartial::from_object(o.clone()))
+            .transpose()?;
+
         let root_markers = dict
             .get("root_markers")
             .map(|o| Vec::<String>::from_object(o.clone()))
@@ -173,6 +186,7 @@ impl FromObject for ClientConfigPartial {
             log,
             session,
             distributions,
+            progress,
         })
     }
 }
@@ -306,6 +320,17 @@ impl nvim_oxi::lua::Pushable for ClientConfigPartial {
             dict.insert("distributions", dist_dict);
         }
 
+        if let Some(progress) = self.progress {
+            let mut progress_dict = Dictionary::new();
+            if let Some(val) = progress.cmdline {
+                progress_dict.insert("cmdline", val);
+            }
+            if let Some(val) = progress.update_frequency {
+                progress_dict.insert("update_frequency", val as i64);
+            }
+            dict.insert("progress", progress_dict);
+        }
+
         unsafe { dict.push(lua_state) }
     }
 }
@@ -324,6 +349,7 @@ mod tests {
             root_markers: Default::default(),
             session: Default::default(),
             distributions: Default::default(),
+            progress: Default::default(),
             permissions: Some(PermissionsPartial {
                 fs_write_access: Some(false),
                 ..Default::default()
@@ -363,6 +389,7 @@ mod tests {
             project_root: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             session: SessionConfig::default(),
             distributions: Default::default(),
+            progress: Default::default(),
             permissions: Permissions {
                 fs_write_access: false,
                 fs_read_access: false,
