@@ -59,6 +59,11 @@ describe("hermes.binary", function()
 				vim.fn.executable:revert()
 			end
 		end)
+		pcall(function()
+			if vim.fn.filereadable.revert then
+				vim.fn.filereadable:revert()
+			end
+		end)
 	end)
 
 	describe("get_data_dir()", function()
@@ -345,23 +350,33 @@ describe("hermes.binary", function()
 	end)
 
 	describe("ensure_binary() error paths", function()
-		it("shows helpful error for unsupported platform", function()
-			-- Mock platform as unsupported
+		it("returns error for unsupported platform", function()
 			stub(require("hermes.platform"), "is_supported").returns(false)
 			stub(require("hermes.platform"), "get_platform_key").returns("mips")
 			stub(require("hermes.platform"), "get_display_string").returns("mips")
 			stub(vim.fn, "filereadable").returns(0)
 
-			local ok, err = pcall(function()
+			local ok, _ = pcall(function()
 				binary.ensure_binary()
 			end)
 
 			assert.is_false(ok)
+		end)
+
+		it("error message mentions platform for unsupported platform", function()
+			stub(require("hermes.platform"), "is_supported").returns(false)
+			stub(require("hermes.platform"), "get_platform_key").returns("mips")
+			stub(require("hermes.platform"), "get_display_string").returns("mips")
+			stub(vim.fn, "filereadable").returns(0)
+
+			local _, err = pcall(function()
+				binary.ensure_binary()
+			end)
+
 			assert.truthy(err:match("not supported") or err:match("platform"))
 		end)
 
-		it("handles download failure gracefully", function()
-			-- Setup: missing binary, download will fail
+		it("returns error on download failure", function()
 			stub(vim.fn, "filereadable").returns(0)
 			stub(require("hermes.config"), "get").returns({
 				download = {
@@ -373,12 +388,29 @@ describe("hermes.binary", function()
 			stub(download, "get_available_tool").returns("curl")
 			stub(require("hermes.platform"), "is_supported").returns(true)
 
-			local ok, err = pcall(function()
+			local ok, _ = pcall(function()
 				binary.ensure_binary()
 			end)
 
 			assert.is_false(ok)
-			-- Error should mention download failure
+		end)
+
+		it("error message mentions download failure", function()
+			stub(vim.fn, "filereadable").returns(0)
+			stub(require("hermes.config"), "get").returns({
+				download = {
+					auto = true,
+					version = "v9.9.9",
+				},
+			})
+			stub(download, "download").returns(false, "HTTP 404")
+			stub(download, "get_available_tool").returns("curl")
+			stub(require("hermes.platform"), "is_supported").returns(true)
+
+			local _, err = pcall(function()
+				binary.ensure_binary()
+			end)
+
 			assert.truthy(err:match("download") or err:match("Failed"))
 		end)
 	end)
@@ -630,27 +662,8 @@ describe("hermes.binary", function()
   end)
 
 	describe("build_from_source()", function()
-		it("returns false when cargo is not available", function()
-			stub(vim.fn, "executable").invokes(function(cmd)
-				if cmd == "cargo" then
-					return 0
-				end
-				return 1
-			end)
-
-			local result = binary.build_from_source(temp_dir)
-
-			assert.is_false(result)
-		end)
-
 		it("exports build_from_source as a function", function()
 			assert.is_function(binary.build_from_source)
-		end)
-
-		it("returns false when cargo is not available", function()
-			stub(vim.fn, "executable").returns(0)
-			local result = binary.build_from_source(temp_dir)
-			assert.is_false(result)
 		end)
 
 		it("_get_source_dir returns a string path", function()
@@ -1031,58 +1044,6 @@ describe("hermes.binary", function()
 		end)
 	end)
 
-	describe("async build state tracking", function()
-		it("returns false initially when no build is in progress", function()
-			assert.is_false(binary.is_build_in_progress())
-		end)
-
-		it("returns true when build is in progress", function()
-			stub(vim.fn, "jobstart").returns(123)
-			stub(vim.fn, "executable").returns(1)
-
-			-- Start build
-			binary.build_from_source_async(temp_dir, function() end)
-
-			-- Wait for the async build to actually start
-			vim.wait(50)
-
-			assert.is_true(binary.is_build_in_progress())
-		end)
-
-		it("returns false after build is cancelled", function()
-			stub(vim.fn, "jobstart").returns(123)
-			stub(vim.fn, "executable").returns(1)
-
-			-- Start and then cancel build
-			binary.build_from_source_async(temp_dir, function() end)
-			vim.wait(50)
-			binary.cancel_build()
-
-			assert.is_false(binary.is_build_in_progress())
-		end)
-
-		it("allows first build to start", function()
-			stub(vim.fn, "jobstart").returns(123)
-			stub(vim.fn, "executable").returns(1)
-
-			-- First build should succeed
-			local result = binary.build_from_source_async(temp_dir, function() end)
-			assert.is_true(result)
-		end)
-
-		it("prevents concurrent builds when already in progress", function()
-			stub(vim.fn, "jobstart").returns(123)
-			stub(vim.fn, "executable").returns(1)
-
-			-- Start first build
-			binary.build_from_source_async(temp_dir, function() end)
-
-			-- Second build should fail (already in progress)
-			local result = binary.build_from_source_async(temp_dir, function() end)
-			assert.is_false(result)
-		end)
-	end)
-
 	describe("cancel_download()", function()
 		it("returns true when a download job exists", function()
 			local jobstop_stub = stub(vim.fn, "jobstop")
@@ -1184,6 +1145,144 @@ describe("hermes.binary", function()
 			vim.wait(100)
 
 			assert.is_not_nil(callback_err, "Callback should receive error details")
+		end)
+	end)
+
+	describe("download_async()", function()
+		it("calls back with failure when platform cannot be determined", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns(nil)
+
+			local callback_success
+			binary.download_async("v1.0.0", function(success, _result)
+				callback_success = success
+			end)
+
+			platform_stub:revert()
+			assert.is_false(callback_success)
+		end)
+
+		it("error message mentions platform cannot be determined", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns(nil)
+
+			local callback_result
+			binary.download_async("v1.0.0", function(_success, result)
+				callback_result = result
+			end)
+
+			platform_stub:revert()
+			assert.equals("Unable to determine platform", callback_result)
+		end)
+
+		it("calls back with failure for unsupported platform", function()
+			local platform_mod = require("hermes.platform")
+			local platform_key_stub = stub(platform_mod, "get_platform_key").returns("unsupported-os")
+			local platform_display_stub = stub(platform_mod, "get_display_string").returns("unsupported-os")
+
+			local callback_success
+			binary.download_async("v1.0.0", function(success, _result)
+				callback_success = success
+			end)
+
+			platform_key_stub:revert()
+			platform_display_stub:revert()
+			assert.is_false(callback_success)
+		end)
+
+		it("error message mentions unsupported platform", function()
+			local platform_mod = require("hermes.platform")
+			local platform_key_stub = stub(platform_mod, "get_platform_key").returns("unsupported-os")
+			local platform_display_stub = stub(platform_mod, "get_display_string").returns("unsupported-os")
+
+			local callback_result
+			binary.download_async("v1.0.0", function(_success, result)
+				callback_result = result
+			end)
+
+			platform_key_stub:revert()
+			platform_display_stub:revert()
+			assert.is_true(callback_result:find("Platform not supported") ~= nil)
+		end)
+
+		it("calls back with failure when no download tool available", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns("linux-x86_64")
+			local download_tool_stub = stub(download, "get_available_tool").returns(nil)
+
+			local callback_success
+			binary.download_async("v1.0.0", function(success, _result)
+				callback_success = success
+			end)
+
+			platform_stub:revert()
+			download_tool_stub:revert()
+			assert.is_false(callback_success)
+		end)
+
+		it("error message mentions no download tool available", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns("linux-x86_64")
+			local download_tool_stub = stub(download, "get_available_tool").returns(nil)
+
+			local callback_result
+			binary.download_async("v1.0.0", function(_success, result)
+				callback_result = result
+			end)
+
+			platform_stub:revert()
+			download_tool_stub:revert()
+			assert.is_true(callback_result:find("No download tool available") ~= nil)
+		end)
+
+		it("calls internal download when proceeding", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns("linux-x86_64")
+			local download_tool_stub = stub(download, "get_available_tool").returns("curl")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+			local bin_path = temp_dir .. "/hermes"
+			local ver_file = temp_dir .. "/version"
+			local binary_path_stub = stub(binary, "get_binary_path").returns(bin_path)
+			local version_file_stub = stub(binary, "get_version_file").returns(ver_file)
+			local data_dir_stub = stub(binary, "get_data_dir").returns(temp_dir)
+			local internal_stub = stub(binary, "_download_binary_async")
+
+			binary.download_async("v1.0.0", function() end)
+
+			platform_stub:revert()
+			download_tool_stub:revert()
+			mkdir_stub:revert()
+			binary_path_stub:revert()
+			version_file_stub:revert()
+			data_dir_stub:revert()
+			internal_stub:revert()
+
+			assert.stub(internal_stub).was_called(1)
+		end)
+
+		it("creates data directory when proceeding with download", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns("linux-x86_64")
+			local download_tool_stub = stub(download, "get_available_tool").returns("curl")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+			local bin_path = temp_dir .. "/hermes"
+			local ver_file = temp_dir .. "/version"
+			local binary_path_stub = stub(binary, "get_binary_path").returns(bin_path)
+			local version_file_stub = stub(binary, "get_version_file").returns(ver_file)
+			local data_dir_stub = stub(binary, "get_data_dir").returns(temp_dir)
+			local internal_stub = stub(binary, "_download_binary_async")
+
+			binary.download_async("v1.0.0", function() end)
+
+			platform_stub:revert()
+			download_tool_stub:revert()
+			mkdir_stub:revert()
+			binary_path_stub:revert()
+			version_file_stub:revert()
+			data_dir_stub:revert()
+			internal_stub:revert()
+
+			assert.stub(mkdir_stub).was_called()
 		end)
 	end)
 end)

@@ -23,9 +23,16 @@ pub const GROUP: &str = "hermes";
 
 #[nvim_oxi::plugin]
 pub fn hermes() -> nvim_oxi::Result<Dictionary> {
+    // Apply default progress configuration: suppress cmdline progress
+    // This runs at module load even without setup(), ensuring sensible defaults
+    configuration::show_progress_in_cmdline(false);
+
     let storage_path = detect_project_storage_path()?;
     let logger = Logger::inititalize(&storage_path)?;
-    let downloader = Downloader::new(logger.nvim_notifications_messenger.clone());
+    let downloader = Downloader::new(
+        logger.nvim_notifications_messenger.clone(),
+        configuration::ProgressConfig::default(),
+    );
     let registry = Registry::new(downloader);
     let nvim_runtime = NvimRuntime::new();
     let plugin_state = Arc::new(Mutex::new(

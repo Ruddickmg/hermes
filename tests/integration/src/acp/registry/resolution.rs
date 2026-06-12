@@ -13,8 +13,8 @@ use hermes::acp::{
     },
 };
 use hermes::nvim::configuration::DistributionsConfig;
+use hermes::nvim::configuration::ProgressConfig;
 use hermes::utilities::{Downloader, NotificationMessenger};
-use pretty_assertions::assert_eq;
 
 fn entry_with_distribution(
     id: &str,
@@ -52,7 +52,7 @@ fn npx_dist(
 
 async fn test_registry() -> Registry {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
     // Replace with empty test data so no real I/O is triggered.
     registry.data = RegistryData {

@@ -1,5 +1,6 @@
 //! Integration tests for the Downloader
 
+use hermes::nvim::configuration::ProgressConfig;
 use hermes::utilities::{Downloader, NotificationMessenger};
 use std::io::Read;
 
@@ -10,7 +11,7 @@ const TEST_URL: &str =
 #[nvim_oxi::test]
 fn download_to_string_succeeds_for_valid_url() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
 
     let result = downloader.download_to_string(
         TEST_URL,
@@ -28,7 +29,7 @@ fn download_to_string_succeeds_for_valid_url() {
 #[nvim_oxi::test]
 fn download_to_string_body_contains_expected_content() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
 
     let body = downloader
         .download_to_string(
@@ -47,7 +48,7 @@ fn download_to_string_body_contains_expected_content() {
 #[nvim_oxi::test]
 fn download_to_file_succeeds_for_valid_url() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
 
     let temp_dir = tempfile::tempdir().expect("Should create temp dir");
     let dest = temp_dir.path().join("hermes_test_download.bin");
@@ -69,7 +70,7 @@ fn download_to_file_succeeds_for_valid_url() {
 #[nvim_oxi::test]
 fn download_to_file_contents_match_expected() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
 
     let temp_dir = tempfile::tempdir().expect("Should create temp dir");
     let dest = temp_dir.path().join("hermes_test_download.bin");
@@ -98,7 +99,7 @@ fn download_to_file_contents_match_expected() {
 #[nvim_oxi::test]
 fn download_to_string_with_bad_url_returns_error() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
 
     let result = downloader.download_to_string(
         "https://httpbin.org/status/404",
@@ -115,7 +116,7 @@ fn download_to_string_with_bad_url_returns_error() {
 #[nvim_oxi::test]
 fn download_to_file_with_bad_url_returns_error() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
 
     let temp_dir = tempfile::tempdir().expect("Should create temp dir");
     let dest = temp_dir.path().join("hermes_test_404.bin");

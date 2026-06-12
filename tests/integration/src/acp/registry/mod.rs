@@ -1,14 +1,16 @@
 //! Integration tests for the Registry struct
 pub mod binary;
+pub mod resolution;
 
 use hermes::acp::registry::{Registry, RegistryData, entry::AgentEntry};
+use hermes::nvim::configuration::ProgressConfig;
 use hermes::utilities::{Downloader, NotificationMessenger};
 use std::collections::HashMap;
 
 #[nvim_oxi::test]
 fn registry_new_returns_some_with_bundled_data() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let registry = Registry::new(downloader);
     assert!(
         registry.is_some(),
@@ -19,7 +21,7 @@ fn registry_new_returns_some_with_bundled_data() {
 #[nvim_oxi::test]
 fn registry_data_get_entry_finds_existing_agent() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
     // Inject a known agent to avoid depending on bundled data contents.
     registry.data.agents.insert(
@@ -47,7 +49,7 @@ fn registry_data_get_entry_finds_existing_agent() {
 #[nvim_oxi::test]
 fn registry_can_be_inserted_into_hash_set() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let registry = Registry::new(downloader).expect("Bundled registry should exist");
 
     let mut set = std::collections::HashSet::new();
@@ -61,7 +63,7 @@ fn registry_can_be_inserted_into_hash_set() {
 #[nvim_oxi::test]
 fn registry_fetch_succeeds() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let registry = Registry::new(downloader).expect("Bundled registry should exist");
 
     let result = smol::block_on(registry.fetch(
@@ -74,7 +76,7 @@ fn registry_fetch_succeeds() {
 #[nvim_oxi::test]
 fn registry_fetch_returns_data_with_version() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let registry = Registry::new(downloader).expect("Bundled registry should exist");
 
     let fetched = smol::block_on(registry.fetch(

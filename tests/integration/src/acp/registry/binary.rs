@@ -1,6 +1,7 @@
 //! Integration tests for registry binary operations
 
 use hermes::acp::registry::{BinaryPlatformTarget, Registry, RegistryData};
+use hermes::nvim::configuration::ProgressConfig;
 use hermes::utilities::{Downloader, NotificationMessenger};
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
@@ -8,7 +9,7 @@ use std::collections::HashMap;
 #[nvim_oxi::test]
 fn download_binary_cache_hit_succeeds() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
     registry.data = RegistryData {
         version: "1.0.0".to_string(),
@@ -55,7 +56,7 @@ fn download_binary_cache_hit_succeeds() {
 #[nvim_oxi::test]
 fn download_binary_cache_hit_returns_cached_path() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
     registry.data = RegistryData {
         version: "1.0.0".to_string(),
@@ -100,7 +101,7 @@ fn download_binary_cache_hit_returns_cached_path() {
 #[cfg(unix)]
 fn download_binary_without_exec_permission_succeeds() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
     registry.data = RegistryData {
         version: "1.0.0".to_string(),
@@ -147,7 +148,7 @@ fn download_binary_without_exec_permission_succeeds() {
 #[cfg(unix)]
 fn download_binary_ensures_executable_permissions() {
     let messenger = NotificationMessenger::initialize().expect("Failed to create messenger");
-    let downloader = Downloader::new(messenger);
+    let downloader = Downloader::new(messenger, ProgressConfig::default());
     let mut registry = Registry::new(downloader).expect("Bundled registry should exist");
     registry.data = RegistryData {
         version: "1.0.0".to_string(),
