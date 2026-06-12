@@ -1,10 +1,11 @@
 use crate::acp::{Result, error::Error};
-use crate::utilities::LogLevel;
+use crate::utilities::{LogLevel, exec_autocmd};
 use crossbeam_channel::{Sender, bounded};
 use nvim_oxi::libuv::AsyncHandle;
 use nvim_oxi::{Array, Dictionary, Object, api};
 use std::ptr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// A notification message to be delivered to Neovim
@@ -26,17 +27,17 @@ pub struct ProgressMessage {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProgressStatus {
-    Begin,
-    Report,
-    End,
+    Running,
+    Success,
+    Failure,
 }
 
 impl ProgressStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
-            ProgressStatus::Begin => "begin",
-            ProgressStatus::Report => "report",
-            ProgressStatus::End => "end",
+            ProgressStatus::Running => "running",
+            ProgressStatus::Success => "success",
+            ProgressStatus::Failure => "failure",
         }
     }
 }
@@ -95,6 +96,12 @@ impl NotificationMessenger {
         }
     }
 
+    fn nvim_echo_opts_available() -> bool {
+        api::call_function::<(String,), i32>("exists", ("+messagesopt".to_string(),))
+            .map(|result| result == 1)
+            .unwrap_or(false)
+    }
+
     /// Initialize the notification messenger with a callback that processes notifications on the main thread
     ///
     /// This creates a bounded channel with capacity 1000 and sets up the AsyncHandle callback.
@@ -102,8 +109,12 @@ impl NotificationMessenger {
     pub fn initialize() -> Result<Self> {
         let (sender, receiver) = bounded::<MessengerMessage>(1000);
 
+        // Gate: only use nvim_echo(kind="progress") on Neovim 0.12+
+        let use_nvim_echo = Arc::new(AtomicBool::new(Self::nvim_echo_opts_available()));
+
         let handle = AsyncHandle::new(move || {
             while let Ok(msg) = receiver.try_recv() {
+                let use_nvim_echo = Arc::clone(&use_nvim_echo);
                 // CRITICAL: Defer Neovim API calls via vim.schedule to avoid
                 // calling them during uv_run() which can crash Neovim.
                 // See NvimMessenger::initialize for full explanation.
@@ -128,27 +139,44 @@ impl NotificationMessenger {
                             .ok();
                         }
                         MessengerMessage::Progress(progress) => {
-                            let chunk = Array::from((
-                                Object::from(progress.title.as_str()),
-                                Object::from(""),
-                            ));
-                            let chunks = Array::from((chunk,));
-                            let mut opts = Dictionary::default();
-                            opts.insert("kind", Object::from("progress"));
-                            opts.insert("id", Object::from(progress.id.as_str()));
-                            opts.insert("source", Object::from("hermes"));
+                            if use_nvim_echo.load(Ordering::Relaxed) {
+                                let chunk = Array::from((
+                                    Object::from(progress.title.as_str()),
+                                    Object::from(""),
+                                ));
+                                let chunks = Array::from((chunk,));
+                                let mut opts = Dictionary::default();
+                                opts.insert("kind", Object::from("progress"));
+                                opts.insert("id", Object::from(progress.id.as_str()));
+                                opts.insert("source", Object::from("hermes"));
+                                if let Some(percent) = progress.percent {
+                                    opts.insert("percent", Object::from(percent as i64));
+                                }
+                                opts.insert("status", Object::from(progress.status.as_str()));
+                                if let Some(text) = &progress.text {
+                                    opts.insert("title", Object::from(text.as_str()));
+                                }
+                                api::call_function::<(Array, bool, Dictionary), Object>(
+                                    "nvim_echo",
+                                    (chunks, true, opts),
+                                )
+                                .ok();
+                            }
+
+                            // Always fire User Progress autocommand matching Lua's format
+                            let mut data = Dictionary::default();
+                            data.insert("id", Object::from(progress.id.as_str()));
+                            data.insert("title", Object::from(progress.title.as_str()));
+                            data.insert("source", Object::from("hermes"));
+                            data.insert("status", Object::from(progress.status.as_str()));
                             if let Some(percent) = progress.percent {
-                                opts.insert("percent", Object::from(percent as i64));
+                                data.insert("percent", Object::from(percent as i64));
                             }
-                            opts.insert("status", Object::from(progress.status.as_str()));
                             if let Some(text) = &progress.text {
-                                opts.insert("title", Object::from(text.as_str()));
+                                let text_array = Array::from((Object::from(text.as_str()),));
+                                data.insert("text", Object::from(text_array));
                             }
-                            api::call_function::<(Array, bool, Dictionary), Object>(
-                                "nvim_echo",
-                                (chunks, true, opts),
-                            )
-                            .ok();
+                            let _ = exec_autocmd("hermes", "User", "Progress", Object::from(data));
                         }
                     }))
                     .ok();
@@ -591,19 +619,19 @@ mod tests {
         let msg = ProgressMessage {
             id: "test-id".to_string(),
             title: "Downloading".to_string(),
-            status: ProgressStatus::Begin,
+            status: ProgressStatus::Running,
             percent: Some(0),
             text: Some("Starting download".to_string()),
         };
         assert_eq!(msg.id, "test-id");
-        assert_eq!(msg.status, ProgressStatus::Begin);
+        assert_eq!(msg.status, ProgressStatus::Running);
     }
 
     #[test]
     fn test_progress_status_as_str() {
-        assert_eq!(ProgressStatus::Begin.as_str(), "begin");
-        assert_eq!(ProgressStatus::Report.as_str(), "report");
-        assert_eq!(ProgressStatus::End.as_str(), "end");
+        assert_eq!(ProgressStatus::Running.as_str(), "running");
+        assert_eq!(ProgressStatus::Success.as_str(), "success");
+        assert_eq!(ProgressStatus::Failure.as_str(), "failure");
     }
 
     #[test]
@@ -612,7 +640,7 @@ mod tests {
         let msg = ProgressMessage {
             id: "id".to_string(),
             title: "title".to_string(),
-            status: ProgressStatus::Report,
+            status: ProgressStatus::Running,
             percent: Some(50),
             text: None,
         };
@@ -634,7 +662,7 @@ mod tests {
             let msg = ProgressMessage {
                 id: format!("id{}", i),
                 title: "title".to_string(),
-                status: ProgressStatus::Report,
+                status: ProgressStatus::Running,
                 percent: None,
                 text: None,
             };
@@ -643,7 +671,7 @@ mod tests {
         let extra = ProgressMessage {
             id: "extra".to_string(),
             title: "title".to_string(),
-            status: ProgressStatus::Report,
+            status: ProgressStatus::Running,
             percent: None,
             text: None,
         };

@@ -49,17 +49,27 @@ impl Downloader {
     where
         F: FnMut(Vec<u8>) -> Result<()>,
     {
-        self.messenger.send_progress(ProgressMessage {
+        let message = ProgressMessage {
             id: id.to_string(),
             title: title.to_string(),
-            status: ProgressStatus::Begin,
+            status: ProgressStatus::Running,
             percent: Some(0),
             text: Some(format!("Downloading from {}", url)),
-        })?;
+        };
 
-        let mut response = ureq::get(url)
-            .call()
-            .map_err(|e| Error::Network(format!("Failed to download {url}: {e}")))?;
+        self.messenger.send_progress(message.clone())?;
+
+        let mut response = ureq::get(url).call().map_err(|e| {
+            self.messenger
+                .send_progress(ProgressMessage {
+                    status: ProgressStatus::Failure,
+                    percent: None,
+                    text: Some(format!("Download failed: {e}")),
+                    ..message.clone()
+                })
+                .ok();
+            Error::Network(format!("Failed to download {url}: {e}"))
+        })?;
 
         let total_size = response
             .headers_mut()
@@ -86,24 +96,23 @@ impl Downloader {
 
             if total_size > 0 {
                 let percent = ((downloaded as f64 / total_size as f64) * 100.0) as u32;
+                let display_percent = percent.min(99);
                 if tracker.should_emit(percent) {
                     self.messenger.send_progress(ProgressMessage {
-                        id: id.to_string(),
-                        title: title.to_string(),
-                        status: ProgressStatus::Report,
-                        percent: Some(percent),
-                        text: Some(format!("{}% downloaded", percent)),
+                        status: ProgressStatus::Running,
+                        percent: Some(display_percent),
+                        text: Some(format!("{}% downloaded", display_percent)),
+                        ..message.clone()
                     })?;
                 }
             }
         }
 
         self.messenger.send_progress(ProgressMessage {
-            id: id.to_string(),
-            title: title.to_string(),
-            status: ProgressStatus::End,
+            status: ProgressStatus::Success,
             percent: Some(100),
             text: Some("Download complete".to_string()),
+            ..message
         })
     }
 }
