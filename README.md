@@ -232,6 +232,7 @@ hermes.setup({
   },
   progress = {
     cmdline = false, -- Show progress messages in cmdline (0.12+ only)
+    update_frequency = 150 -- how often to poll the download for progress in milliseconds
   },
 })
 ```

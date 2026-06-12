@@ -41,7 +41,6 @@ describe("hermes.config", function()
       })
       local current = config.get()
 
-      -- Verify the overridden download values are stored correctly
       assert.same({ 
         version = "test-version", 
         auto = false,
@@ -100,6 +99,15 @@ describe("hermes.config", function()
       })
       
       assert.equals(vim.log.levels.DEBUG, config.get_notification_level())
+    end)
+  end)
+
+  describe("get_progress()", function()
+    it("returns configured cmdline setting", function()
+      config.setup({ progress = { cmdline = true } })
+
+      local progress_cfg = config.get_progress()
+      assert.is_true(progress_cfg.cmdline)
     end)
   end)
 end)

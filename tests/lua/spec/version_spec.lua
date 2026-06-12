@@ -121,7 +121,6 @@ describe("hermes.version", function()
 
 			local result = version.fetch_latest()
 
-			-- Should return fallback version
 			assert.equals("v0.1.0", result)
 
 			download_stub:revert()
@@ -145,7 +144,6 @@ describe("hermes.version", function()
 			end)
 			local notify_stub = stub(vim, "notify")
 
-			-- Call fetch_latest directly to test the parsing logic
 			local result = version.fetch_latest()
 
 			-- Cleanup
@@ -154,7 +152,6 @@ describe("hermes.version", function()
 				os.remove(captured_path)
 			end
 
-			-- Should have parsed v2.0.0 from the JSON
 			assert.equals("v2.0.0", result)
 
 			download_stub:revert()
@@ -185,7 +182,6 @@ describe("hermes.version", function()
 				os.remove(captured_path)
 			end
 
-			-- Should return fallback version (v0.1.0)
 			assert.equals("v0.1.0", result)
 
 			download_stub:revert()
@@ -193,16 +189,11 @@ describe("hermes.version", function()
 		end)
 
 		it("returns fallback when file cannot be read", function()
-			-- Stub download to succeed but file doesn't exist (can't be opened)
 			local download_stub = stub(require("hermes.download"), "download").returns(true, nil)
 			local notify_stub = stub(vim, "notify")
-			
-			-- Don't create the file, so io.open returns nil
-			-- The temp file path returned by os.tmpname() won't exist
 
 			local result = version.fetch_latest()
 
-			-- Should return fallback version (v0.1.0)
 			assert.equals("v0.1.0", result)
 
 			download_stub:revert()
@@ -219,7 +210,6 @@ describe("hermes.version", function()
 
 			local result = version.fetch_latest()
 
-			-- Should return fallback version
 			assert.equals("v0.1.0", result)
 
 			download_stub:revert()
@@ -232,7 +222,6 @@ describe("hermes.version", function()
 
 			local result = version.fetch_latest()
 
-			-- Should return fallback version
 			assert.equals("v0.1.0", result)
 
 			download_stub:revert()
@@ -240,7 +229,6 @@ describe("hermes.version", function()
 		end)
 
 		it("parses version from GitHub API with additional fields", function()
-			-- Create a mock temp file with complete GitHub API response
 			local mock_file = os.tmpname()
 			local f = io.open(mock_file, "w")
 			f:write('{"tag_name": "v1.5.0", "name": "Release v1.5.0", "body": "Test release", "created_at": "2024-01-01"}')
@@ -263,11 +251,134 @@ describe("hermes.version", function()
 				os.remove(captured_path)
 			end
 
-			-- Should parse v1.5.0
 			assert.equals("v1.5.0", result)
 
 			download_stub:revert()
 			notify_stub:revert()
 		end)
 	end)
+
+	describe("fetch_latest_async()", function()
+		it("calls back with fallback version on download failure", function()
+			local download_stub = stub(require("hermes.download"), "download_async").invokes(function(_url, _dest, _id, on_complete, _title)
+				on_complete(false, { message = "Network error" })
+				return 123
+			end)
+			local notify_stub = stub(vim, "notify")
+
+			local callback_tag = nil
+			version.fetch_latest_async(function(tag, _err)
+				callback_tag = tag
+			end)
+
+			assert.equals("v0.1.0", callback_tag)
+
+			download_stub:revert()
+			notify_stub:revert()
+		end)
+
+		it("calls back with fallback version when file cannot be read", function()
+			local download_stub = stub(require("hermes.download"), "download_async").invokes(function(_url, _dest, _id, on_complete, _title)
+				on_complete(true, nil)
+				return 123
+			end)
+			local notify_stub = stub(vim, "notify")
+
+			local callback_tag = nil
+			version.fetch_latest_async(function(tag, _err)
+				callback_tag = tag
+			end)
+
+			assert.equals("v0.1.0", callback_tag)
+
+			download_stub:revert()
+			notify_stub:revert()
+		end)
+
+		it("calls back with fallback version on invalid JSON", function()
+			local mock_file = os.tmpname()
+			local f = io.open(mock_file, "w")
+			f:write("invalid json without tag_name")
+			f:close()
+
+			local download_stub = stub(require("hermes.download"), "download_async").invokes(function(_url, temp_file, _id, on_complete, _title)
+				local uv = vim.uv or vim.loop
+				uv.fs_copyfile(mock_file, temp_file)
+				on_complete(true, nil)
+				return 123
+			end)
+			local notify_stub = stub(vim, "notify")
+
+			local callback_tag = nil
+			version.fetch_latest_async(function(tag, _err)
+				callback_tag = tag
+			end)
+
+			os.remove(mock_file)
+			assert.equals("v0.1.0", callback_tag)
+
+			download_stub:revert()
+			notify_stub:revert()
+		end)
+
+		it("calls back with parsed version on successful response", function()
+			local mock_file = os.tmpname()
+			local f = io.open(mock_file, "w")
+			f:write('{"tag_name": "v2.0.0", "name": "Release v2.0.0"}')
+			f:close()
+
+			local download_stub = stub(require("hermes.download"), "download_async").invokes(function(_url, temp_file, _id, on_complete, _title)
+				local uv = vim.uv or vim.loop
+				uv.fs_copyfile(mock_file, temp_file)
+				on_complete(true, nil)
+				return 123
+			end)
+			local notify_stub = stub(vim, "notify")
+
+			local callback_tag = nil
+			version.fetch_latest_async(function(tag, _err)
+				callback_tag = tag
+			end)
+
+			os.remove(mock_file)
+			assert.equals("v2.0.0", callback_tag)
+
+			download_stub:revert()
+			notify_stub:revert()
+		end)
+
+		it("calls back with fallback version when job fails to start", function()
+			local download_stub = stub(require("hermes.download"), "download_async").returns(nil)
+			local notify_stub = stub(vim, "notify")
+
+			local callback_tag = nil
+			version.fetch_latest_async(function(tag, _err)
+				callback_tag = tag
+			end)
+
+			assert.equals("v0.1.0", callback_tag)
+
+			download_stub:revert()
+			notify_stub:revert()
+		end)
+
+		it("calls back with fallback version on structured error table", function()
+			local download_stub = stub(require("hermes.download"), "download_async").invokes(function(_url, _dest, _id, on_complete, _title)
+				on_complete(false, { message = "Connection timeout" })
+				return 123
+			end)
+			local notify_stub = stub(vim, "notify")
+
+			local callback_tag = nil
+			version.fetch_latest_async(function(tag, _err)
+				callback_tag = tag
+			end)
+
+			assert.equals("v0.1.0", callback_tag)
+
+			download_stub:revert()
+			notify_stub:revert()
+		end)
+	end)
+
 end)

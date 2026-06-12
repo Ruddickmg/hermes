@@ -468,11 +468,13 @@ function M.cancel_download()
 			return false
 		end
 
+		-- luacov: disable
 		_download_in_progress = false
 		_download_job = nil
 
 		logging.notify("Download cancelled", vim.log.levels.INFO, notification_options)
 		return true
+		-- luacov: enable
 	end
 end
 

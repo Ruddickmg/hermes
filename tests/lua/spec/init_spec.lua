@@ -1132,3 +1132,78 @@ describe("hermes.init (main API)", function()
 	end)
 
 end)
+
+	describe("messagesopt progress handling in setup()", function()
+		before_each(function()
+			package.loaded["hermes.init"] = nil
+			package.loaded["hermes.binary"] = nil
+			package.loaded["hermes.config"] = nil
+			hermes = require("hermes")
+		end)
+
+		it("suppresses cmdline progress by default on 0.12+", function()
+			local cmd_calls = {}
+			local exists_stub = stub(vim.fn, "exists").returns(1)
+			local cmd_stub = stub(vim, "cmd").invokes(function(command)
+				table.insert(cmd_calls, command)
+			end)
+
+			hermes.setup({ download = { auto = false } })
+
+			exists_stub:revert()
+			cmd_stub:revert()
+
+			local has_suppress = false
+			for _, c in ipairs(cmd_calls) do
+				if c == "set messagesopt-=progress:c" then
+					has_suppress = true
+					break
+				end
+			end
+			assert.is_true(has_suppress)
+		end)
+
+		it("does not modify messagesopt on 0.11 (messagesopt missing)", function()
+			local cmd_calls = {}
+			local exists_stub = stub(vim.fn, "exists").returns(0)
+			local cmd_stub = stub(vim, "cmd").invokes(function(command)
+				table.insert(cmd_calls, command)
+			end)
+
+			hermes.setup({ download = { auto = false } })
+
+			exists_stub:revert()
+			cmd_stub:revert()
+
+			local has_progress_cmd = false
+			for _, c in ipairs(cmd_calls) do
+				if c:find("messagesopt") then
+					has_progress_cmd = true
+					break
+				end
+			end
+			assert.is_false(has_progress_cmd)
+		end)
+
+		it("enables cmdline progress when configured on 0.12+", function()
+			local cmd_calls = {}
+			local exists_stub = stub(vim.fn, "exists").returns(1)
+			local cmd_stub = stub(vim, "cmd").invokes(function(command)
+				table.insert(cmd_calls, command)
+			end)
+
+			hermes.setup({ download = { auto = false }, progress = { cmdline = true } })
+
+			exists_stub:revert()
+			cmd_stub:revert()
+
+			local has_enable = false
+			for _, c in ipairs(cmd_calls) do
+				if c == "set messagesopt+=progress:c" then
+					has_enable = true
+					break
+				end
+			end
+			assert.is_true(has_enable)
+		end)
+	end)

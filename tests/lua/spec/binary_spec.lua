@@ -1191,4 +1191,81 @@ describe("hermes.binary", function()
 			assert.is_not_nil(callback_err, "Callback should receive error details")
 		end)
 	end)
+
+	describe("download_async()", function()
+		it("calls back with error when platform cannot be determined", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns(nil)
+
+			local callback_success, callback_result
+			binary.download_async("v1.0.0", function(success, result)
+				callback_success = success
+				callback_result = result
+			end)
+
+			platform_stub:revert()
+			assert.is_false(callback_success)
+			assert.equals("Unable to determine platform", callback_result)
+		end)
+
+		it("calls back with error for unsupported platform", function()
+			local platform_mod = require("hermes.platform")
+			local platform_key_stub = stub(platform_mod, "get_platform_key").returns("unsupported-os")
+			local platform_display_stub = stub(platform_mod, "get_display_string").returns("unsupported-os")
+
+			local callback_success, callback_result
+			binary.download_async("v1.0.0", function(success, result)
+				callback_success = success
+				callback_result = result
+			end)
+
+			platform_key_stub:revert()
+			platform_display_stub:revert()
+			assert.is_false(callback_success)
+			assert.is_true(callback_result:find("Platform not supported") ~= nil)
+		end)
+
+		it("calls back with error when no download tool is available", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns("linux-x86_64")
+			local download_tool_stub = stub(download, "get_available_tool").returns(nil)
+
+			local callback_success, callback_result
+			binary.download_async("v1.0.0", function(success, result)
+				callback_success = success
+				callback_result = result
+			end)
+
+			platform_stub:revert()
+			download_tool_stub:revert()
+			assert.is_false(callback_success)
+			assert.is_true(callback_result:find("No download tool available") ~= nil)
+		end)
+
+		it("proceeds with download when platform and tool are available", function()
+			local platform_mod = require("hermes.platform")
+			local platform_stub = stub(platform_mod, "get_platform_key").returns("linux-x86_64")
+			local download_tool_stub = stub(download, "get_available_tool").returns("curl")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+			local bin_path = temp_dir .. "/hermes"
+			local ver_file = temp_dir .. "/version"
+			local binary_path_stub = stub(binary, "get_binary_path").returns(bin_path)
+			local version_file_stub = stub(binary, "get_version_file").returns(ver_file)
+			local data_dir_stub = stub(binary, "get_data_dir").returns(temp_dir)
+			local internal_stub = stub(binary, "_download_binary_async")
+
+			binary.download_async("v1.0.0", function() end)
+
+			platform_stub:revert()
+			download_tool_stub:revert()
+			mkdir_stub:revert()
+			binary_path_stub:revert()
+			version_file_stub:revert()
+			data_dir_stub:revert()
+			internal_stub:revert()
+
+			assert.stub(internal_stub).was_called(1)
+			assert.stub(mkdir_stub).was_called()
+		end)
+	end)
 end)
