@@ -1,4 +1,3 @@
-vim.notify("Running locally")
 -- luacov: disable
 ---@brief [[
 --- Hermes - ACP (Agent Client Protocol) client for Neovim
