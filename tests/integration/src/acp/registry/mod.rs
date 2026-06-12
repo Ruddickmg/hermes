@@ -1,5 +1,6 @@
 //! Integration tests for the Registry struct
 pub mod binary;
+pub mod resolution;
 
 use hermes::acp::registry::{Registry, RegistryData, entry::AgentEntry};
 use hermes::nvim::configuration::ProgressConfig;

@@ -816,7 +816,7 @@ describe("hermes.download", function()
 		end)
 	end)
 
-		describe("download progress timer", function()
+	describe("download progress timer", function()
 		it("emits intermediate progress via timer", function()
 			stub(download, "get_available_tool").returns("curl")
 

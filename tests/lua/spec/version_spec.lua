@@ -101,14 +101,11 @@ describe("hermes.version", function()
 		end)
 
 		it("does not add 'v' prefix to 'source'", function()
-			-- This is the critical test - ensure "source" doesn't become "vsource"
 			local config_stub = stub(require("hermes.config"), "get_version").returns("source")
 
 			local result = version.get_wanted()
 
-			-- Must be exactly "source", not "vsource"
 			assert.equals("source", result)
-			assert(result ~= "vsource", "Should not have 'v' prefix")
 
 			config_stub:revert()
 		end)
