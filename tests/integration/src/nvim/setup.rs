@@ -564,3 +564,89 @@ fn setup_disables_progress_in_cmdline_via_setup() -> nvim_oxi::Result<()> {
     );
     Ok(())
 }
+
+/// Test: setup() does not call show_progress_in_cmdline when progress config is omitted
+#[nvim_oxi::test]
+fn setup_does_not_update_cmdline_when_progress_omitted() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state.clone(), logger);
+
+    // First enable cmdline progress
+    let enable_config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    block_on(api.setup(SetupArgs(Some(enable_config)))).expect("Failed to enable");
+
+    // Now setup with non-progress config (omitting progress entirely)
+    let buffer_config = ClientConfigPartial {
+        buffer: Some(BufferConfigPartial {
+            auto_save: Some(true),
+        }),
+        ..Default::default()
+    };
+    block_on(api.setup(SetupArgs(Some(buffer_config)))).expect("Failed to set buffer config");
+
+    // Verify cmdline progress is still enabled (not reset by the guard)
+    let messagesopt = nvim_oxi::api::call_function::<(String,), String>(
+        "execute",
+        ("set messagesopt?".to_string(),),
+    )
+    .unwrap_or_default();
+    assert!(
+        messagesopt.contains("progress:c"),
+        "messagesopt should still contain progress:c after setup without progress config, got: {}",
+        messagesopt
+    );
+    Ok(())
+}
+
+/// Test: setup() does not call show_progress_in_cmdline when cmdline value is unchanged
+#[nvim_oxi::test]
+fn setup_does_not_update_cmdline_when_value_unchanged() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state.clone(), logger);
+
+    // Start with default (cmdline: false)
+    // Set cmdline to true
+    let enable_config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    block_on(api.setup(SetupArgs(Some(enable_config)))).expect("Failed to enable");
+
+    // Set cmdline to true again (same value)
+    let same_config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    block_on(api.setup(SetupArgs(Some(same_config)))).expect("Failed to set same value");
+
+    // Verify cmdline progress is still enabled
+    let messagesopt = nvim_oxi::api::call_function::<(String,), String>(
+        "execute",
+        ("set messagesopt?".to_string(),),
+    )
+    .unwrap_or_default();
+    assert!(
+        messagesopt.contains("progress:c"),
+        "messagesopt should still contain progress:c when same value set twice, got: {}",
+        messagesopt
+    );
+    Ok(())
+}

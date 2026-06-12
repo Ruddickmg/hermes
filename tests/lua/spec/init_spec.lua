@@ -1134,6 +1134,8 @@ describe("hermes.init (main API)", function()
 end)
 
 	describe("messagesopt progress handling in setup()", function()
+		local hermes
+
 		before_each(function()
 			package.loaded["hermes.init"] = nil
 			package.loaded["hermes.binary"] = nil
