@@ -54,8 +54,11 @@ impl Api {
         let config_update = args.into_inner();
         let mut state = self.state.lock().await;
         config_update.apply_to(&mut state.config);
+        let cmdline = state.config.progress.cmdline;
         let log_config = state.config.log.clone();
         drop(state);
+
+        crate::nvim::configuration::show_progress_in_cmdline(cmdline);
         self.logger.configure(log_config)
     }
 }

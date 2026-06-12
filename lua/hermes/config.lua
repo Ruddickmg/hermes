@@ -61,6 +61,7 @@ local M = {}
 
 ---@class HermesProgressConfig
 ---@field cmdline? boolean Show progress messages in cmdline (0.12+ only, default: false)
+---@field update_frequency? integer How often to poll for progress in milliseconds (default: 150)
 
 ---@class HermesConfig
 ---Full Hermes configuration
@@ -167,6 +168,7 @@ local default_config = {
 	},
 	progress = {
 		cmdline = false,
+		update_frequency = 150,
 	},
 	root_markers = { ".git" },
 }
@@ -243,7 +245,7 @@ end
 ---@private
 -- luacov: enable
 function M.get_progress()
-	return _config.progress or { cmdline = false }
+	return _config.progress or { cmdline = false, update_frequency = 150 }
 end
 
 -- luacov: disable

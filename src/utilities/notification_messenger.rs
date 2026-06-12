@@ -148,10 +148,8 @@ impl NotificationMessenger {
         }
     }
 
-    fn nvim_echo_opts_available() -> bool {
-        api::call_function::<(String,), i32>("exists", ("+messagesopt".to_string(),))
-            .map(|result| result == 1)
-            .unwrap_or(false)
+    pub fn nvim_echo_opts_available() -> bool {
+        messagesopt_exists()
     }
 
     /// Initialize the notification messenger with a callback that processes notifications on the main thread
@@ -271,6 +269,13 @@ impl NotificationMessenger {
     pub fn queue_len(&self) -> usize {
         self.sender.len()
     }
+}
+
+/// Check whether Neovim supports `messagesopt` (available since 0.12)
+pub fn messagesopt_exists() -> bool {
+    api::call_function::<(String,), i32>("exists", ("+messagesopt".to_string(),))
+        .map(|result| result == 1)
+        .unwrap_or(false)
 }
 
 /// A simple debouncing progress tracker for a single download operation

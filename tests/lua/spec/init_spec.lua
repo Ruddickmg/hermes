@@ -68,7 +68,7 @@ describe("hermes.init (main API)", function()
 		if filereadable_stub then
 			filereadable_stub:revert()
 		end
-		
+
 		-- Reset state to prevent test pollution
 		if hermes then
 			hermes._set_loading_state("NOT_LOADED")

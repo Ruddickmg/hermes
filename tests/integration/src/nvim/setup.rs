@@ -6,7 +6,7 @@ use hermes::{
     nvim::{
         configuration::{
             BufferConfigPartial, ClientConfigPartial, LogConfigPartial, LogFileConfigPartial,
-            LogTargetConfigPartial,
+            LogTargetConfigPartial, ProgressConfigPartial,
         },
         requests::Requests,
     },
@@ -465,6 +465,102 @@ fn setup_updates_notification_log_format() -> nvim_oxi::Result<()> {
     assert_eq!(
         state.config.log.notification.format,
         hermes::utilities::logging::LogFormat::Pretty
+    );
+    Ok(())
+}
+
+/// Test: setup() updates progress cmdline config
+#[nvim_oxi::test]
+fn setup_updates_progress_cmdline_state() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state.clone(), logger);
+
+    let config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    block_on(api.setup(SetupArgs(Some(config)))).expect("Failed to call setup");
+
+    let state = smol::block_on(plugin_state.lock());
+    assert!(state.config.progress.cmdline);
+    Ok(())
+}
+
+/// Test: setup() enables progress in cmdline via messagesopt
+#[nvim_oxi::test]
+fn setup_enables_progress_in_cmdline_via_setup() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state.clone(), logger);
+
+    let config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    block_on(api.setup(SetupArgs(Some(config)))).expect("Failed to call setup");
+
+    let messagesopt = nvim_oxi::api::call_function::<(String,), String>(
+        "execute",
+        ("set messagesopt?".to_string(),),
+    )
+    .unwrap_or_default();
+    assert!(
+        messagesopt.contains("progress:c"),
+        "messagesopt should contain progress:c after setup with cmdline: true, got: {}",
+        messagesopt
+    );
+    Ok(())
+}
+
+/// Test: setup() disables progress in cmdline via messagesopt
+#[nvim_oxi::test]
+fn setup_disables_progress_in_cmdline_via_setup() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state.clone(), logger);
+
+    let enable_config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(true),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    block_on(api.setup(SetupArgs(Some(enable_config)))).expect("Failed to enable");
+
+    let disable_config = ClientConfigPartial {
+        progress: Some(ProgressConfigPartial {
+            cmdline: Some(false),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    block_on(api.setup(SetupArgs(Some(disable_config)))).expect("Failed to disable");
+
+    let messagesopt = nvim_oxi::api::call_function::<(String,), String>(
+        "execute",
+        ("set messagesopt?".to_string(),),
+    )
+    .unwrap_or_default();
+    assert!(
+        !messagesopt.contains("progress:c"),
+        "messagesopt should not contain progress:c after setup with cmdline: false, got: {}",
+        messagesopt
     );
     Ok(())
 }

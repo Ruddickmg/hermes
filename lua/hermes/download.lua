@@ -10,8 +10,8 @@ local M = {}
 local USER_AGENT = "hermes.nvim/0.1"
 M.USER_AGENT = USER_AGENT
 
-local PROGRESS_INTERVAL_MS = 150
-M.PROGRESS_INTERVAL_MS = PROGRESS_INTERVAL_MS
+local DEFAULT_PROGRESS_INTERVAL_MS = 150
+M.PROGRESS_INTERVAL_MS = DEFAULT_PROGRESS_INTERVAL_MS
 
 -- luacov: disable
 ---Check if curl is available on the system
@@ -369,8 +369,10 @@ function M.download_async(url, dest_path, progress_id, on_complete, title)
 	end)
 
 	-- Start progress timer
+	local progress_cfg = require("hermes.config").get_progress()
+	local interval = progress_cfg.update_frequency or DEFAULT_PROGRESS_INTERVAL_MS
 	local timer = uv.new_timer()
-	timer:start(PROGRESS_INTERVAL_MS, PROGRESS_INTERVAL_MS, function()
+	timer:start(interval, interval, function()
 		if download_finished then
 			timer:stop()
 			timer:close()

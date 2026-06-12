@@ -22,6 +22,7 @@ vim.notify("Running locally")
 
 ---@class HermesProgressConfig
 ---@field cmdline? boolean Show progress messages in cmdline (0.12+ only, default: false)
+---@field update_frequency? integer How often to poll for progress in milliseconds (default: 150)
 
 ---@class HermesConfig
 ---Hermes plugin configuration options

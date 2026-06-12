@@ -1,4 +1,5 @@
 use crate::acp::{Result, error::Error};
+use crate::nvim::configuration::ProgressConfig;
 use crate::utilities::notification_messenger::{
     NotificationMessenger, ProgressMessage, ProgressStatus, ProgressTracker,
 };
@@ -13,11 +14,15 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct Downloader {
     messenger: NotificationMessenger,
+    progress_config: ProgressConfig,
 }
 
 impl Downloader {
-    pub fn new(messenger: NotificationMessenger) -> Self {
-        Self { messenger }
+    pub fn new(messenger: NotificationMessenger, progress_config: ProgressConfig) -> Self {
+        Self {
+            messenger,
+            progress_config,
+        }
     }
 
     pub fn download_to_file(&self, url: &str, dest: &Path, id: &str, title: &str) -> Result<()> {
@@ -80,7 +85,7 @@ impl Downloader {
 
         let mut reader = response.body_mut().as_reader();
         let mut buffer = vec![0u8; 8 * 1024];
-        let mut tracker = ProgressTracker::new(2, 250);
+        let mut tracker = ProgressTracker::new(2, self.progress_config.update_frequency);
         let mut downloaded: u64 = 0;
 
         loop {

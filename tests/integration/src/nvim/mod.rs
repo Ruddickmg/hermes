@@ -4,6 +4,7 @@ use hermes::nvim::hermes;
 use nvim_oxi::Dictionary;
 
 pub mod api;
+pub mod progress;
 pub mod setup;
 pub mod terminal;
 
