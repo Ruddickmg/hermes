@@ -10,7 +10,7 @@ local M = {}
 local USER_AGENT = "hermes.nvim/0.1"
 M.USER_AGENT = USER_AGENT
 
-local PROGRESS_INTERVAL_MS = 50
+local PROGRESS_INTERVAL_MS = 150
 M.PROGRESS_INTERVAL_MS = PROGRESS_INTERVAL_MS
 
 -- luacov: disable
