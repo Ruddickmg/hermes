@@ -566,7 +566,7 @@ describe("hermes.download", function()
 				table.insert(progress_calls, { id = id, status = status, percent = percent })
 			end)
 
-			stub(vim.fn, "jobstart").invokes(function(_cmd, opts)
+			stub(vim.fn, "jobstart").invokes(function(_cmd, _opts)
 				return 123
 			end)
 
@@ -830,7 +830,7 @@ describe("hermes.download", function()
 			local uv = vim.uv or vim.loop
 			local new_timer_stub = stub(uv, "new_timer").invokes(function()
 				return {
-					start = function(self, interval, repeat_interval, cb)
+					start = function(_self, _interval, _repeat_interval, cb)
 						timer_callback = cb
 					end,
 					stop = function() end,
@@ -838,9 +838,7 @@ describe("hermes.download", function()
 				}
 			end)
 
-			local captured_opts = nil
-			stub(vim.fn, "jobstart").invokes(function(_cmd, opts)
-				captured_opts = opts
+			stub(vim.fn, "jobstart").invokes(function(_cmd, _opts)
 				return 123
 			end)
 
