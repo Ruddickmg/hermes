@@ -52,7 +52,7 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 			if success then
 				logger.notify("Hermes binary installed successfully!", vim.log.levels.INFO)
 			else
-				logger.notify("Installation failed: " .. tostring(result), vim.log.levels.ERROR)
+				logger.notify("Installation failed: " .. ((type(result) == "table" and result.message) or tostring(result)), vim.log.levels.ERROR)
 			end
 		end
 
@@ -90,7 +90,7 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 				if success then
 					logger.notify("Hermes updated to version " .. tag .. " successfully!", vim.log.levels.INFO)
 				else
-					logger.notify("Update failed: " .. tostring(result), vim.log.levels.ERROR)
+					logger.notify("Update failed: " .. ((type(result) == "table" and result.message) or tostring(result)), vim.log.levels.ERROR)
 				end
 			end)
 		end)
