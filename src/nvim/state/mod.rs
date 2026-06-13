@@ -1,4 +1,5 @@
 use crate::acp::registry::Registry;
+use crate::utilities::icon_renderer::IconRenderer;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -18,6 +19,7 @@ pub struct PluginState {
     pub agent_info: AgentInfo,
     pub session_info: HashMap<String, SessionDetails>,
     pub registry: Option<Registry>,
+    pub icon_renderer: Option<IconRenderer>,
 }
 
 impl PluginState {
@@ -32,6 +34,9 @@ impl PluginState {
         self.agent_info.set_history(history_path);
         let binary_path = storage_path.join("binaries");
         self.config.distributions.binary.path = binary_path.to_string_lossy().to_string();
+        let icon_cache_dir = storage_path.join("icons");
+        std::fs::create_dir_all(&icon_cache_dir).ok();
+        self.icon_renderer = Some(IconRenderer::new(icon_cache_dir));
         self
     }
 
@@ -66,6 +71,7 @@ impl PluginState {
             session_info: HashMap::new(),
             agent_info: AgentInfo::new(),
             registry: None,
+            icon_renderer: None,
         }
     }
 

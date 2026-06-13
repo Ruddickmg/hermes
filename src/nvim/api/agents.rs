@@ -1,5 +1,6 @@
 use nvim_oxi::conversion::FromObject;
 use serde::Serialize;
+use std::collections::HashMap;
 
 use crate::{
     acp::{
@@ -8,6 +9,7 @@ use crate::{
     },
     api::Api,
     nvim::autocommands::Commands,
+    utilities::icon_renderer::PixelIcon,
 };
 
 const DEFAULT_REGISTRY_URL: &str =
@@ -65,6 +67,8 @@ pub struct AgentListEntry {
     pub repository: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_pixel_data: Option<PixelIcon>,
     pub distributions: Vec<Distribution>,
 }
 
@@ -85,6 +89,7 @@ impl From<AgentEntry> for AgentListEntry {
             website: entry.website,
             repository: entry.repository,
             icon: entry.icon,
+            icon_pixel_data: None,
         }
     }
 }
@@ -98,6 +103,7 @@ impl Api {
         let state = self.state.lock().await;
         let registry = state.registry.clone();
         let config_distributions = state.config.distributions.clone();
+        let icon_renderer = state.icon_renderer.clone();
         drop(state);
 
         if update {
@@ -118,7 +124,7 @@ impl Api {
             }
         }
 
-        let agents: Vec<AgentListEntry> = registry
+        let mut agents: Vec<AgentListEntry> = registry
             .as_ref()
             .map(|r| {
                 r.data
@@ -136,6 +142,35 @@ impl Api {
                     .collect()
             })
             .unwrap_or_default();
+
+        if let Some(renderer) = &icon_renderer {
+            let render_tasks: Vec<_> = agents
+                .iter()
+                .filter_map(|entry| {
+                    let url = entry.icon.as_ref()?;
+                    let renderer = renderer.clone();
+                    let url = url.clone();
+                    Some(async move {
+                        (
+                            url.clone(),
+                            renderer.get_or_render(&url).await.ok().flatten(),
+                        )
+                    })
+                })
+                .collect();
+
+            let results: HashMap<String, Option<PixelIcon>> =
+                futures::future::join_all(render_tasks)
+                    .await
+                    .into_iter()
+                    .collect();
+
+            for entry in &mut agents {
+                if let Some(url) = &entry.icon {
+                    entry.icon_pixel_data = results.get(url).cloned().flatten();
+                }
+            }
+        }
 
         let _ = self
             .response_handler
@@ -732,5 +767,49 @@ mod tests {
         let config = DistributionsConfig::default();
         let result = filtered_distributions(&entry, &config);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn agent_list_entry_serialization_includes_icon_pixel_data() {
+        let pixel_icon = PixelIcon {
+            width: 16,
+            height: 16,
+            pixels: vec!["#FF0000FF".to_string(); 256],
+        };
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: Some("MIT".to_string()),
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: Some("https://example.com/icon.svg".to_string()),
+            icon_pixel_data: Some(pixel_icon),
+            distributions: vec![Distribution::Binary],
+        };
+        let json = serde_json::to_value(entry).unwrap();
+        let pixel_data = json["icon_pixel_data"].as_object().unwrap();
+        assert_eq!(pixel_data["width"], 16);
+        assert_eq!(pixel_data["height"], 16);
+        assert!(pixel_data["pixels"].is_array());
+    }
+
+    #[test]
+    fn agent_list_entry_serialization_skips_icon_pixel_data_when_none() {
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: None,
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: None,
+            icon_pixel_data: None,
+            distributions: vec![Distribution::Npx],
+        };
+        let json = serde_json::to_value(entry).unwrap();
+        assert!(json.get("icon_pixel_data").is_none());
     }
 }
