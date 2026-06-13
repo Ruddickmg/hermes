@@ -125,17 +125,6 @@ impl std::fmt::Debug for NotificationMessenger {
     }
 }
 
-/// Returns the Neovim highlight group name for a given log level.
-fn hl_group_for_level(level: LogLevel) -> &'static str {
-    match level {
-        LogLevel::Error => "ErrorMsg",
-        LogLevel::Warn => "WarningMsg",
-        LogLevel::Info => "MoreMsg",
-        LogLevel::Debug | LogLevel::Trace => "Comment",
-        LogLevel::Off => "",
-    }
-}
-
 impl NotificationMessenger {
     /// Create a new NotificationMessenger with the given sender and AsyncHandle
     ///
@@ -171,31 +160,11 @@ impl NotificationMessenger {
                 nvim_oxi::schedule(move |_| {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match msg {
                         MessengerMessage::Notification(notification) => {
-                            if use_nvim_echo.load(Ordering::Relaxed) {
-                                // 0.12+: nvim_echo with history=false prevents cmdline accumulation
-                                let hl_group = hl_group_for_level(notification.level);
-                                let chunk = Array::from((
-                                    Object::from(notification.message.as_str()),
-                                    Object::from(hl_group),
-                                ));
-                                let chunks = Array::from((chunk,));
-                                let mut opts = Dictionary::default();
-                                if matches!(notification.level, LogLevel::Error) {
-                                    opts.insert("err", Object::from(true));
-                                }
-                                api::call_function::<(Array, bool, Dictionary), Object>(
-                                    "nvim_echo",
-                                    (chunks, false, opts),
-                                )
-                                .ok();
-                            } else {
-                                // < 0.12: use vim.notify (popup notification, no cmdline)
-                                let _ = api::notify(
-                                    &notification.message,
-                                    notification.level.into(),
-                                    &Dictionary::default(),
-                                );
-                            }
+                            let _ = api::notify(
+                                &notification.message,
+                                notification.level.into(),
+                                &Dictionary::default(),
+                            );
                         }
                         MessengerMessage::Progress(progress) => {
                             if use_nvim_echo.load(Ordering::Relaxed) {
@@ -793,35 +762,5 @@ mod tests {
     fn test_progress_message_is_sync() {
         fn assert_sync<T: Sync>() {}
         assert_sync::<ProgressMessage>();
-    }
-
-    #[test]
-    fn hl_group_for_level_error_returns_errormsg() {
-        assert_eq!(hl_group_for_level(LogLevel::Error), "ErrorMsg");
-    }
-
-    #[test]
-    fn hl_group_for_level_warn_returns_warningmsg() {
-        assert_eq!(hl_group_for_level(LogLevel::Warn), "WarningMsg");
-    }
-
-    #[test]
-    fn hl_group_for_level_info_returns_moremsg() {
-        assert_eq!(hl_group_for_level(LogLevel::Info), "MoreMsg");
-    }
-
-    #[test]
-    fn hl_group_for_level_debug_returns_comment() {
-        assert_eq!(hl_group_for_level(LogLevel::Debug), "Comment");
-    }
-
-    #[test]
-    fn hl_group_for_level_trace_returns_comment() {
-        assert_eq!(hl_group_for_level(LogLevel::Trace), "Comment");
-    }
-
-    #[test]
-    fn hl_group_for_level_off_returns_empty() {
-        assert_eq!(hl_group_for_level(LogLevel::Off), "");
     }
 }
