@@ -171,22 +171,31 @@ impl NotificationMessenger {
                 nvim_oxi::schedule(move |_| {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match msg {
                         MessengerMessage::Notification(notification) => {
-                            let is_err = matches!(notification.level, LogLevel::Error);
-                            let hl_group = hl_group_for_level(notification.level);
-                            let chunk = Array::from((
-                                Object::from(notification.message.as_str()),
-                                Object::from(hl_group),
-                            ));
-                            let chunks = Array::from((chunk,));
-                            let mut opts = Dictionary::default();
-                            if is_err {
-                                opts.insert("err", Object::from(true));
+                            if use_nvim_echo.load(Ordering::Relaxed) {
+                                // 0.12+: nvim_echo with history=false prevents cmdline accumulation
+                                let hl_group = hl_group_for_level(notification.level);
+                                let chunk = Array::from((
+                                    Object::from(notification.message.as_str()),
+                                    Object::from(hl_group),
+                                ));
+                                let chunks = Array::from((chunk,));
+                                let mut opts = Dictionary::default();
+                                if matches!(notification.level, LogLevel::Error) {
+                                    opts.insert("err", Object::from(true));
+                                }
+                                api::call_function::<(Array, bool, Dictionary), Object>(
+                                    "nvim_echo",
+                                    (chunks, false, opts),
+                                )
+                                .ok();
+                            } else {
+                                // < 0.12: use vim.notify (popup notification, no cmdline)
+                                let _ = api::notify(
+                                    &notification.message,
+                                    notification.level.into(),
+                                    &Dictionary::default(),
+                                );
                             }
-                            api::call_function::<(Array, bool, Dictionary), Object>(
-                                "nvim_echo",
-                                (chunks, true, opts),
-                            )
-                            .ok();
                         }
                         MessengerMessage::Progress(progress) => {
                             if use_nvim_echo.load(Ordering::Relaxed) {

@@ -169,7 +169,6 @@ fn prerender_icons(out_dir: &std::path::Path) -> Result<(), Box<dyn std::error::
         .as_array()
         .ok_or("registry.agents is not an array")?;
 
-    let mut rendered = 0u32;
     for agent in agents {
         let icon_url = match agent["icon"].as_str() {
             Some(u) => u,
@@ -187,7 +186,6 @@ fn prerender_icons(out_dir: &std::path::Path) -> Result<(), Box<dyn std::error::
                     url = icon_url,
                     pixels = pixel_str,
                 ));
-                rendered += 1;
             }
             None => {
                 println!(
@@ -199,12 +197,6 @@ fn prerender_icons(out_dir: &std::path::Path) -> Result<(), Box<dyn std::error::
     }
 
     output.push_str("        _ => None\n    }\n}\n");
-
-    println!("cargo:rerun-if-changed=src/acp/registry/registry.json");
-    println!(
-        "cargo:warning=Pre-rendered {rendered} agent icons into binary ({size} bytes)",
-        size = output.len(),
-    );
 
     std::fs::write(&dest_path, &output)?;
     Ok(())
