@@ -100,8 +100,86 @@ fn download_svg(url: &str) -> Result<String> {
         .map_err(|e| Error::Network(format!("SVG response from {url} is not valid UTF-8: {e}")))
 }
 
+fn make_svg_options() -> usvg::Options<'static> {
+    let mut fontdb = usvg::fontdb::Database::new();
+    let _ = fontdb.load_system_fonts();
+    if !DEJAVU_SANS_MONO.is_empty() {
+        fontdb.load_font_data(DEJAVU_SANS_MONO.to_vec());
+    }
+
+    let font_resolver = usvg::FontResolver {
+        select_font: custom_font_selector(),
+        select_fallback: usvg::FontResolver::default_fallback_selector(),
+    };
+
+    usvg::Options {
+        fontdb: std::sync::Arc::new(fontdb),
+        font_resolver,
+        ..usvg::Options::default()
+    }
+}
+
+fn custom_font_selector() -> usvg::FontSelectionFn<'static> {
+    Box::new(
+        move |font: &usvg::Font, fontdb: &mut std::sync::Arc<usvg::fontdb::Database>| {
+            let families: Vec<usvg::fontdb::Family> = font
+                .families()
+                .iter()
+                .map(|f| match f {
+                    usvg::FontFamily::Serif => usvg::fontdb::Family::Serif,
+                    usvg::FontFamily::SansSerif => usvg::fontdb::Family::SansSerif,
+                    usvg::FontFamily::Cursive => usvg::fontdb::Family::Cursive,
+                    usvg::FontFamily::Fantasy => usvg::fontdb::Family::Fantasy,
+                    usvg::FontFamily::Monospace => usvg::fontdb::Family::Monospace,
+                    usvg::FontFamily::Named(s) => usvg::fontdb::Family::Name(s),
+                })
+                .collect();
+
+            let mut all_families = families;
+            all_families.push(usvg::fontdb::Family::Serif);
+
+            let stretch = match font.stretch() {
+                usvg::FontStretch::UltraCondensed => usvg::fontdb::Stretch::UltraCondensed,
+                usvg::FontStretch::ExtraCondensed => usvg::fontdb::Stretch::ExtraCondensed,
+                usvg::FontStretch::Condensed => usvg::fontdb::Stretch::Condensed,
+                usvg::FontStretch::SemiCondensed => usvg::fontdb::Stretch::SemiCondensed,
+                usvg::FontStretch::Normal => usvg::fontdb::Stretch::Normal,
+                usvg::FontStretch::SemiExpanded => usvg::fontdb::Stretch::SemiExpanded,
+                usvg::FontStretch::Expanded => usvg::fontdb::Stretch::Expanded,
+                usvg::FontStretch::ExtraExpanded => usvg::fontdb::Stretch::ExtraExpanded,
+                usvg::FontStretch::UltraExpanded => usvg::fontdb::Stretch::UltraExpanded,
+            };
+
+            let style = match font.style() {
+                usvg::FontStyle::Normal => usvg::fontdb::Style::Normal,
+                usvg::FontStyle::Italic => usvg::fontdb::Style::Italic,
+                usvg::FontStyle::Oblique => usvg::fontdb::Style::Oblique,
+            };
+
+            let query = usvg::fontdb::Query {
+                families: &all_families,
+                weight: usvg::fontdb::Weight(font.weight()),
+                stretch,
+                style,
+            };
+
+            if let Some(id) = fontdb.query(&query) {
+                return Some(id);
+            }
+
+            let fallback = [usvg::fontdb::Family::Name("DejaVu Sans Mono")];
+            fontdb.query(&usvg::fontdb::Query {
+                families: &fallback,
+                weight: usvg::fontdb::Weight(font.weight()),
+                stretch,
+                style,
+            })
+        },
+    )
+}
+
 fn render_svg(svg_data: &str, size: u32) -> Result<PixelIcon> {
-    let opt = usvg::Options::default();
+    let opt = make_svg_options();
     let tree = usvg::Tree::from_str(svg_data, &opt)
         .map_err(|e| Error::InvalidInput(format!("Failed to parse SVG: {e}")))?;
 

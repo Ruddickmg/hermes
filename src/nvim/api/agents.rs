@@ -143,6 +143,8 @@ impl Api {
             })
             .unwrap_or_default();
 
+        agents.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
         std::fs::create_dir_all(&icon_cache_dir).ok();
         let renderer = IconRenderer::new(icon_cache_dir);
         let render_tasks: Vec<_> = agents
