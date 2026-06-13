@@ -9,7 +9,7 @@ use crate::{
     },
     api::Api,
     nvim::autocommands::Commands,
-    utilities::icon_renderer::PixelIcon,
+    utilities::icon_renderer::{IconRenderer, PixelIcon},
 };
 
 const DEFAULT_REGISTRY_URL: &str =
@@ -103,7 +103,7 @@ impl Api {
         let state = self.state.lock().await;
         let registry = state.registry.clone();
         let config_distributions = state.config.distributions.clone();
-        let icon_renderer = state.icon_renderer.clone();
+        let icon_cache_dir = state.config.project_root.join(".hermes").join("icons");
         drop(state);
 
         if update {
@@ -143,32 +143,31 @@ impl Api {
             })
             .unwrap_or_default();
 
-        if let Some(renderer) = &icon_renderer {
-            let render_tasks: Vec<_> = agents
-                .iter()
-                .filter_map(|entry| {
-                    let url = entry.icon.as_ref()?;
-                    let renderer = renderer.clone();
-                    let url = url.clone();
-                    Some(async move {
-                        (
-                            url.clone(),
-                            renderer.get_or_render(&url).await.ok().flatten(),
-                        )
-                    })
+        std::fs::create_dir_all(&icon_cache_dir).ok();
+        let renderer = IconRenderer::new(icon_cache_dir);
+        let render_tasks: Vec<_> = agents
+            .iter()
+            .filter_map(|entry| {
+                let url = entry.icon.as_ref()?;
+                let renderer = renderer.clone();
+                let url = url.clone();
+                Some(async move {
+                    (
+                        url.clone(),
+                        renderer.get_or_render(&url).await.ok().flatten(),
+                    )
                 })
-                .collect();
+            })
+            .collect();
 
-            let results: HashMap<String, Option<PixelIcon>> =
-                futures::future::join_all(render_tasks)
-                    .await
-                    .into_iter()
-                    .collect();
+        let results: HashMap<String, Option<PixelIcon>> = futures::future::join_all(render_tasks)
+            .await
+            .into_iter()
+            .collect();
 
-            for entry in &mut agents {
-                if let Some(url) = &entry.icon {
-                    entry.icon_pixel_data = results.get(url).cloned().flatten();
-                }
+        for entry in &mut agents {
+            if let Some(url) = &entry.icon {
+                entry.icon_pixel_data = results.get(url).cloned().flatten();
             }
         }
 
