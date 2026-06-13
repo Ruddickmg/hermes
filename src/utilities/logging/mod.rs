@@ -73,7 +73,8 @@ impl Logger {
         config: LogTargetConfig,
         messenger: NotificationMessenger,
     ) -> Result<BoxedLayer> {
-        let writer = NotifyWriter::new(config.level, messenger).filtered(config.level);
+        let writer =
+            AnsiStrip::new(NotifyWriter::new(config.level, messenger)).filtered(config.level);
         Ok(Self::base_layer(
             fmt::layer().with_writer(writer).with_ansi(true),
             config.format,
