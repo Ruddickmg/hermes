@@ -773,7 +773,7 @@ mod tests {
         let pixel_icon = PixelIcon {
             width: 16,
             height: 16,
-            pixels: vec!["#FF0000FF".to_string(); 256],
+            pixels: vec![255u8; 256],
         };
         let entry = AgentListEntry {
             id: "test".to_string(),

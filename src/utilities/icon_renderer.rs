@@ -1,13 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+include!(concat!(env!("OUT_DIR"), "/prerendered_icons.rs"));
+
 use crate::acp::{Result, error::Error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PixelIcon {
     pub width: u32,
     pub height: u32,
-    pub pixels: Vec<String>,
+    pub pixels: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -25,14 +27,22 @@ impl IconRenderer {
     }
 
     pub async fn get_or_render(&self, url: &str) -> Result<Option<PixelIcon>> {
+        if let Some((w, h, pixels)) = lookup_prerendered_icon(url) {
+            return Ok(Some(PixelIcon {
+                width: w,
+                height: h,
+                pixels: pixels.to_vec(),
+            }));
+        }
+
         let cache_path = self.cache_path(url);
 
         if cache_path.is_file() {
-            let data = std::fs::read_to_string(&cache_path)
-                .map_err(|e| Error::Network(format!("Failed to read icon cache: {e}")))?;
-            return serde_json::from_str(&data)
-                .map(Some)
-                .map_err(|e| Error::Network(format!("Failed to parse icon cache: {e}")));
+            if let Ok(data) = std::fs::read_to_string(&cache_path) {
+                if let Ok(icon) = serde_json::from_str::<PixelIcon>(&data) {
+                    return Ok(Some(icon));
+                }
+            }
         }
 
         let url = url.to_owned();
@@ -116,15 +126,7 @@ fn render_svg(svg_data: &str, size: u32) -> Result<PixelIcon> {
     resvg::render(&tree, transform, &mut pixmap.as_mut());
 
     let data = pixmap.data();
-    let pixels: Vec<String> = data
-        .chunks(4)
-        .map(|rgba| {
-            format!(
-                "#{:02X}{:02X}{:02X}{:02X}",
-                rgba[0], rgba[1], rgba[2], rgba[3]
-            )
-        })
-        .collect();
+    let pixels: Vec<u8> = data.chunks(4).map(|rgba| rgba[3]).collect();
 
     Ok(PixelIcon {
         width: size,
@@ -159,10 +161,9 @@ mod tests {
     }
 
     #[test]
-    fn render_svg_with_red_fill_has_red_pixels() {
+    fn render_svg_with_opaque_fill_has_full_alpha() {
         let icon = render_svg(simple_svg(), 16).unwrap();
-        let first = &icon.pixels[0];
-        assert_eq!(first, "#FF0000FF");
+        assert_eq!(icon.pixels[0], 255);
     }
 
     #[test]
@@ -213,7 +214,7 @@ mod tests {
         let expected = PixelIcon {
             width: 16,
             height: 16,
-            pixels: vec!["#FF0000FF".to_string(); 256],
+            pixels: vec![255u8; 256],
         };
         let cache_path = renderer.cache_path(url);
         std::fs::create_dir_all(cache_path.parent().unwrap()).unwrap();
@@ -244,10 +245,8 @@ mod tests {
             <rect x="0" y="0" width="16" height="16" fill="#FF0000" opacity="0.5"/>
         </svg>"##;
         let icon = render_svg(svg, 16).unwrap();
-        let first = &icon.pixels[0];
-        // resvg uses premultiplied alpha, so 50% opacity on #FF0000
-        // gives R=0x80, G=0x00, B=0x00, A=0x80
-        assert_eq!(first, "#80000080");
+        // resvg uses premultiplied alpha, so 50% opacity gives alpha=128
+        assert_eq!(icon.pixels[0], 128);
     }
 
     #[test]
@@ -258,7 +257,6 @@ mod tests {
         let icon = render_svg(svg, 16).unwrap();
         assert_eq!(icon.width, 16);
         assert_eq!(icon.height, 16);
-        let first = &icon.pixels[0];
-        assert_eq!(first, "#00FF00FF");
+        assert_eq!(icon.pixels[0], 255);
     }
 }
