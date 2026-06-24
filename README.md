@@ -209,15 +209,19 @@ hermes.setup({
       level = vim.log.levels.OFF or "off",
       -- logs  stdio logs will be formatted with the selected format 
       format = "compact",
+      -- show ansi symbols
+      show_ansi = false,
     },
     -- send logs to Neovim "notify"
     notification = {
       level = vim.log.levels.ERROR or "error",
+      show_ansi = false, -- show ansi symbols
       format = "compact",
     },
     -- send logs to Neovim ":messages"
     message = {
       level = vim.log.levels.OFF or "off",
+      show_ansi = false, -- show ansi symbols
       format = "compact",
     },
     -- send logs to log files
@@ -226,6 +230,7 @@ hermes.setup({
       format = "json",
       path = vim.fn.stdpath('state') .. "/nvim/hermes/logs", -- path to log file(s)
       name = "hermes.log", -- name of log file
+      show_ansi = false, -- show ansi symbols
       max_size = 10485760, -- 10mb in bytes
       max_files = 5, -- Max log files to generate
     },

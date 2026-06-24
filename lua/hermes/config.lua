@@ -16,12 +16,14 @@ local M = {}
 ---@class HermesLogTargetConfig
 ---@field level? number|string Log level (default: "off")
 ---@field format? string Log format (default: "compact")
+---@field show_ansi? boolean Show ANSI color codes in output (default: false)
 
 ---@class HermesLogFileConfig
 ---@field level? number|string Log level (default: "off")
 ---@field format? string Log format (default: "json")
 ---@field path? string Path to log directory (default: vim.fn.stdpath("state") .. "/hermes")
 ---@field name? string Log file name (default: "hermes.log")
+---@field show_ansi? boolean Show ANSI color codes in output (default: false)
 ---@field max_size? number Maximum file size in bytes (default: 10485760 = 10MB)
 ---@field max_files? number Maximum number of log files to keep (default: 5)
 
@@ -121,20 +123,24 @@ local default_config = {
 		stdio = {
 			level = "off",
 			format = "compact",
+			show_ansi = false,
 		},
 		notification = {
 			level = "error",
 			format = "compact",
+			show_ansi = false,
 		},
 		message = {
 			level = "off",
 			format = "compact",
+			show_ansi = false,
 		},
 		file = {
 			level = "off",
 			format = "json",
 			path = vim.fn.stdpath("state") .. "/hermes",
 			name = "hermes.log",
+			show_ansi = false,
 			max_size = 10485760,
 			max_files = 5,
 		},
