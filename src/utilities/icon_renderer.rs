@@ -337,4 +337,52 @@ mod tests {
         assert_eq!(icon.height, 16);
         assert_eq!(icon.pixels[0], 255);
     }
+
+    #[test]
+    fn render_svg_with_zero_dimensions_returns_error() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0">
+            <rect x="0" y="0" width="0" height="0" fill="#FF0000"/>
+        </svg>"##;
+        let result = render_svg(svg, 16);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn render_svg_with_size_zero_returns_error() {
+        let result = render_svg(simple_svg(), 0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn render_svg_scales_non_square_svg_proportionally() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 8">
+            <rect x="0" y="0" width="32" height="8" fill="#0000FF"/>
+        </svg>"##;
+        let icon = render_svg(svg, 16).unwrap();
+        assert_eq!((icon.width, icon.height), (16, 16));
+    }
+
+    #[test]
+    fn cache_path_joins_cache_dir_with_cache_key() {
+        let tmp = TempDir::new().unwrap();
+        let renderer = IconRenderer::new(tmp.path().to_path_buf());
+        let path = renderer.cache_path("https://example.com/icon.svg");
+        let expected = tmp.path().join("https___example.com_icon.svg.json");
+        assert_eq!(path, expected);
+    }
+
+    #[test]
+    fn get_or_render_with_corrupt_cache_returns_error() {
+        let tmp = TempDir::new().unwrap();
+        let renderer = IconRenderer::new(tmp.path().to_path_buf());
+        let url = "https://cdn.example.com/icon.svg";
+
+        let cache_path = renderer.cache_path(url);
+        std::fs::create_dir_all(cache_path.parent().unwrap()).unwrap();
+        std::fs::write(&cache_path, "not valid json at all").unwrap();
+
+        let result = smol::block_on(async { renderer.get_or_render(url).await });
+
+        assert!(result.is_err());
+    }
 }
