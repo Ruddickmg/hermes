@@ -145,6 +145,7 @@ local function pretty_print_config(cfg)
 		local f = cfg.log.file
 		add_line(1, "level: " .. tostring(f.level))
 		add_line(1, "format: " .. tostring(f.format))
+		add_line(1, "show_ansi: " .. tostring(f.show_ansi))
 		add_line(1, "path: " .. tostring(f.path))
 		add_line(1, "name: " .. tostring(f.name))
 		if f.max_size then
@@ -161,6 +162,7 @@ local function pretty_print_config(cfg)
 		add_line(0, "Log (Notification):")
 		add_line(1, "level: " .. tostring(cfg.log.notification.level))
 		add_line(1, "format: " .. tostring(cfg.log.notification.format))
+		add_line(1, "show_ansi: " .. tostring(cfg.log.notification.show_ansi))
 		flush_group()
 	end
 
@@ -169,6 +171,7 @@ local function pretty_print_config(cfg)
 		add_line(0, "Log (Stdio):")
 		add_line(1, "level: " .. tostring(cfg.log.stdio.level))
 		add_line(1, "format: " .. tostring(cfg.log.stdio.format))
+		add_line(1, "show_ansi: " .. tostring(cfg.log.stdio.show_ansi))
 		flush_group()
 	end
 
@@ -177,6 +180,7 @@ local function pretty_print_config(cfg)
 		add_line(0, "Log (Message):")
 		add_line(1, "level: " .. tostring(cfg.log.message.level))
 		add_line(1, "format: " .. tostring(cfg.log.message.format))
+		add_line(1, "show_ansi: " .. tostring(cfg.log.message.show_ansi))
 		flush_group()
 	end
 

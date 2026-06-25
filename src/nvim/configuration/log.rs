@@ -13,6 +13,7 @@ pub const LOG_FILE_NAME: &str = "hermes.log";
 pub struct LogTargetConfig {
     pub level: LogLevel,
     pub format: LogFormat,
+    pub show_ansi: bool,
 }
 
 /// Partial configuration for a log target
@@ -20,6 +21,7 @@ pub struct LogTargetConfig {
 pub struct LogTargetConfigPartial {
     pub level: Option<LogLevel>,
     pub format: Option<LogFormat>,
+    pub show_ansi: Option<bool>,
 }
 
 impl LogTargetConfigPartial {
@@ -29,6 +31,9 @@ impl LogTargetConfigPartial {
         }
         if let Some(val) = self.format {
             config.format = val;
+        }
+        if let Some(val) = self.show_ansi {
+            config.show_ansi = val;
         }
     }
 }
@@ -45,8 +50,16 @@ impl FromObject for LogTargetConfigPartial {
             .get("format")
             .map(|o| LogFormat::from_object(o.clone()))
             .transpose()?;
+        let show_ansi = dict
+            .get("show_ansi")
+            .map(|o| bool::from_object(o.clone()))
+            .transpose()?;
 
-        Ok(Self { level, format })
+        Ok(Self {
+            level,
+            format,
+            show_ansi,
+        })
     }
 }
 
@@ -56,6 +69,7 @@ pub struct LogFileConfig {
     pub name: String,
     pub level: LogLevel,
     pub format: LogFormat, // None = use global format
+    pub show_ansi: bool,
     pub max_size: u64,
     pub max_files: u32,
 }
@@ -72,6 +86,7 @@ impl Default for LogFileConfig {
             path: "".to_string(),
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Off,
+            show_ansi: false,
             format: LogFormat::default(),
             max_size: 10_485_760, // 10MB default
             max_files: 5,         // Keep 5 backup files
@@ -85,6 +100,7 @@ pub struct LogFileConfigPartial {
     pub path: Option<String>,
     pub level: Option<LogLevel>,
     pub format: Option<LogFormat>,
+    pub show_ansi: Option<bool>,
     pub max_size: Option<u64>,
     pub max_files: Option<u32>,
 }
@@ -107,6 +123,9 @@ impl LogFileConfigPartial {
         if let Some(val) = self.max_files {
             config.max_files = val;
         }
+        if let Some(val) = self.show_ansi {
+            config.show_ansi = val;
+        }
     }
 }
 
@@ -126,6 +145,10 @@ impl FromObject for LogFileConfigPartial {
             .get("format")
             .map(|o| LogFormat::from_object(o.clone()))
             .transpose()?;
+        let show_ansi = dict
+            .get("show_ansi")
+            .map(|o| bool::from_object(o.clone()))
+            .transpose()?;
         let max_size = dict
             .get("max_size")
             .map(|o| u64::from_object(o.clone()))
@@ -139,6 +162,7 @@ impl FromObject for LogFileConfigPartial {
             path,
             level,
             format,
+            show_ansi,
             max_size,
             max_files,
         })
@@ -162,6 +186,7 @@ impl Default for LogConfig {
             notification: LogTargetConfig {
                 level: LogLevel::Error,
                 format: LogFormat::default(),
+                show_ansi: false,
             },
         }
     }
@@ -295,6 +320,7 @@ mod tests {
         let mut config = LogTargetConfig::default();
         let partial = LogTargetConfigPartial {
             level: Some(LogLevel::Debug),
+            show_ansi: None,
             format: None,
         };
         partial.apply_to(&mut config);
@@ -306,6 +332,7 @@ mod tests {
         let mut config = LogTargetConfig::default();
         let partial = LogTargetConfigPartial {
             level: None,
+            show_ansi: None,
             format: Some(LogFormat::Pretty),
         };
         partial.apply_to(&mut config);
@@ -316,10 +343,12 @@ mod tests {
     fn test_log_target_config_partial_apply_partial_preserves_untouched() {
         let mut config = LogTargetConfig {
             level: LogLevel::Error,
+            show_ansi: false,
             format: LogFormat::Compact,
         };
         let partial = LogTargetConfigPartial {
             level: Some(LogLevel::Warn),
+            show_ansi: None,
             format: None,
         };
         partial.apply_to(&mut config);
@@ -330,10 +359,12 @@ mod tests {
     fn test_log_target_config_partial_apply_partial_updates_provided() {
         let mut config = LogTargetConfig {
             level: LogLevel::Error,
+            show_ansi: false,
             format: LogFormat::Compact,
         };
         let partial = LogTargetConfigPartial {
             level: Some(LogLevel::Warn),
+            show_ansi: None,
             format: None,
         };
         partial.apply_to(&mut config);
@@ -347,6 +378,7 @@ mod tests {
             path: Some("/test/path".to_string()),
             level: None,
             format: None,
+            show_ansi: None,
             max_size: None,
             max_files: None,
         };
@@ -361,6 +393,7 @@ mod tests {
             path: None,
             level: Some(LogLevel::Debug),
             format: None,
+            show_ansi: None,
             max_size: None,
             max_files: None,
         };
@@ -375,6 +408,7 @@ mod tests {
             path: None,
             level: None,
             format: Some(LogFormat::Json),
+            show_ansi: None,
             max_size: None,
             max_files: None,
         };
@@ -389,6 +423,7 @@ mod tests {
             path: None,
             level: None,
             format: None,
+            show_ansi: None,
             max_size: Some(2048),
             max_files: None,
         };
@@ -403,6 +438,7 @@ mod tests {
             path: None,
             level: None,
             format: None,
+            show_ansi: None,
             max_size: None,
             max_files: Some(10),
         };
@@ -416,6 +452,7 @@ mod tests {
         let partial = LogConfigPartial {
             stdio: Some(LogTargetConfigPartial {
                 level: Some(LogLevel::Trace),
+                show_ansi: None,
                 format: None,
             }),
             notification: None,
@@ -432,6 +469,7 @@ mod tests {
         let partial = LogConfigPartial {
             stdio: Some(LogTargetConfigPartial {
                 level: None,
+                show_ansi: None,
                 format: Some(LogFormat::Full),
             }),
             notification: None,
@@ -448,6 +486,7 @@ mod tests {
         let partial = LogConfigPartial {
             stdio: Some(LogTargetConfigPartial {
                 level: Some(LogLevel::Trace),
+                show_ansi: None,
                 format: Some(LogFormat::Full),
             }),
             notification: None,
@@ -465,6 +504,7 @@ mod tests {
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Off,
             format: LogFormat::default(),
+            show_ansi: false,
             max_size: 10_485_760,
             max_files: 5,
         };
@@ -477,6 +517,7 @@ mod tests {
             path: "".to_string(),
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Debug,
+            show_ansi: false,
             format: LogFormat::default(),
             max_size: 10_485_760,
             max_files: 5,
@@ -490,6 +531,7 @@ mod tests {
             path: "".to_string(),
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Off,
+            show_ansi: false,
             format: LogFormat::default(),
             max_size: 10_485_760,
             max_files: 5,
@@ -502,11 +544,66 @@ mod tests {
         let config = LogFileConfig {
             path: "/test.log".to_string(),
             name: LOG_FILE_NAME.to_string(),
+            show_ansi: false,
             level: LogLevel::Debug,
             format: LogFormat::default(),
             max_size: 10_485_760,
             max_files: 5,
         };
         assert!(config.is_enabled());
+    }
+
+    #[test]
+    fn test_log_target_config_partial_from_object_with_show_ansi_true() {
+        let mut dict = Dictionary::new();
+        dict.insert("show_ansi", true);
+        let result = LogTargetConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with show_ansi should parse");
+        assert_eq!(partial.show_ansi, Some(true));
+    }
+
+    #[test]
+    fn test_log_target_config_partial_from_object_with_show_ansi_false() {
+        let mut dict = Dictionary::new();
+        dict.insert("show_ansi", false);
+        let result = LogTargetConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with show_ansi false should parse");
+        assert_eq!(partial.show_ansi, Some(false));
+    }
+
+    #[test]
+    fn test_log_target_config_partial_apply_to_show_ansi() {
+        let mut config = LogTargetConfig::default();
+        let partial = LogTargetConfigPartial {
+            level: None,
+            format: None,
+            show_ansi: Some(true),
+        };
+        partial.apply_to(&mut config);
+        assert_eq!(config.show_ansi, true);
+    }
+
+    #[test]
+    fn test_log_file_config_partial_from_object_with_show_ansi() {
+        let mut dict = Dictionary::new();
+        dict.insert("show_ansi", true);
+        let result = LogFileConfigPartial::from_object(Object::from(dict));
+        let partial = result.expect("dict with show_ansi should parse");
+        assert_eq!(partial.show_ansi, Some(true));
+    }
+
+    #[test]
+    fn test_log_file_config_partial_apply_to_show_ansi() {
+        let mut config = LogFileConfig::default();
+        let partial = LogFileConfigPartial {
+            path: None,
+            level: None,
+            format: None,
+            show_ansi: Some(true),
+            max_size: None,
+            max_files: None,
+        };
+        partial.apply_to(&mut config);
+        assert_eq!(config.show_ansi, true);
     }
 }
