@@ -67,6 +67,30 @@ function M.get_data_dir()
 end
 
 -- luacov: disable
+---Get path to binary installed alongside Lua files in the rock tree
+---Checks if the plugin was installed via luarocks and a pre-built binary
+---is available in the rock's lib/ directory
+---@return string|nil Path to rock tree binary, or nil if not found
+---@private
+-- luacov: enable
+function M.get_rock_binary_path()
+  local info = debug.getinfo(1)
+  if not info or type(info.source) ~= "string" then
+    return nil
+  end
+  local source = info.source:sub(2)
+  if source == "" then
+    return nil
+  end
+  local rock_root = vim.fn.fnamemodify(source, ":h:h:h")
+	local path = rock_root .. "/lib/" .. M.get_binary_name()
+	if vim.fn.filereadable(path) == 1 then
+		return path
+	end
+	return nil
+end
+
+-- luacov: disable
 ---Get the binary name for current platform
 ---@return string binary_name Name of the binary file
 ---@private
@@ -494,6 +518,11 @@ end
 ---@private
 -- luacov: enable
 function M.ensure_binary()
+	local rock_bin_path = M.get_rock_binary_path()
+	if rock_bin_path then
+		return rock_bin_path
+	end
+
 	local bin_path = M.get_binary_path()
 	local ver_file = M.get_version_file()
 	local version = require("hermes.version")
@@ -666,6 +695,12 @@ end
 -- luacov: enable
 function M.ensure_binary_async(timeout, on_complete)
 	timeout = timeout or 60
+
+	local rock_bin_path = M.get_rock_binary_path()
+	if rock_bin_path then
+		on_complete(true, rock_bin_path)
+		return
+	end
 
 	local platform = require("hermes.platform")
 	local version = require("hermes.version")

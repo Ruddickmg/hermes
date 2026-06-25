@@ -6,6 +6,8 @@ std = "vim"
 [lints]
 # Allow multiple statements per line in tests (common for pcall patterns)
 multiple_statements = "allow"
+# Allow writing to standard library globals in tests (needed for mocking)
+incorrect_standard_library_use = "allow"
 
 [config]
 # Exclude test directories and node_modules from linting
