@@ -7,6 +7,10 @@ edition = "2024"
 [package.metadata.precommit]
 fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IFS= read -r f; do git add \"$f\"; done; true; }"
 
+[features]
+default = []
+with-icons = []
+
 [workspace]
 members = [".", "tests/e2e", "tests/integration"]
 resolver = "2"

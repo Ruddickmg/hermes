@@ -96,9 +96,12 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 		end)
 	elseif subcmd == "build" then
 		-- Build from source asynchronously (non-blocking)
+		-- Extra args are passed through as Cargo features, e.g.:
+		--   :Hermes build with-icons   ->  cargo build --release --features with-icons
 		local binary = require("hermes.binary")
 		local data_dir = binary.get_data_dir()
-		binary.build_from_source_async(data_dir, function(success, err)
+		local features = vim.list_slice(args.fargs, 2)
+		binary.build_from_source_async(data_dir, features, function(success, err)
 			if success then
 				logger.notify("Hermes built from source successfully!", vim.log.levels.DEBUG)
 
@@ -171,8 +174,15 @@ vim.api.nvim_create_user_command("Hermes", function(args)
 		)
 	end
 end, {
-	nargs = "?",
-	complete = function()
+	nargs = "*",
+	complete = function(_, cmdline, _)
+		local parts = vim.split(cmdline, "%s+", { trimempty = true })
+		if #parts >= 3 or cmdline:match("%s$") then
+			if parts[2] == "build" then
+				return { "with-icons" }
+			end
+			return {}
+		end
 		return { "log", "install", "update", "build", "cancel", "clean" }
 	end,
 	desc = "Hermes binary management and info",

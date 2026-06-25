@@ -1,11 +1,27 @@
 #!/bin/bash
 # Manual build script for Hermes
-# Usage: ./scripts/build.sh [destination]
+# Usage: ./scripts/build.sh [--with-icons] [destination]
 # Default destination: ~/.local/share/nvim/hermes
 
 set -e
 
-DEST="${1:-$HOME/.local/share/nvim/hermes}"
+# Parse arguments
+DEST="$HOME/.local/share/nvim/hermes"
+FEATURES=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --with-icons)
+            FEATURES="with-icons"
+            shift
+            ;;
+        *)
+            DEST="$1"
+            shift
+            ;;
+    esac
+done
+
 REPO_URL="https://github.com/Ruddickmg/hermes.nvim.git"
 BUILD_DIR="$DEST/build"
 
@@ -26,9 +42,13 @@ else
     cd "$BUILD_DIR"
 fi
 
-# Build with cargo (default features include neovim-0-11 for single-binary compat)
+# Build with cargo
 echo "Building with cargo (this may take a few minutes)..."
-cargo build --release
+if [ -n "$FEATURES" ]; then
+    cargo build --release --features "$FEATURES"
+else
+    cargo build --release
+fi
 
 # Determine library extension
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then

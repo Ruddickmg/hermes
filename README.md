@@ -96,7 +96,7 @@ If your platform is not in the supported list above, you can build from source:
 **Scripted**
 
 Run the build command in Neovim:
-  ```
+  ```vim
   :Hermes build
   ```
 
@@ -114,37 +114,53 @@ cargo build --release
 # Copy target/release/libhermes.* to your Neovim data directory
 ```
 
+> [!INFO]
+> Hermes can pre-render icons during the build step to avoid having to do so at runtime.
+>
+> To do so with the build script:
+> ```vim
+> :Hermes build with-icons
+> ```
+>
+> Or building manually:
+> ```bash
+> cargo build --release --features with-icons
+> ```
+
 ## Commands
 
 Show recent log messages and current state information.
-```
+```vim
 :Hermes log
 ```
 
 Fetch the latest release from GitHub and replaces the current binary.
-```
+```vim
 :Hermes update
 ```
 > Triggers [Progress](#progress) autocommand while downloading
 
 Download the currently configured version.
-```
+```vim
 :Hermes install
 ```
 > Triggers [Progress](#progress) autocommand while downloading
 
 Remove the binary. Run `:Hermes install` or use Hermes API to re-download.
-```
+```vim
 :Hermes clean
 ```
 
 Compile from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
-```
+
+Extra arguments are passed through as Cargo features, e.g.:
+```vim
 :Hermes build
+:Hermes build with-icons  " enable icon pre-rendering
 ```
 
 Cancel an in-progress source build. Shows warning if no build is running.
-```
+```vim
 :Hermes cancel
 ```
 
