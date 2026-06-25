@@ -37,7 +37,7 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 ```
 
 **rocks.nvim**
-```sh
+```vim
 :Rocks install hermes.nvim
 ```
 
