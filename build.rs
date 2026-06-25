@@ -8,6 +8,14 @@ fn main() {
 
     let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
+    // Write fallback first so compilation succeeds even if pre-rendering fails.
+    // If prerender_icons succeeds, it overwrites the file with real data.
+    let dest_path = out_dir.join("prerendered_icons.rs");
+    let fallback = "\
+pub static DEJAVU_SANS_MONO: &[u8] = &[];\n\
+pub fn lookup_prerendered_icon(url: &str) -> Option<(u32, u32, &'static [u8])> { None }\n";
+    let _ = std::fs::write(&dest_path, fallback);
+
     if let Err(e) = prerender_icons(&out_dir) {
         println!(
             "cargo:warning=Icon pre-rendering failed: {e}. Icons will be rendered at runtime."
