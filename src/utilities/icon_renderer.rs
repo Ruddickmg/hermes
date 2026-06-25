@@ -37,13 +37,17 @@ impl IconRenderer {
 
         let cache_path = self.cache_path(url);
 
-        if cache_path.is_file() {
-            if let Ok(data) = std::fs::read_to_string(&cache_path) {
-                if let Ok(icon) = serde_json::from_str::<PixelIcon>(&data) {
-                    return Ok(Some(icon));
-                }
-            }
-        }
+if cache_path.is_file() {
+    let cache_path = cache_path.clone();
+    if let Ok(Some(icon)) = blocking::unblock(move || -> Option<PixelIcon> {
+        let data = std::fs::read_to_string(&cache_path).ok()?;
+        serde_json::from_str::<PixelIcon>(&data).ok()
+    })
+    .await
+    {
+        return Ok(Some(icon));
+    }
+}
 
         let url = url.to_owned();
         let size = self.size;
@@ -68,18 +72,30 @@ impl IconRenderer {
         Ok(Some(icon))
     }
 
-    fn cache_key(url: &str) -> String {
-        url.chars()
-            .map(|c| {
-                if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
-                    c
-                } else {
-                    '_'
-                }
-            })
-            .collect::<String>()
-            + ".json"
+fn cache_key(url: &str) -> String {
+    use std::hash::{Hash, Hasher};
+
+    let sanitized = url
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+
+    // Preserve existing behavior for already-safe strings (keeps tests/filenames stable).
+    if sanitized == url {
+        return sanitized + ".json";
     }
+
+    // Add a stable hash prefix to avoid collisions for sanitized URLs.
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    url.hash(&mut hasher);
+    format!("{:x}-{sanitized}.json", hasher.finish())
+}
 
     fn cache_path(&self, url: &str) -> PathBuf {
         self.cache_dir.join(Self::cache_key(url))
@@ -229,11 +245,10 @@ mod tests {
     }
 
     #[test]
-    fn render_svg_with_simple_rect_returns_correct_dimensions() {
-        let icon = render_svg(simple_svg(), 16).unwrap();
-        assert_eq!(icon.width, 16);
-        assert_eq!(icon.height, 16);
-    }
+fn render_svg_with_simple_rect_returns_correct_dimensions() {
+    let icon = render_svg(simple_svg(), 16).unwrap();
+    assert_eq!((icon.width, icon.height), (16, 16));
+}
 
     #[test]
     fn render_svg_with_simple_rect_has_correct_pixel_count() {
@@ -260,24 +275,27 @@ mod tests {
     }
 
     #[test]
-    fn pixel_icon_json_roundtrip() {
-        let icon = render_svg(simple_svg(), 16).unwrap();
-        let json = serde_json::to_string(&icon).unwrap();
-        let deserialized: PixelIcon = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.width, icon.width);
-        assert_eq!(deserialized.height, icon.height);
-        assert_eq!(deserialized.pixels, icon.pixels);
-    }
+fn pixel_icon_json_roundtrip() {
+    let icon = render_svg(simple_svg(), 16).unwrap();
+    let json = serde_json::to_string(&icon).unwrap();
+    let deserialized: PixelIcon = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        (deserialized.width, deserialized.height, deserialized.pixels),
+        (icon.width, icon.height, icon.pixels)
+    );
+}
 
     #[test]
-    fn cache_key_replaces_special_chars() {
-        let url = "https://cdn.example.com/registry/v1/latest/test-agent.svg";
-        let key = IconRenderer::cache_key(url);
-        assert!(!key.contains('/'));
-        assert!(!key.contains(':'));
-        assert!(key.ends_with(".json"));
-        assert!(key.contains("test-agent.svg"));
-    }
+fn cache_key_replaces_special_chars() {
+    let url = "https://cdn.example.com/registry/v1/latest/test-agent.svg";
+    let key = IconRenderer::cache_key(url);
+    assert!(
+        !key.contains('/')
+            && !key.contains(':')
+            && key.ends_with(".json")
+            && key.contains("test-agent.svg")
+    );
+}
 
     #[test]
     fn cache_key_preserves_alphanumeric_and_dots() {
