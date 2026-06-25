@@ -170,7 +170,6 @@ pub fn autocmd_listeners_attached(group: &str, event: &str, pattern: &str) -> bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn create_autocmd_helper_signature_compiles() {
