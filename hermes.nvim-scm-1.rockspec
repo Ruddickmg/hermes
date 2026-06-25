@@ -37,6 +37,7 @@ build = {
     ["hermes.version"] = "lua/hermes/version.lua",
   },
   copy_directories = {
+    "lib",
     "plugin",
     "doc"
   }

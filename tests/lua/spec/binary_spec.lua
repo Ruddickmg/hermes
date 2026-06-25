@@ -12,6 +12,7 @@ describe("hermes.binary", function()
 	local filereadable_stub
 	local download_stub
 	local version_stub
+	local rock_binary_stub
 
 	before_each(function()
 		temp_dir = helpers.create_temp_dir()
@@ -25,6 +26,7 @@ describe("hermes.binary", function()
 
 		binary = require("hermes.binary")
 		download = require("hermes.download")
+		rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
 	end)
 
 	after_each(function()
@@ -40,6 +42,9 @@ describe("hermes.binary", function()
 		end
 		if version_stub then
 			version_stub:revert()
+		end
+		if rock_binary_stub then
+			rock_binary_stub:revert()
 		end
 
 		-- Clean up any inline stubs of vim.fn functions that tests may have created
