@@ -145,7 +145,7 @@ impl Api {
 
         agents.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-let renderer = IconRenderer::new(icon_cache_dir);
+        let renderer = IconRenderer::new(icon_cache_dir);
         let render_tasks: Vec<_> = agents
             .iter()
             .filter_map(|entry| {
@@ -788,16 +788,17 @@ mod tests {
             icon_pixel_data: Some(pixel_icon),
             distributions: vec![Distribution::Binary],
         };
-let json = serde_json::to_value(entry).unwrap();
-let pixel_data = json["icon_pixel_data"].as_object().unwrap();
-assert_eq!(
-    (
-        pixel_data["width"].as_u64(),
-        pixel_data["height"].as_u64(),
-        pixel_data["pixels"].as_array().map(|_| true),
-    ),
-    (Some(16), Some(16), Some(true))
-);
+        let json = serde_json::to_value(entry).unwrap();
+        let pixel_data = json["icon_pixel_data"].as_object().unwrap();
+        assert_eq!(
+            (
+                pixel_data["width"].as_u64(),
+                pixel_data["height"].as_u64(),
+                pixel_data["pixels"].as_array().map(|_| true),
+            ),
+            (Some(16), Some(16), Some(true))
+        );
+    }
 
     #[test]
     fn agent_list_entry_serialization_skips_icon_pixel_data_when_none() {

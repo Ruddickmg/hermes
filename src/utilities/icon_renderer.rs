@@ -37,17 +37,17 @@ impl IconRenderer {
 
         let cache_path = self.cache_path(url);
 
-if cache_path.is_file() {
-    let cache_path = cache_path.clone();
-    if let Ok(Some(icon)) = blocking::unblock(move || -> Option<PixelIcon> {
-        let data = std::fs::read_to_string(&cache_path).ok()?;
-        serde_json::from_str::<PixelIcon>(&data).ok()
-    })
-    .await
-    {
-        return Ok(Some(icon));
-    }
-}
+        if cache_path.is_file() {
+            let cache_path = cache_path.clone();
+            if let Some(icon) = blocking::unblock(move || -> Option<PixelIcon> {
+                let data = std::fs::read_to_string(&cache_path).ok()?;
+                serde_json::from_str::<PixelIcon>(&data).ok()
+            })
+            .await
+            {
+                return Ok(Some(icon));
+            }
+        }
 
         let url = url.to_owned();
         let size = self.size;
@@ -72,30 +72,30 @@ if cache_path.is_file() {
         Ok(Some(icon))
     }
 
-fn cache_key(url: &str) -> String {
-    use std::hash::{Hash, Hasher};
+    fn cache_key(url: &str) -> String {
+        use std::hash::{Hash, Hasher};
 
-    let sanitized = url
-        .chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
+        let sanitized = url
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
 
-    // Preserve existing behavior for already-safe strings (keeps tests/filenames stable).
-    if sanitized == url {
-        return sanitized + ".json";
+        // Preserve existing behavior for already-safe strings (keeps tests/filenames stable).
+        if sanitized == url {
+            return sanitized + ".json";
+        }
+
+        // Add a stable hash prefix to avoid collisions for sanitized URLs.
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        url.hash(&mut hasher);
+        format!("{:x}-{sanitized}.json", hasher.finish())
     }
-
-    // Add a stable hash prefix to avoid collisions for sanitized URLs.
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    url.hash(&mut hasher);
-    format!("{:x}-{sanitized}.json", hasher.finish())
-}
 
     fn cache_path(&self, url: &str) -> PathBuf {
         self.cache_dir.join(Self::cache_key(url))
@@ -245,10 +245,10 @@ mod tests {
     }
 
     #[test]
-fn render_svg_with_simple_rect_returns_correct_dimensions() {
-    let icon = render_svg(simple_svg(), 16).unwrap();
-    assert_eq!((icon.width, icon.height), (16, 16));
-}
+    fn render_svg_with_simple_rect_returns_correct_dimensions() {
+        let icon = render_svg(simple_svg(), 16).unwrap();
+        assert_eq!((icon.width, icon.height), (16, 16));
+    }
 
     #[test]
     fn render_svg_with_simple_rect_has_correct_pixel_count() {
@@ -275,27 +275,27 @@ fn render_svg_with_simple_rect_returns_correct_dimensions() {
     }
 
     #[test]
-fn pixel_icon_json_roundtrip() {
-    let icon = render_svg(simple_svg(), 16).unwrap();
-    let json = serde_json::to_string(&icon).unwrap();
-    let deserialized: PixelIcon = serde_json::from_str(&json).unwrap();
-    assert_eq!(
-        (deserialized.width, deserialized.height, deserialized.pixels),
-        (icon.width, icon.height, icon.pixels)
-    );
-}
+    fn pixel_icon_json_roundtrip() {
+        let icon = render_svg(simple_svg(), 16).unwrap();
+        let json = serde_json::to_string(&icon).unwrap();
+        let deserialized: PixelIcon = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            (deserialized.width, deserialized.height, deserialized.pixels),
+            (icon.width, icon.height, icon.pixels)
+        );
+    }
 
     #[test]
-fn cache_key_replaces_special_chars() {
-    let url = "https://cdn.example.com/registry/v1/latest/test-agent.svg";
-    let key = IconRenderer::cache_key(url);
-    assert!(
-        !key.contains('/')
-            && !key.contains(':')
-            && key.ends_with(".json")
-            && key.contains("test-agent.svg")
-    );
-}
+    fn cache_key_replaces_special_chars() {
+        let url = "https://cdn.example.com/registry/v1/latest/test-agent.svg";
+        let key = IconRenderer::cache_key(url);
+        assert!(
+            !key.contains('/')
+                && !key.contains(':')
+                && key.ends_with(".json")
+                && key.contains("test-agent.svg")
+        );
+    }
 
     #[test]
     fn cache_key_preserves_alphanumeric_and_dots() {
@@ -387,8 +387,9 @@ fn cache_key_replaces_special_chars() {
     fn cache_path_joins_cache_dir_with_cache_key() {
         let tmp = TempDir::new().unwrap();
         let renderer = IconRenderer::new(tmp.path().to_path_buf());
-        let path = renderer.cache_path("https://example.com/icon.svg");
-        let expected = tmp.path().join("https___example.com_icon.svg.json");
+        let url = "hello.world-123_test";
+        let path = renderer.cache_path(url);
+        let expected = tmp.path().join("hello.world-123_test.json");
         assert_eq!(path, expected);
     }
 
