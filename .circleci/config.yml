@@ -232,8 +232,28 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
+          name: Detect next version
+          command: node .circleci/get-next-version.mjs | tail -1 > /tmp/next-version.txt
+      - run:
           name: Semantic release
           command: pnpm release
+      - run:
+          name: Publish to LuaRocks
+          command: |
+            VERSION=$(cat /tmp/next-version.txt)
+            if [ -z "$VERSION" ]; then
+              echo "No version to publish"
+              exit 0
+            fi
+            apt-get update
+            apt-get install -y lua5.1 liblua5.1-dev wget
+            wget -q https://luarocks.org/releases/luarocks-3.9.2.tar.gz
+            tar zxf luarocks-3.9.2.tar.gz
+            cd luarocks-3.9.2 && ./configure && make && make install
+            cd ..
+            sed "s/scm-1/${VERSION}-1/g; /branch = \"main\"/d; s|git://github.com/Ruddickmg/hermes.nvim.git|https://github.com/Ruddickmg/hermes.nvim/archive/refs/tags/v${VERSION}.tar.gz|" \
+              hermes.nvim-scm-1.rockspec > hermes.nvim-${VERSION}-1.rockspec
+            luarocks upload hermes.nvim-${VERSION}-1.rockspec --api-key=${LUAROCKS_API_KEY}
 
   check_license:
     executor: rust-linux-x86_64
