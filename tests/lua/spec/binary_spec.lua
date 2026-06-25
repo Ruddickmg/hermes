@@ -1031,6 +1031,87 @@ describe("hermes.binary", function()
 
 			assert.is_true(found_start_msg, "Should notify that build has started")
 		end)
+
+		it("omits features flag when no features given", function()
+			local captured_args
+			local jobstart_stub = stub(vim.fn, "jobstart").invokes(function(args)
+				captured_args = args
+				return 123
+			end)
+			stub(vim.fn, "executable").returns(1)
+
+			binary.build_from_source_async(temp_dir, function() end)
+			vim.wait(50)
+
+			jobstart_stub:revert()
+
+			local has_features = false
+			for _, arg in ipairs(captured_args) do
+				if arg == "--features" then
+					has_features = true
+					break
+				end
+			end
+			assert.is_false(has_features)
+		end)
+
+		it("includes --features flag in cargo args when features provided", function()
+			local captured_args
+			local jobstart_stub = stub(vim.fn, "jobstart").invokes(function(args)
+				captured_args = args
+				return 123
+			end)
+			stub(vim.fn, "executable").returns(1)
+
+			binary.build_from_source_async(temp_dir, { "with-icons" }, function() end)
+			vim.wait(50)
+
+			jobstart_stub:revert()
+
+			local has_features = false
+			for _, arg in ipairs(captured_args) do
+				if arg == "--features" then
+					has_features = true
+					break
+				end
+			end
+			assert.is_true(has_features, "cargo args should include --features")
+		end)
+
+		it("includes feature name after --features flag", function()
+			local captured_args
+			local jobstart_stub = stub(vim.fn, "jobstart").invokes(function(args)
+				captured_args = args
+				return 123
+			end)
+			stub(vim.fn, "executable").returns(1)
+
+			binary.build_from_source_async(temp_dir, { "with-icons" }, function() end)
+			vim.wait(50)
+
+			jobstart_stub:revert()
+
+			local feature_name = nil
+			for i, arg in ipairs(captured_args) do
+				if arg == "--features" then
+					feature_name = captured_args[i + 1]
+					break
+				end
+			end
+			assert.equals("with-icons", feature_name)
+		end)
+
+		it("accepts legacy two-argument call", function()
+			stub(vim.fn, "jobstart").returns(123)
+			stub(vim.fn, "executable").returns(1)
+
+			local ok, err = pcall(function()
+				binary.build_from_source_async(temp_dir, function(_success, _err)
+				end)
+			end)
+
+			assert.is_true(ok, "Legacy 2-arg call should not error: " .. tostring(err))
+		end)
 	end)
 
 	describe("cancel_build()", function()

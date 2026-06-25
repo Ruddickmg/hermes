@@ -283,11 +283,17 @@ end
 ---Build from source asynchronously
 ---Builds from the local source directory without blocking Neovim
 ---@param dest_dir string Destination directory
+---@param features string[] Extra Cargo features to enable (e.g. {"with-icons"})
 ---@param on_complete function Callback function(success: boolean, err: string|nil)
 ---@return boolean started Whether build was started (false if already in progress)
 ---@private
 -- luacov: enable
-function M.build_from_source_async(dest_dir, on_complete)
+function M.build_from_source_async(dest_dir, features, on_complete)
+	-- Support legacy callers that omit the features arg
+	if type(features) == "function" then
+		on_complete = features
+		features = {}
+	end
 	local notification_options = { title = "Hermes - build" }
 	local logging = require("hermes.logging")
 	-- Check if build already in progress
@@ -350,6 +356,10 @@ function M.build_from_source_async(dest_dir, on_complete)
 		local progress_interval = 60000 -- Show progress every 60 seconds
 
 		local cargo_args = { "cargo", "build", "--release" }
+		if features and #features > 0 then
+			table.insert(cargo_args, "--features")
+			table.insert(cargo_args, table.concat(features, ","))
+		end
 
 		local job_id = vim.fn.jobstart(cargo_args, {
 			cwd = source_dir,
