@@ -119,42 +119,50 @@ fn make_svg_options() -> usvg::Options<'static> {
     }
 }
 
+fn map_font_family<'a>(f: &'a usvg::FontFamily) -> usvg::fontdb::Family<'a> {
+    match f {
+        usvg::FontFamily::Serif => usvg::fontdb::Family::Serif,
+        usvg::FontFamily::SansSerif => usvg::fontdb::Family::SansSerif,
+        usvg::FontFamily::Cursive => usvg::fontdb::Family::Cursive,
+        usvg::FontFamily::Fantasy => usvg::fontdb::Family::Fantasy,
+        usvg::FontFamily::Monospace => usvg::fontdb::Family::Monospace,
+        usvg::FontFamily::Named(s) => usvg::fontdb::Family::Name(s),
+    }
+}
+
+fn map_font_stretch(s: usvg::FontStretch) -> usvg::fontdb::Stretch {
+    match s {
+        usvg::FontStretch::UltraCondensed => usvg::fontdb::Stretch::UltraCondensed,
+        usvg::FontStretch::ExtraCondensed => usvg::fontdb::Stretch::ExtraCondensed,
+        usvg::FontStretch::Condensed => usvg::fontdb::Stretch::Condensed,
+        usvg::FontStretch::SemiCondensed => usvg::fontdb::Stretch::SemiCondensed,
+        usvg::FontStretch::Normal => usvg::fontdb::Stretch::Normal,
+        usvg::FontStretch::SemiExpanded => usvg::fontdb::Stretch::SemiExpanded,
+        usvg::FontStretch::Expanded => usvg::fontdb::Stretch::Expanded,
+        usvg::FontStretch::ExtraExpanded => usvg::fontdb::Stretch::ExtraExpanded,
+        usvg::FontStretch::UltraExpanded => usvg::fontdb::Stretch::UltraExpanded,
+    }
+}
+
+fn map_font_style(s: usvg::FontStyle) -> usvg::fontdb::Style {
+    match s {
+        usvg::FontStyle::Normal => usvg::fontdb::Style::Normal,
+        usvg::FontStyle::Italic => usvg::fontdb::Style::Italic,
+        usvg::FontStyle::Oblique => usvg::fontdb::Style::Oblique,
+    }
+}
+
 fn custom_font_selector() -> usvg::FontSelectionFn<'static> {
     Box::new(
         move |font: &usvg::Font, fontdb: &mut std::sync::Arc<usvg::fontdb::Database>| {
-            let families: Vec<usvg::fontdb::Family> = font
-                .families()
-                .iter()
-                .map(|f| match f {
-                    usvg::FontFamily::Serif => usvg::fontdb::Family::Serif,
-                    usvg::FontFamily::SansSerif => usvg::fontdb::Family::SansSerif,
-                    usvg::FontFamily::Cursive => usvg::fontdb::Family::Cursive,
-                    usvg::FontFamily::Fantasy => usvg::fontdb::Family::Fantasy,
-                    usvg::FontFamily::Monospace => usvg::fontdb::Family::Monospace,
-                    usvg::FontFamily::Named(s) => usvg::fontdb::Family::Name(s),
-                })
-                .collect();
+            let families: Vec<usvg::fontdb::Family> =
+                font.families().iter().map(map_font_family).collect();
 
             let mut all_families = families;
             all_families.push(usvg::fontdb::Family::Serif);
 
-            let stretch = match font.stretch() {
-                usvg::FontStretch::UltraCondensed => usvg::fontdb::Stretch::UltraCondensed,
-                usvg::FontStretch::ExtraCondensed => usvg::fontdb::Stretch::ExtraCondensed,
-                usvg::FontStretch::Condensed => usvg::fontdb::Stretch::Condensed,
-                usvg::FontStretch::SemiCondensed => usvg::fontdb::Stretch::SemiCondensed,
-                usvg::FontStretch::Normal => usvg::fontdb::Stretch::Normal,
-                usvg::FontStretch::SemiExpanded => usvg::fontdb::Stretch::SemiExpanded,
-                usvg::FontStretch::Expanded => usvg::fontdb::Stretch::Expanded,
-                usvg::FontStretch::ExtraExpanded => usvg::fontdb::Stretch::ExtraExpanded,
-                usvg::FontStretch::UltraExpanded => usvg::fontdb::Stretch::UltraExpanded,
-            };
-
-            let style = match font.style() {
-                usvg::FontStyle::Normal => usvg::fontdb::Style::Normal,
-                usvg::FontStyle::Italic => usvg::fontdb::Style::Italic,
-                usvg::FontStyle::Oblique => usvg::fontdb::Style::Oblique,
-            };
+            let stretch = map_font_stretch(font.stretch());
+            let style = map_font_style(font.style());
 
             let query = usvg::fontdb::Query {
                 families: &all_families,
@@ -187,12 +195,6 @@ fn render_svg(svg_data: &str, size: u32) -> Result<PixelIcon> {
     let vp_w = viewport.width();
     let vp_h = viewport.height();
 
-    if vp_w <= 0.0 || vp_h <= 0.0 {
-        return Err(Error::InvalidInput(format!(
-            "SVG has invalid dimensions: {vp_w}x{vp_h}"
-        )));
-    }
-
     let scale_x = size as f32 / vp_w;
     let scale_y = size as f32 / vp_h;
     let scale = scale_x.min(scale_y);
@@ -217,6 +219,7 @@ fn render_svg(svg_data: &str, size: u32) -> Result<PixelIcon> {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use std::io::Write;
     use tempfile::TempDir;
 
     fn simple_svg() -> &'static str {
@@ -384,5 +387,240 @@ mod tests {
         let result = smol::block_on(async { renderer.get_or_render(url).await });
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn map_font_family_serif() {
+        assert_eq!(
+            map_font_family(&usvg::FontFamily::Serif),
+            usvg::fontdb::Family::Serif
+        );
+    }
+
+    #[test]
+    fn map_font_family_sans_serif() {
+        assert_eq!(
+            map_font_family(&usvg::FontFamily::SansSerif),
+            usvg::fontdb::Family::SansSerif
+        );
+    }
+
+    #[test]
+    fn map_font_family_cursive() {
+        assert_eq!(
+            map_font_family(&usvg::FontFamily::Cursive),
+            usvg::fontdb::Family::Cursive
+        );
+    }
+
+    #[test]
+    fn map_font_family_fantasy() {
+        assert_eq!(
+            map_font_family(&usvg::FontFamily::Fantasy),
+            usvg::fontdb::Family::Fantasy
+        );
+    }
+
+    #[test]
+    fn map_font_family_monospace() {
+        assert_eq!(
+            map_font_family(&usvg::FontFamily::Monospace),
+            usvg::fontdb::Family::Monospace
+        );
+    }
+
+    #[test]
+    fn map_font_family_named() {
+        assert_eq!(
+            map_font_family(&usvg::FontFamily::Named("Arial".to_string())),
+            usvg::fontdb::Family::Name("Arial")
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_ultra_condensed() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::UltraCondensed),
+            usvg::fontdb::Stretch::UltraCondensed
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_extra_condensed() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::ExtraCondensed),
+            usvg::fontdb::Stretch::ExtraCondensed
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_condensed() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::Condensed),
+            usvg::fontdb::Stretch::Condensed
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_semi_condensed() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::SemiCondensed),
+            usvg::fontdb::Stretch::SemiCondensed
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_normal() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::Normal),
+            usvg::fontdb::Stretch::Normal
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_semi_expanded() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::SemiExpanded),
+            usvg::fontdb::Stretch::SemiExpanded
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_expanded() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::Expanded),
+            usvg::fontdb::Stretch::Expanded
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_extra_expanded() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::ExtraExpanded),
+            usvg::fontdb::Stretch::ExtraExpanded
+        );
+    }
+
+    #[test]
+    fn map_font_stretch_ultra_expanded() {
+        assert_eq!(
+            map_font_stretch(usvg::FontStretch::UltraExpanded),
+            usvg::fontdb::Stretch::UltraExpanded
+        );
+    }
+
+    #[test]
+    fn map_font_style_normal() {
+        assert_eq!(
+            map_font_style(usvg::FontStyle::Normal),
+            usvg::fontdb::Style::Normal
+        );
+    }
+
+    #[test]
+    fn map_font_style_italic() {
+        assert_eq!(
+            map_font_style(usvg::FontStyle::Italic),
+            usvg::fontdb::Style::Italic
+        );
+    }
+
+    #[test]
+    fn map_font_style_oblique() {
+        assert_eq!(
+            map_font_style(usvg::FontStyle::Oblique),
+            usvg::fontdb::Style::Oblique
+        );
+    }
+
+    #[test]
+    fn render_svg_with_text_exercises_font_selector() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+            <text x="0" y="8" font-family="ZZZDoesNotExist" font-size="8" fill="#000000">X</text>
+        </svg>"##;
+        let result = render_svg(svg, 16);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn font_selector_fallback_reached_without_system_fonts() {
+        let mut fontdb = usvg::fontdb::Database::new();
+        if !DEJAVU_SANS_MONO.is_empty() {
+            fontdb.load_font_data(DEJAVU_SANS_MONO.to_vec());
+        }
+        let fontdb = std::sync::Arc::new(fontdb);
+
+        let font_resolver = usvg::FontResolver {
+            select_font: custom_font_selector(),
+            select_fallback: usvg::FontResolver::default_fallback_selector(),
+        };
+
+        let opt = usvg::Options {
+            fontdb,
+            font_resolver,
+            ..usvg::Options::default()
+        };
+
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+            <text x="0" y="8" font-family="ZZZDoesNotExist" font-size="8" fill="#000000">X</text>
+        </svg>"##;
+        let result = usvg::Tree::from_str(svg, &opt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn get_or_render_returns_prerendered_icon_for_known_url() {
+        let tmp = TempDir::new().unwrap();
+        let renderer = IconRenderer::new(tmp.path().to_path_buf());
+        let url = "https://cdn.agentclientprotocol.com/registry/v1/latest/opencode.svg";
+
+        let result = smol::block_on(async { renderer.get_or_render(url).await });
+        let icon = result.unwrap().unwrap();
+
+        assert_eq!(icon.pixels.len(), 256);
+    }
+
+    fn setup_http_icon_server() -> (IconRenderer, String, TempDir) {
+        let tmp = TempDir::new().unwrap();
+        let renderer = IconRenderer::new(tmp.path().to_path_buf());
+        let svg = simple_svg();
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let svg_content = svg.to_owned();
+
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: image/svg+xml\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                svg_content.len(),
+                svg_content
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+
+        let url = format!("http://127.0.0.1:{port}/test.svg");
+        (renderer, url, tmp)
+    }
+
+    #[test]
+    fn get_or_render_downloads_and_renders_new_icon() {
+        let (renderer, url, _tmp) = setup_http_icon_server();
+
+        let result = smol::block_on(async { renderer.get_or_render(&url).await });
+        let icon = result.unwrap().unwrap();
+
+        assert_eq!(icon.pixels.len(), 256);
+    }
+
+    #[test]
+    fn get_or_render_caches_downloaded_icon_to_disk() {
+        let (renderer, url, _tmp) = setup_http_icon_server();
+
+        let result = smol::block_on(async { renderer.get_or_render(&url).await });
+        result.unwrap().unwrap();
+
+        let cache_path = renderer.cache_path(&url);
+        assert!(cache_path.is_file());
     }
 }
