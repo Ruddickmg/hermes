@@ -125,6 +125,45 @@ describe("hermes.binary", function()
 			assert.is_nil(binary.get_rock_binary_path())
 			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
 		end)
+
+		it("returns nil when debug.getinfo returns nil", function()
+			rock_binary_stub:revert()
+			local original_getinfo = debug.getinfo
+			debug.getinfo = function(level, ...)
+				if level == 1 then return nil end
+				return original_getinfo(level, ...)
+			end
+			local result = binary.get_rock_binary_path()
+			debug.getinfo = original_getinfo
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+			assert.is_nil(result)
+		end)
+
+		it("returns nil when debug info source is not a string", function()
+			rock_binary_stub:revert()
+			local original_getinfo = debug.getinfo
+			debug.getinfo = function(level, ...)
+				if level == 1 then return { source = 42 } end
+				return original_getinfo(level, ...)
+			end
+			local result = binary.get_rock_binary_path()
+			debug.getinfo = original_getinfo
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+			assert.is_nil(result)
+		end)
+
+		it("returns nil when debug info source is empty after stripping @", function()
+			rock_binary_stub:revert()
+			local original_getinfo = debug.getinfo
+			debug.getinfo = function(level, ...)
+				if level == 1 then return { source = "@" } end
+				return original_getinfo(level, ...)
+			end
+			local result = binary.get_rock_binary_path()
+			debug.getinfo = original_getinfo
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+			assert.is_nil(result)
+		end)
 	end)
 
 	describe("download()", function()
