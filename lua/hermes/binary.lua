@@ -74,11 +74,15 @@ end
 ---@private
 -- luacov: enable
 function M.get_rock_binary_path()
-	local source = debug.getinfo(1).source:sub(2)
-	if not source or source == "" then
-		return nil
-	end
-	local rock_root = vim.fn.fnamemodify(source, ":h:h:h")
+  local info = debug.getinfo(1)
+  if not info or type(info.source) ~= "string" then
+    return nil
+  end
+  local source = info.source:sub(2)
+  if source == "" then
+    return nil
+  end
+  local rock_root = vim.fn.fnamemodify(source, ":h:h:h")
 	local path = rock_root .. "/lib/" .. M.get_binary_name()
 	if vim.fn.filereadable(path) == 1 then
 		return path

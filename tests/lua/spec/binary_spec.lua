@@ -102,7 +102,32 @@ describe("hermes.binary", function()
 		end)
 	end)
 
-		describe("download()", function()
+		describe("get_rock_binary_path()", function()
+		it("finds binary at rock tree lib/ relative to module location", function()
+			rock_binary_stub:revert()
+			local bin_name = binary.get_binary_name()
+			local func_source = debug.getinfo(binary.get_rock_binary_path, "S").source:sub(2)
+			local rock_root = vim.fn.fnamemodify(func_source, ":h:h:h")
+			local lib_dir = rock_root .. "/lib"
+			local expected_path = lib_dir .. "/" .. bin_name
+			vim.fn.mkdir(lib_dir, "p")
+			io.open(expected_path, "w"):close()
+
+			local result = binary.get_rock_binary_path()
+
+			vim.fn.delete(lib_dir, "rf")
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+			assert.equals(expected_path, result)
+		end)
+
+		it("returns nil when binary not found in rock tree", function()
+			rock_binary_stub:revert()
+			assert.is_nil(binary.get_rock_binary_path())
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+		end)
+	end)
+
+	describe("download()", function()
 		it("downloads to correct path", function()
 			local captured_dest
 			download_stub = stub(download, "download").invokes(function(_, dest)
@@ -248,6 +273,26 @@ describe("hermes.binary", function()
 			binary.ensure_binary()
 
 			assert.stub(download_stub).was_called()
+		end)
+
+		it("returns rock binary path immediately when found", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/libhermes.so")
+			download_stub = stub(download, "download")
+
+			local result = binary.ensure_binary()
+
+			assert.equals("/fake/rock/libhermes.so", result)
+		end)
+
+		it("skips download when rock binary path is found", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/libhermes.so")
+			download_stub = stub(download, "download")
+
+			binary.ensure_binary()
+
+			assert.stub(download_stub).was_not_called()
 		end)
 	end)
 
@@ -491,9 +536,48 @@ describe("hermes.binary", function()
 				"load should succeed and return native module table: " .. tostring(result)
 			)
 		end)
+
+		it("loads from rock binary path when rock binary exists", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/libhermes.so")
+			local captured_path = nil
+			local loadlib_stub = stub(package, "loadlib").invokes(function(path, _name)
+				captured_path = path
+				return function() return {} end
+			end)
+
+			binary.load()
+
+			loadlib_stub:revert()
+			assert.equals("/fake/rock/libhermes.so", captured_path)
+		end)
 	end)
 
   describe("ensure_binary_async()", function()
+    it("callback is called synchronously when rock binary found", function()
+      rock_binary_stub:revert()
+      rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/libhermes.so")
+
+      local callback_called = false
+      binary.ensure_binary_async(60, function(_success, _result)
+        callback_called = true
+      end)
+
+      assert.is_true(callback_called, "Callback should fire synchronously for rock binary")
+    end)
+
+    it("callback receives rock binary path", function()
+      rock_binary_stub:revert()
+      rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/libhermes.so")
+
+      local callback_result = nil
+      binary.ensure_binary_async(60, function(_success, result)
+        callback_result = result
+      end)
+
+      assert.equals("/fake/rock/libhermes.so", callback_result)
+    end)
+
     it("callback is called when binary exists", function()
       local platform = require("hermes.platform")
       local bin_path = binary.get_binary_path()
