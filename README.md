@@ -36,6 +36,11 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 }
 ```
 
+**rocks.nvim**
+```sh
+:Rocks install hermes.nvim
+```
+
 ### Requirements
 
 - Neovim 0.11 or later
