@@ -273,7 +273,7 @@ jobs:
 
             # Publish source rock (remove "lib" since source tarball has no binary)
             sed '/"lib",/d' /tmp/hermes.nvim-${VERSION}-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec.src
-            luarocks upload /tmp/hermes.nvim-${VERSION}-1.rockspec.src --api-key=${LUAROCKS_API_KEY}
+            luarocks upload "/tmp/hermes.nvim-${VERSION}-1.rockspec.src" --api-key="${LUAROCKS_API_KEY}"
             echo "Source rock published: hermes.nvim-${VERSION}-1"
 
             # Publish binary rocks for each platform
@@ -312,7 +312,7 @@ jobs:
                   lua/ plugin/ doc/ lib/
                 cd /
 
-                luarocks upload "/tmp/hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" --api-key=${LUAROCKS_API_KEY}
+                luarocks upload "/tmp/hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" --api-key="${LUAROCKS_API_KEY}"
                 echo "Binary rock published: hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock"
                 rm -rf "$ROCK_DIR"
               done

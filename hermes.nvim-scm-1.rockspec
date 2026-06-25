@@ -4,7 +4,7 @@ package = "hermes.nvim"
 version = "scm-1"
 
 source = {
-  url = "git://github.com/Ruddickmg/hermes.nvim.git",
+  url = "git+https://github.com/Ruddickmg/hermes.nvim.git",
   branch = "main"
 }
 
