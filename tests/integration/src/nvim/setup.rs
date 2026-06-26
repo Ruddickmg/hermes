@@ -102,6 +102,7 @@ fn setup_updates_stdio_log_level() -> nvim_oxi::Result<()> {
             stdio: Some(LogTargetConfigPartial {
                 level: Some(hermes::utilities::LogLevel::Debug),
                 format: None,
+                show_ansi: None,
             }),
             notification: None,
             message: None,
@@ -135,6 +136,7 @@ fn setup_updates_notification_log_level() -> nvim_oxi::Result<()> {
             notification: Some(LogTargetConfigPartial {
                 level: Some(hermes::utilities::LogLevel::Info),
                 format: None,
+                show_ansi: None,
             }),
             message: None,
         }),
@@ -168,6 +170,7 @@ fn setup_updates_message_log_level() -> nvim_oxi::Result<()> {
             message: Some(LogTargetConfigPartial {
                 level: Some(hermes::utilities::LogLevel::Warn),
                 format: None,
+                show_ansi: None,
             }),
         }),
         ..Default::default()
@@ -327,6 +330,7 @@ fn setup_enables_log_file_config() -> nvim_oxi::Result<()> {
                 path: Some(log_path.to_string_lossy().to_string()),
                 level: None,
                 format: None,
+                show_ansi: None,
                 max_size: None,
                 max_files: None,
             }),
@@ -358,6 +362,7 @@ fn setup_sets_log_file_path() -> nvim_oxi::Result<()> {
                 path: Some("/tmp/test.log".to_string()),
                 level: None,
                 format: None,
+                show_ansi: None,
                 max_size: None,
                 max_files: None,
             }),
@@ -389,6 +394,7 @@ fn setup_sets_log_file_level() -> nvim_oxi::Result<()> {
                 path: None,
                 level: Some(hermes::utilities::LogLevel::Warn),
                 format: None,
+                show_ansi: None,
                 max_size: None,
                 max_files: None,
             }),
@@ -420,6 +426,7 @@ fn setup_updates_stdio_log_format() -> nvim_oxi::Result<()> {
             stdio: Some(LogTargetConfigPartial {
                 level: None,
                 format: Some(hermes::utilities::logging::LogFormat::Json),
+                show_ansi: None,
             }),
             notification: None,
             message: None,
@@ -453,6 +460,7 @@ fn setup_updates_notification_log_format() -> nvim_oxi::Result<()> {
             notification: Some(LogTargetConfigPartial {
                 level: None,
                 format: Some(hermes::utilities::logging::LogFormat::Pretty),
+                show_ansi: None,
             }),
             message: None,
         }),

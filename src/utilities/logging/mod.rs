@@ -64,7 +64,7 @@ impl Logger {
     fn stdio_layer(config: LogTargetConfig) -> BoxedLayer {
         let writer = StdoutWriter::new().filtered(config.level);
         Self::base_layer(
-            fmt::layer().with_writer(writer).with_ansi(true),
+            fmt::layer().with_writer(writer).with_ansi(config.show_ansi),
             config.format,
         )
     }
@@ -73,9 +73,11 @@ impl Logger {
         config: LogTargetConfig,
         messenger: NotificationMessenger,
     ) -> Result<BoxedLayer> {
-        let writer = NotifyWriter::new(config.level, messenger).filtered(config.level);
+        let writer = NotifyWriter::new(config.level, messenger);
         Ok(Self::base_layer(
-            fmt::layer().with_writer(writer).with_ansi(true),
+            fmt::layer()
+                .with_writer(writer.filtered(config.level))
+                .with_ansi(config.show_ansi),
             config.format,
         ))
     }
@@ -83,7 +85,9 @@ impl Logger {
     fn message_layer(config: LogTargetConfig, messenger: MessageMessenger) -> Result<BoxedLayer> {
         let writer = AnsiStrip::new(MessageWriter::new(messenger)).filtered(config.level);
         Ok(Self::base_layer(
-            fmt::layer().with_writer(writer.clone()).with_ansi(false),
+            fmt::layer()
+                .with_writer(writer.clone())
+                .with_ansi(config.show_ansi),
             config.format,
         ))
     }
@@ -98,7 +102,7 @@ impl Logger {
         .filtered(config.level);
 
         Ok(Some(Self::base_layer(
-            fmt::layer().with_writer(writer).with_ansi(false),
+            fmt::layer().with_writer(writer).with_ansi(config.show_ansi),
             config.format,
         )))
     }
@@ -298,6 +302,7 @@ mod tests {
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Debug,
             format: LogFormat::Full,
+            show_ansi: false,
             max_size: 10_485_760,
             max_files: 5,
         };
@@ -317,6 +322,7 @@ mod tests {
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Debug,
             format: LogFormat::Full,
+            show_ansi: false,
             max_size: 10_485_760,
             max_files: 5,
         };
@@ -343,6 +349,7 @@ mod tests {
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Debug,
             format: LogFormat::Full,
+            show_ansi: false,
             max_size: 10_485_760,
             max_files: 5,
         };
@@ -368,6 +375,7 @@ mod tests {
             name: LOG_FILE_NAME.to_string(),
             level: LogLevel::Debug,
             format: LogFormat::Full,
+            show_ansi: false,
             max_size: 10_485_760,
             max_files: 5,
         };

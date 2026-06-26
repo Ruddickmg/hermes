@@ -365,6 +365,7 @@ mod tests {
                 stdio: Some(LogTargetConfigPartial {
                     level: Some(crate::utilities::LogLevel::Debug),
                     format: None,
+                    show_ansi: None,
                 }),
                 ..Default::default()
             }),
@@ -409,14 +410,17 @@ mod tests {
                 stdio: LogTargetConfig {
                     level: crate::utilities::LogLevel::Warn,
                     format: LogFormat::default(),
+                    show_ansi: false,
                 },
                 notification: LogTargetConfig {
                     level: crate::utilities::LogLevel::Warn,
                     format: LogFormat::default(),
+                    show_ansi: false,
                 },
                 message: LogTargetConfig {
                     level: crate::utilities::LogLevel::Warn,
                     format: LogFormat::default(),
+                    show_ansi: false,
                 },
             },
         };

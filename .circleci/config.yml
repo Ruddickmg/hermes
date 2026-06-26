@@ -140,6 +140,14 @@ workflows:
             - build-mac-x86_64
             - build-windows-x86_64
 
+      - publish-luarocks:
+          filters:
+            branches:
+              only:
+                - main
+          requires:
+            - release
+
 #-----------------------------------------------------------------------------------------------------------------------------
 
 commands:
@@ -212,6 +220,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
+            - version.txt
             - Cargo.toml
             - Cargo.lock
 
@@ -234,6 +243,79 @@ jobs:
       - run:
           name: Semantic release
           command: pnpm release
+
+  publish-luarocks:
+    executor: node
+    steps:
+      - checkout
+      - attach_workspace:
+          at: target/release
+      - run:
+          name: Publish to LuaRocks
+          command: |
+            VERSION=$(cat target/release/version.txt)
+            if [ -z "$VERSION" ]; then
+              echo "No version to publish"
+              exit 0
+            fi
+
+            apt-get update
+            apt-get install -y lua5.1 liblua5.1-dev wget
+            wget -q https://luarocks.org/releases/luarocks-3.9.2.tar.gz
+            tar zxf luarocks-3.9.2.tar.gz
+            cd luarocks-3.9.2 && ./configure && make && make install
+            cd ..
+
+            # Generate versioned rockspec (includes "lib" in copy_directories for binary rocks)
+            SED_EXPR="s/scm-1/${VERSION}-1/g; /branch = \"main\"/d; s|git://github.com/Ruddickmg/hermes.nvim.git|https://github.com/Ruddickmg/hermes.nvim/archive/refs/tags/v${VERSION}.tar.gz|"
+            sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec
+
+            # Publish source rock (remove "lib" since source tarball has no binary)
+            sed '/"lib",/d' /tmp/hermes.nvim-${VERSION}-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec.src
+            luarocks upload "/tmp/hermes.nvim-${VERSION}-1.rockspec.src" --api-key="${LUAROCKS_API_KEY}"
+            echo "Source rock published: hermes.nvim-${VERSION}-1"
+
+            # Publish binary rocks for each platform
+            for ext in so dylib dll; do
+              for binary in target/release/libhermes-*."$ext"; do
+                [ -f "$binary" ] || continue
+
+                BINARY_NAME=$(basename "$binary")
+                OUR_PLATFORM=$(echo "$BINARY_NAME" | sed 's/^libhermes-//; s/\.\(so\|dylib\|dll\)$//')
+
+                # Map our platform naming to LuaRocks platform identifiers
+                case "$OUR_PLATFORM" in
+                  linux-x86_64)   LR_PLATFORM="linux-x86_64" ;;
+                  linux-aarch64)  LR_PLATFORM="linux-aarch64" ;;
+                  macos-aarch64)  LR_PLATFORM="macosx-arm64" ;;
+                  macos-x86_64)   LR_PLATFORM="macosx-x86_64" ;;
+                  windows-x86_64) LR_PLATFORM="win32-x86_64" ;;
+                  *)
+                    echo "Warning: Unknown platform '$OUR_PLATFORM', skipping"
+                    continue
+                    ;;
+                esac
+
+                ROCK_DIR=$(mktemp -d)
+                mkdir -p "$ROCK_DIR/lib" "$ROCK_DIR/lua/hermes" "$ROCK_DIR/plugin" "$ROCK_DIR/doc"
+                cp lua/hermes/*.lua "$ROCK_DIR/lua/hermes/"
+                cp plugin/hermes.lua "$ROCK_DIR/plugin/"
+                cp doc/hermes.txt "$ROCK_DIR/doc/"
+                cp "$binary" "$ROCK_DIR/lib/"
+                cp "/tmp/hermes.nvim-${VERSION}-1.rockspec" "$ROCK_DIR/"
+
+                # Create .rock file (tar.gz with the correct internal structure)
+                cd "$ROCK_DIR"
+                tar czf "/tmp/hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" \
+                  "hermes.nvim-${VERSION}-1.rockspec" \
+                  lua/ plugin/ doc/ lib/
+                cd /
+
+                luarocks upload "/tmp/hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" --api-key="${LUAROCKS_API_KEY}"
+                echo "Binary rock published: hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock"
+                rm -rf "$ROCK_DIR"
+              done
+            done
 
   check_license:
     executor: rust-linux-x86_64
@@ -278,7 +360,7 @@ jobs:
       - restore-cargo-cache
       - run:
           name: Build for x86_64
-          command: cargo build --release
+          command: cargo build --release --features with-icons
       - run:
           name: Rename binary
           command: mv target/release/libhermes.so target/release/libhermes-linux-x86_64.so
@@ -296,7 +378,7 @@ jobs:
       - restore-cargo-cache
       - run:
           name: Build for aarch64
-          command: cargo build --release
+          command: cargo build --release --features with-icons
       - save-cargo-cache
       - run:
           name: Rename binary
@@ -317,7 +399,7 @@ jobs:
           command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
       - run:
           name: Build for aarch64
-          command: cargo build --release
+          command: cargo build --release --features with-icons
       - run:
           name: Rename binary
           command: mv target/release/libhermes.dylib target/release/libhermes-macos-aarch64.dylib
@@ -343,7 +425,7 @@ jobs:
           command: rustup target add x86_64-apple-darwin
       - run:
           name: Build for x86_64 (cross-compile)
-          command: cargo build --release --target x86_64-apple-darwin
+          command: cargo build --release --features with-icons --target x86_64-apple-darwin
       - run:
           name: Rename binary
           command: mv target/release/libhermes.dylib target/release/libhermes-macos-x86_64.dylib 2>/dev/null || mv target/x86_64-apple-darwin/release/libhermes.dylib target/release/libhermes-macos-x86_64.dylib
@@ -373,7 +455,7 @@ jobs:
           name: Build for Windows x86_64
           command: |
             $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
-            cargo build --release --target x86_64-pc-windows-msvc
+            cargo build --release --features with-icons --target x86_64-pc-windows-msvc
       - run:
           name: Rename DLL
           command: |

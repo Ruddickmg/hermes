@@ -1,5 +1,6 @@
 use nvim_oxi::conversion::FromObject;
 use serde::Serialize;
+use std::collections::HashMap;
 
 use crate::{
     acp::{
@@ -8,6 +9,7 @@ use crate::{
     },
     api::Api,
     nvim::autocommands::Commands,
+    utilities::icon_renderer::{IconRenderer, PixelIcon},
 };
 
 const DEFAULT_REGISTRY_URL: &str =
@@ -65,6 +67,8 @@ pub struct AgentListEntry {
     pub repository: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_pixel_data: Option<PixelIcon>,
     pub distributions: Vec<Distribution>,
 }
 
@@ -85,6 +89,7 @@ impl From<AgentEntry> for AgentListEntry {
             website: entry.website,
             repository: entry.repository,
             icon: entry.icon,
+            icon_pixel_data: None,
         }
     }
 }
@@ -98,6 +103,7 @@ impl Api {
         let state = self.state.lock().await;
         let registry = state.registry.clone();
         let config_distributions = state.config.distributions.clone();
+        let icon_cache_dir = state.config.project_root.join(".hermes").join("icons");
         drop(state);
 
         if update {
@@ -118,7 +124,7 @@ impl Api {
             }
         }
 
-        let agents: Vec<AgentListEntry> = registry
+        let mut agents: Vec<AgentListEntry> = registry
             .as_ref()
             .map(|r| {
                 r.data
@@ -136,6 +142,35 @@ impl Api {
                     .collect()
             })
             .unwrap_or_default();
+
+        agents.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+        let renderer = IconRenderer::new(icon_cache_dir);
+        let render_tasks: Vec<_> = agents
+            .iter()
+            .filter_map(|entry| {
+                let url = entry.icon.as_ref()?;
+                let renderer = renderer.clone();
+                let url = url.clone();
+                Some(async move {
+                    (
+                        url.clone(),
+                        renderer.get_or_render(&url).await.ok().flatten(),
+                    )
+                })
+            })
+            .collect();
+
+        let results: HashMap<String, Option<PixelIcon>> = futures::future::join_all(render_tasks)
+            .await
+            .into_iter()
+            .collect();
+
+        for entry in &mut agents {
+            if let Some(url) = &entry.icon {
+                entry.icon_pixel_data = results.get(url).cloned().flatten();
+            }
+        }
 
         let _ = self
             .response_handler
@@ -732,5 +767,210 @@ mod tests {
         let config = DistributionsConfig::default();
         let result = filtered_distributions(&entry, &config);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn agent_list_entry_serialization_includes_icon_pixel_data() {
+        let pixel_icon = PixelIcon {
+            width: 16,
+            height: 16,
+            pixels: vec![255u8; 256],
+        };
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: Some("MIT".to_string()),
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: Some("https://example.com/icon.svg".to_string()),
+            icon_pixel_data: Some(pixel_icon),
+            distributions: vec![Distribution::Binary],
+        };
+        let json = serde_json::to_value(entry).unwrap();
+        let pixel_data = json["icon_pixel_data"].as_object().unwrap();
+        assert_eq!(
+            (
+                pixel_data["width"].as_u64(),
+                pixel_data["height"].as_u64(),
+                pixel_data["pixels"].as_array().map(|_| true),
+            ),
+            (Some(16), Some(16), Some(true))
+        );
+    }
+
+    #[test]
+    fn agent_list_entry_serialization_skips_icon_pixel_data_when_none() {
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: None,
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: None,
+            icon_pixel_data: None,
+            distributions: vec![Distribution::Npx],
+        };
+        let json = serde_json::to_value(entry).unwrap();
+        assert!(json.get("icon_pixel_data").is_none());
+    }
+
+    #[test]
+    fn agents_config_from_object_url_as_non_string_errors() {
+        let mut dict = Dictionary::new();
+        dict.insert("url", 42);
+        let config = AgentsConfig::from_object(Object::from(dict)).unwrap();
+        assert!(config.url.is_none(), "non-string url should produce None");
+    }
+
+    #[test]
+    fn agent_list_entry_from_entry_with_all_optionals_set() {
+        let entry = AgentEntry {
+            id: "full-agent".to_string(),
+            name: "Full Agent".to_string(),
+            version: "2.0.0".to_string(),
+            description: "full description".to_string(),
+            repository: Some("https://github.com/full/repo".to_string()),
+            website: Some("https://full.dev".to_string()),
+            authors: Some(vec!["author1".to_string(), "author2".to_string()]),
+            license: Some("Apache-2.0".to_string()),
+            icon: Some("https://full.dev/icon.svg".to_string()),
+            distribution: HashMap::from([(
+                Distribution::Npx,
+                DistributionCommand::Package(PackageDistribution {
+                    package: "full-pkg".to_string(),
+                    args: None,
+                    env: None,
+                }),
+            )]),
+        };
+        let list_entry = AgentListEntry::from(entry);
+        assert_eq!(list_entry.id, "full-agent");
+    }
+
+    #[test]
+    fn agent_list_entry_from_entry_preserves_all_optionals_when_none() {
+        let entry = AgentEntry {
+            id: "minimal-agent".to_string(),
+            name: "Minimal".to_string(),
+            version: "1.0".to_string(),
+            description: "".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: None,
+            distribution: HashMap::new(),
+        };
+        let list_entry = AgentListEntry::from(entry);
+        assert!(list_entry.license.is_none());
+    }
+
+    #[test]
+    fn agent_list_entry_icon_pixel_data_always_none_on_conversion() {
+        let entry = AgentEntry {
+            id: "icon-agent".to_string(),
+            name: "Icon Agent".to_string(),
+            version: "1.0".to_string(),
+            description: "has icon".to_string(),
+            repository: None,
+            website: None,
+            authors: None,
+            license: None,
+            icon: Some("https://example.com/icon.svg".to_string()),
+            distribution: HashMap::from([(
+                Distribution::Binary,
+                DistributionCommand::BinaryTargets(HashMap::new()),
+            )]),
+        };
+        let list_entry = AgentListEntry::from(entry);
+        assert!(list_entry.icon_pixel_data.is_none());
+    }
+
+    #[test]
+    fn agent_list_payload_serialization_skips_license_when_none() {
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: None,
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: None,
+            icon_pixel_data: None,
+            distributions: vec![Distribution::Binary],
+        };
+        let payload = AgentListPayload {
+            agents: vec![entry],
+        };
+        let json = serde_json::to_value(payload).unwrap();
+        assert!(json["agents"][0].get("license").is_none());
+    }
+
+    #[test]
+    fn agent_list_payload_serialization_skips_website_when_none() {
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: None,
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: None,
+            icon_pixel_data: None,
+            distributions: vec![Distribution::Binary],
+        };
+        let payload = AgentListPayload {
+            agents: vec![entry],
+        };
+        let json = serde_json::to_value(payload).unwrap();
+        assert!(json["agents"][0].get("website").is_none());
+    }
+
+    #[test]
+    fn agent_list_payload_serialization_skips_repository_when_none() {
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: None,
+            description: "desc".to_string(),
+            website: None,
+            repository: None,
+            icon: None,
+            icon_pixel_data: None,
+            distributions: vec![Distribution::Binary],
+        };
+        let payload = AgentListPayload {
+            agents: vec![entry],
+        };
+        let json = serde_json::to_value(payload).unwrap();
+        assert!(json["agents"][0].get("repository").is_none());
+    }
+
+    #[test]
+    fn agent_list_payload_serialization_includes_website_when_some() {
+        let entry = AgentListEntry {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            version: "1.0".to_string(),
+            license: None,
+            description: "desc".to_string(),
+            website: Some("https://example.com".to_string()),
+            repository: None,
+            icon: None,
+            icon_pixel_data: None,
+            distributions: vec![Distribution::Binary],
+        };
+        let payload = AgentListPayload {
+            agents: vec![entry],
+        };
+        let json = serde_json::to_value(payload).unwrap();
+        assert_eq!(json["agents"][0]["website"], "https://example.com");
     }
 }

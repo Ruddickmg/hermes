@@ -36,6 +36,11 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 }
 ```
 
+**rocks.nvim**
+```vim
+:Rocks install hermes.nvim
+```
+
 ### Requirements
 
 - Neovim 0.11 or later
@@ -91,7 +96,7 @@ If your platform is not in the supported list above, you can build from source:
 **Scripted**
 
 Run the build command in Neovim:
-  ```
+  ```vim
   :Hermes build
   ```
 
@@ -109,37 +114,53 @@ cargo build --release
 # Copy target/release/libhermes.* to your Neovim data directory
 ```
 
+> [!NOTE]
+> Hermes can pre-render icons during the build step to avoid having to do so at runtime.
+>
+> Using the build script:
+> ```vim
+> :Hermes build with-icons
+> ```
+>
+> Or building manually:
+> ```bash
+> cargo build --release --features with-icons
+> ```
+
 ## Commands
 
 Show recent log messages and current state information.
-```
+```vim
 :Hermes log
 ```
 
 Fetch the latest release from GitHub and replaces the current binary.
-```
+```vim
 :Hermes update
 ```
 > Triggers [Progress](#progress) autocommand while downloading
 
 Download the currently configured version.
-```
+```vim
 :Hermes install
 ```
 > Triggers [Progress](#progress) autocommand while downloading
 
 Remove the binary. Run `:Hermes install` or use Hermes API to re-download.
-```
+```vim
 :Hermes clean
 ```
 
 Compile from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
-```
+
+Extra arguments are passed through as Cargo features, e.g.:
+```vim
 :Hermes build
+:Hermes build with-icons  " enable icon pre-rendering
 ```
 
 Cancel an in-progress source build. Shows warning if no build is running.
-```
+```vim
 :Hermes cancel
 ```
 
@@ -209,15 +230,19 @@ hermes.setup({
       level = vim.log.levels.OFF or "off",
       -- logs  stdio logs will be formatted with the selected format 
       format = "compact",
+      -- show ansi symbols
+      show_ansi = false,
     },
     -- send logs to Neovim "notify"
     notification = {
       level = vim.log.levels.ERROR or "error",
+      show_ansi = false, -- show ansi symbols
       format = "compact",
     },
     -- send logs to Neovim ":messages"
     message = {
       level = vim.log.levels.OFF or "off",
+      show_ansi = false, -- show ansi symbols
       format = "compact",
     },
     -- send logs to log files
@@ -226,6 +251,7 @@ hermes.setup({
       format = "json",
       path = vim.fn.stdpath('state') .. "/nvim/hermes/logs", -- path to log file(s)
       name = "hermes.log", -- name of log file
+      show_ansi = false, -- show ansi symbols
       max_size = 10485760, -- 10mb in bytes
       max_files = 5, -- Max log files to generate
     },
