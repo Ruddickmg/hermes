@@ -1,4 +1,7 @@
 use crate::helpers::mock_runtime;
+use agent_client_protocol::schema::v1::{
+    NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption,
+};
 use async_lock::Mutex;
 use hermes::{
     Handler, PluginState, api::Api, nvim::requests::Requests,
@@ -29,6 +32,17 @@ where
     futures::executor::block_on(fut)
 }
 
+fn session_with_model_option() -> NewSessionResponse {
+    let option = SessionConfigOption::select(
+        "model",
+        "Model",
+        "gpt4",
+        vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+    )
+    .category(SessionConfigOptionCategory::Model);
+    NewSessionResponse::new("test-session").config_options(vec![option])
+}
+
 #[nvim_oxi::test]
 fn models_returns_session_not_found_when_no_session_info() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
@@ -57,7 +71,7 @@ fn models_returns_unsupported_when_session_has_no_model_info() -> nvim_oxi::Resu
 
     {
         let mut state = block_on(plugin_state.lock());
-        let session = agent_client_protocol::schema::NewSessionResponse::new("test-session");
+        let session = NewSessionResponse::new("test-session");
         state.set_session_info(&session);
     }
 
@@ -72,7 +86,7 @@ fn models_returns_unsupported_when_session_has_no_model_info() -> nvim_oxi::Resu
 }
 
 #[nvim_oxi::test]
-fn models_returns_ok_for_legacy_session() -> nvim_oxi::Result<()> {
+fn models_returns_ok_with_config_options() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
@@ -81,16 +95,16 @@ fn models_returns_ok_for_legacy_session() -> nvim_oxi::Result<()> {
 
     {
         let mut state = block_on(plugin_state.lock());
-        let model = agent_client_protocol::schema::ModelInfo::new("gpt4", "GPT-4");
-        let models = agent_client_protocol::schema::SessionModelState::new("gpt4", vec![model]);
-        let session =
-            agent_client_protocol::schema::NewSessionResponse::new("test-session").models(models);
+        let session = session_with_model_option();
         state.set_session_info(&session);
     }
 
     let result = block_on(api.models("test-session".to_string()));
 
-    assert!(result.is_ok(), "models should return Ok for legacy session");
+    assert!(
+        result.is_ok(),
+        "models should return Ok with config options"
+    );
 
     Ok(())
 }

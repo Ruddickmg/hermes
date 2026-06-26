@@ -1,7 +1,7 @@
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     AudioContent, BlobResourceContents, ContentBlock, ContentChunk, EmbeddedResource,
-    EmbeddedResourceResource, ImageContent, PromptRequest, ResourceLink, SessionNotification,
-    SessionUpdate, TextContent, TextResourceContents,
+    EmbeddedResourceResource, ImageContent, MessageId, PromptRequest, ResourceLink,
+    SessionNotification, SessionUpdate, TextContent, TextResourceContents,
 };
 use nvim_oxi::{
     Array, Dictionary, Object, ObjectKind,
@@ -379,8 +379,8 @@ impl Api {
             content_blocks
                 .iter()
                 .filter_map(|block| {
-                    let chunk =
-                        ContentChunk::new(block.clone()).message_id(Some(prompt_id.clone()));
+                    let chunk = ContentChunk::new(block.clone())
+                        .message_id(Some(MessageId::from(prompt_id.clone())));
                     let notif = SessionNotification::new(
                         session_id.clone(),
                         SessionUpdate::UserMessageChunk(chunk),
@@ -392,8 +392,7 @@ impl Api {
             vec![]
         };
 
-        let request = PromptRequest::new(session_id.to_string(), content_blocks)
-            .message_id(prompt_id.clone());
+        let request = PromptRequest::new(session_id.to_string(), content_blocks);
         let connection = self
             .connection
             .get_current_connection()

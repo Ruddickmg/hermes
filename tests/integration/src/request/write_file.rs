@@ -1,6 +1,6 @@
 //! Integration tests for Responder::WriteFileResponse via Request
 use crate::helpers::ui::wait_for;
-use agent_client_protocol::schema::{SessionId, WriteTextFileRequest, WriteTextFileResponse};
+use agent_client_protocol::schema::v1::{SessionId, WriteTextFileRequest, WriteTextFileResponse};
 use assert_fs::prelude::*;
 use assert_fs::{NamedTempFile, TempDir};
 use async_channel::bounded as oneshot_channel;

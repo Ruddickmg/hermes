@@ -5,8 +5,9 @@ use crate::acp::registry::entry::AgentEntry;
 use crate::acp::registry::resolution::fetch_agent_from_registry;
 use crate::nvim::configuration::{DistributionsConfig, Permissions};
 use crate::{Handler, acp::error::Error};
-use agent_client_protocol::schema::{
-    ClientCapabilities, FileSystemCapabilities, Implementation, InitializeRequest, ProtocolVersion,
+use agent_client_protocol::schema::ProtocolVersion;
+use agent_client_protocol::schema::v1::{
+    ClientCapabilities, FileSystemCapabilities, Implementation, InitializeRequest,
 };
 use async_lock::Mutex;
 use serde::{Deserialize, Serialize};

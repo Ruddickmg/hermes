@@ -65,7 +65,7 @@ fn set_model_returns_unsupported_when_session_has_no_model_info() -> nvim_oxi::R
     // Populate session_info with a session that has no models
     {
         let mut state = block_on(plugin_state.lock());
-        let session = agent_client_protocol::schema::NewSessionResponse::new("test-session");
+        let session = agent_client_protocol::schema::v1::NewSessionResponse::new("test-session");
         state.set_session_info(&session);
     }
 

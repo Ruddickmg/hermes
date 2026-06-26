@@ -5,9 +5,9 @@ use crate::{
         test_helpers::connect_to_mock_agent,
     },
 };
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     InitializeResponse, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
-    SessionConfigSelectOption,
+    SessionConfigSelectOption, SetSessionConfigOptionResponse,
 };
 use hermes::{
     acp::session_info::HermesOption,
@@ -75,10 +75,8 @@ fn test_set_model_no_models_does_not_crash() -> Result<(), nvim_oxi::Error> {
     Ok(())
 }
 
-// Configure mock agent to return legacy session.models.
-// set_model should call connection.set_session_model(...) which the mock agent handles.
 #[nvim_oxi::test]
-fn test_set_model_with_legacy_models() -> Result<(), nvim_oxi::Error> {
+fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> =
         FromObject::from_object(dict.get("connect").unwrap().clone())?;
@@ -94,15 +92,28 @@ fn test_set_model_with_legacy_models() -> Result<(), nvim_oxi::Error> {
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
-    // Configure mock agent with legacy models
+    // Configure mock agent with config options path
     let (agent, conn_rx) = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
-        let model = agent_client_protocol::schema::ModelInfo::new("gpt4", "GPT-4");
-        let models = agent_client_protocol::schema::SessionModelState::new("gpt4", vec![model]);
-        config.new_session_response = NewSessionResponse::new(generate_session_id()).models(models);
-        config.set_session_model_response =
-            Some(agent_client_protocol::schema::SetSessionModelResponse::new());
+        let option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+        config.new_session_response =
+            NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
+        let response_option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+        config.set_session_config_option_response =
+            Some(SetSessionConfigOptionResponse::new(vec![response_option]));
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
@@ -120,18 +131,13 @@ fn test_set_model_with_legacy_models() -> Result<(), nvim_oxi::Error> {
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    assert!(
-        result.is_ok(),
-        "set_model with legacy models should succeed"
-    );
+    assert!(result.is_ok(), "set_model should succeed");
 
     Ok(())
 }
 
-// Configure mock agent to return new config_options with Model category.
-// set_model should call connection.set_config_option(...) which the mock agent handles.
 #[nvim_oxi::test]
-fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
+fn test_set_model_with_config_options_updated() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> =
         FromObject::from_object(dict.get("connect").unwrap().clone())?;
@@ -169,11 +175,8 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
             vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
         )
         .category(SessionConfigOptionCategory::Model);
-        config.set_session_config_option_response = Some(
-            agent_client_protocol::schema::SetSessionConfigOptionResponse::new(vec![
-                response_option,
-            ]),
-        );
+        config.set_session_config_option_response =
+            Some(SetSessionConfigOptionResponse::new(vec![response_option]));
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 

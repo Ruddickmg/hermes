@@ -1,4 +1,4 @@
-use agent_client_protocol::schema::{CloseSessionRequest, SessionId};
+use agent_client_protocol::schema::v1::{CloseSessionRequest, SessionId};
 
 use crate::{
     acp::{Result, error::Error},

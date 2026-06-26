@@ -8,11 +8,11 @@ use std::time::{Duration, Instant};
 use tracing::{debug, error, warn};
 
 use crate::acp::{Result, error::Error};
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     AuthenticateRequest, CancelNotification, CloseSessionRequest, DeleteSessionRequest,
     ForkSessionRequest, InitializeRequest, ListSessionsRequest, LoadSessionRequest, LogoutRequest,
     NewSessionRequest, PromptRequest, ResumeSessionRequest, SetSessionConfigOptionRequest,
-    SetSessionModeRequest, SetSessionModelRequest,
+    SetSessionModeRequest,
 };
 use async_channel::Sender;
 pub use manager::*;
@@ -38,7 +38,6 @@ pub enum UserRequest {
     ListSessions(ListSessionsRequest),
     ForkSession(ForkSessionRequest),
     ResumeSession(ResumeSessionRequest),
-    SetSessionModel(SetSessionModelRequest),
     CloseSession(CloseSessionRequest),
     DeleteSession(DeleteSessionRequest),
     Logout(LogoutRequest),
@@ -226,12 +225,6 @@ impl Connection {
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
-    pub async fn set_session_model(&self, request: SetSessionModelRequest) -> Result<()> {
-        self.send(UserRequest::SetSessionModel(request)).await?;
-        Ok(())
-    }
-
-    #[tracing::instrument(level = "trace", skip(self))]
     pub async fn close_session(&self, request: CloseSessionRequest) -> Result<()> {
         self.send(UserRequest::CloseSession(request)).await?;
         Ok(())
@@ -300,7 +293,8 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use agent_client_protocol::schema::{InitializeRequest, ProtocolVersion, SessionId};
+    use agent_client_protocol::schema::ProtocolVersion;
+    use agent_client_protocol::schema::v1::{InitializeRequest, SessionId};
     use pretty_assertions::assert_eq;
 
     /// Creates a mock thread handle that immediately returns Ok for testing
@@ -367,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_connection_create_session() {
-        use agent_client_protocol::schema::NewSessionRequest;
+        use agent_client_protocol::schema::v1::NewSessionRequest;
         let executor = mock_runtime();
         let (sender, receiver) = async_channel::bounded(1);
         let connection = Arc::new(Connection::new(sender, mock_handle(), None));
@@ -390,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_connection_delete_session() {
-        use agent_client_protocol::schema::DeleteSessionRequest;
+        use agent_client_protocol::schema::v1::DeleteSessionRequest;
         let executor = mock_runtime();
         let (sender, receiver) = async_channel::bounded(1);
         let connection = Arc::new(Connection::new(sender, mock_handle(), None));

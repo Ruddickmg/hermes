@@ -1,9 +1,8 @@
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     AuthenticateResponse, CloseSessionResponse, DeleteSessionResponse, ExtResponse,
     ForkSessionResponse, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
     LogoutResponse, NewSessionResponse, PromptResponse, ResumeSessionResponse,
     SessionConfigOptionCategory, SetSessionConfigOptionResponse, SetSessionModeResponse,
-    SetSessionModelResponse,
 };
 use serde::Serialize;
 use tracing::instrument;
@@ -115,8 +114,7 @@ impl Handler {
                         .await
                 }
                 SessionConfigOptionCategory::Model => {
-                    self.session_model_set(session_id, updated, SetSessionModelResponse::default())
-                        .await
+                    self.session_model_set(session_id, updated).await
                 }
                 SessionConfigOptionCategory::ThoughtLevel => {
                     self.session_thought_level_set(session_id, updated).await
@@ -160,12 +158,7 @@ impl Handler {
         }
     }
 
-    pub async fn session_model_set(
-        &self,
-        session_id: &str,
-        updated_to: &str,
-        _response: SetSessionModelResponse,
-    ) -> Result<(), Error> {
+    pub async fn session_model_set(&self, session_id: &str, updated_to: &str) -> Result<(), Error> {
         let mut state = self.state.lock().await;
         let session_info = state.get_session_info_mut(session_id);
         if let Some(session) = session_info {
@@ -227,7 +220,6 @@ impl Handler {
         let mut state = self.state.lock().await;
         let session = NewSessionResponse::new(session_id)
             .modes(details.modes)
-            .models(details.models)
             .config_options(details.config_options);
         state.set_session_info(&session);
         drop(state);
@@ -262,7 +254,6 @@ impl Handler {
         let mut state = self.state.lock().await;
         let session = NewSessionResponse::new(session_id)
             .modes(details.modes)
-            .models(details.models)
             .config_options(details.config_options);
         state.set_session_info(&session);
         drop(state);

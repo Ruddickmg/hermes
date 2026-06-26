@@ -1,4 +1,4 @@
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     LoadSessionRequest, ResumeSessionRequest, SessionNotification,
 };
 use nvim_oxi::{
@@ -20,7 +20,7 @@ use crate::{
 pub struct LoadSessionConfig {
     pub cwd: Option<PathBuf>,
     pub additional_directories: Option<Vec<PathBuf>>,
-    pub mcp_servers: Vec<agent_client_protocol::schema::McpServer>,
+    pub mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer>,
 }
 
 impl FromObject for LoadSessionConfig {
@@ -54,7 +54,7 @@ impl FromObject for LoadSessionConfig {
                 }
             });
 
-        let mcp_servers: Vec<agent_client_protocol::schema::McpServer> = dict
+        let mcp_servers: Vec<agent_client_protocol::schema::v1::McpServer> = dict
             .get("mcp_servers")
             .and_then(parse_mcp_servers)
             .unwrap_or_default();

@@ -141,7 +141,7 @@ impl Handler {
     pub async fn set_agent_info(
         &self,
         agent: Assistant,
-        info: agent_client_protocol::schema::InitializeResponse,
+        info: agent_client_protocol::schema::v1::InitializeResponse,
     ) {
         let mut config = self.state.lock().await;
         config.set_agent_info(agent.clone(), info.clone());

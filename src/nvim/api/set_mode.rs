@@ -31,14 +31,16 @@ impl Api {
 
             if is_legacy {
                 connection
-                    .set_mode(agent_client_protocol::schema::SetSessionModeRequest::new(
-                        session_id, mode_id,
-                    ))
+                    .set_mode(
+                        agent_client_protocol::schema::v1::SetSessionModeRequest::new(
+                            session_id, mode_id,
+                        ),
+                    )
                     .await?;
             } else {
                 connection
                     .set_config_option(
-                        agent_client_protocol::schema::SetSessionConfigOptionRequest::new(
+                        agent_client_protocol::schema::v1::SetSessionConfigOptionRequest::new(
                             session_id,
                             config_type.clone(),
                             mode_id,
