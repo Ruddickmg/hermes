@@ -152,11 +152,8 @@ Remove the binary. Run `:Hermes install` or use Hermes API to re-download.
 ```
 
 Compile from source (requires Rust toolchain). Runs asynchronously without blocking Neovim.
-
-Extra arguments are passed through as Cargo features, e.g.:
 ```vim
 :Hermes build
-:Hermes build with-icons  " enable icon pre-rendering
 ```
 
 Cancel an in-progress source build. Shows warning if no build is running.
