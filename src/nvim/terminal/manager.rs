@@ -261,4 +261,22 @@ mod tests {
         let manager: TerminalManager<MockTerminal> = TerminalManager::default();
         assert!(manager.get_terminal("any-id").is_none());
     }
+
+    #[test]
+    fn terminal_manager_kill_returns_ok_for_existing_terminal() {
+        let mut manager = TerminalManager::default();
+        let terminal = MockTerminal::new("term-1", "");
+        manager.initialize_terminal("term-1".to_string(), terminal.clone());
+
+        let result = manager.kill("term-1");
+        assert!(result.is_ok());
+        assert!(*terminal.killed.borrow());
+    }
+
+    #[test]
+    fn terminal_manager_kill_returns_error_for_missing_terminal() {
+        let manager: TerminalManager<MockTerminal> = TerminalManager::default();
+        let result = manager.kill("nonexistent");
+        assert!(result.is_err());
+    }
 }

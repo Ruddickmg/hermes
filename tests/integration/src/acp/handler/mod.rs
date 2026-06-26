@@ -879,6 +879,34 @@ fn config_option_set_with_other_category_succeeds() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn session_loaded_stores_model_config_options_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "model",
+        "Model",
+        "gpt4",
+        vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+    )
+    .category(SessionConfigOptionCategory::Model);
+    let response = LoadSessionResponse::default().config_options(vec![option]);
+
+    smol::block_on(handler.session_loaded("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.model_is_legacy(), Some(false));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn session_mode_set_mode_not_found() -> nvim_oxi::Result<()> {
     let state = Arc::new(Mutex::new(PluginState::default()));
     let handler = Handler::new(
@@ -967,6 +995,39 @@ fn session_model_set_model_not_found() -> nvim_oxi::Result<()> {
     assert!(
         matches!(result, Err(hermes::acp::error::Error::Internal(_))),
         "Should return Internal error when model not in selection"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_model_set_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let result = smol::block_on(handler.session_model_set("test-session", "gpt4"));
+
+    assert!(
+        result.is_ok(),
+        "session_model_set should succeed when model exists"
     );
 
     Ok(())
