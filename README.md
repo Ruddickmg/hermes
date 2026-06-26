@@ -114,10 +114,10 @@ cargo build --release
 # Copy target/release/libhermes.* to your Neovim data directory
 ```
 
-> [!INFO]
+> [!NOTE]
 > Hermes can pre-render icons during the build step to avoid having to do so at runtime.
 >
-> To do so with the build script:
+> To build script:
 > ```vim
 > :Hermes build with-icons
 > ```
