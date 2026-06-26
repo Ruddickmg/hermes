@@ -271,9 +271,12 @@ jobs:
             sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec
 
             # Publish source rock (remove "lib" since source tarball has no binary)
-            sed '/"lib",/d' /tmp/hermes.nvim-${VERSION}-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec.src
-            luarocks upload "/tmp/hermes.nvim-${VERSION}-1.rockspec.src" --api-key="${LUAROCKS_API_KEY}"
+            sed -i '/"lib",/d' /tmp/hermes.nvim-${VERSION}-1.rockspec
+            luarocks upload "/tmp/hermes.nvim-${VERSION}-1.rockspec" --api-key="${LUAROCKS_API_KEY}"
             echo "Source rock published: hermes.nvim-${VERSION}-1"
+
+            # Re-generate full rockspec with "lib" for binary rock packaging
+            sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec
 
             # Publish binary rocks for each platform
             for ext in so dylib dll; do
