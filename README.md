@@ -117,7 +117,7 @@ cargo build --release
 > [!NOTE]
 > Hermes can pre-render icons during the build step to avoid having to do so at runtime.
 >
-> To build script:
+> Using the build script:
 > ```vim
 > :Hermes build with-icons
 > ```
