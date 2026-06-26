@@ -22,19 +22,13 @@ fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IF
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-agent-client-protocol = { version = "0.12", features = [
-    "unstable_message_id",
+agent-client-protocol = { version = "1.0.0", features = [
     "unstable_session_fork",
-    "unstable_session_model",
-    "unstable_session_usage",
-    "unstable_session_additional_directories",
-    "unstable_session_delete",
     "unstable_mcp_over_acp",
     "unstable_auth_methods",
     # "unstable_boolean_config",
     # "unstable_llm_providers",
     # "unstable_nes",
-    "unstable_logout",
 ] }
 async-channel = "2"
 async-io = "2"
