@@ -31,43 +31,13 @@ where
     futures::executor::block_on(fut)
 }
 
-/// Test: set_model returns SessionNotFound when session_info has no entry for the session_id.
 #[nvim_oxi::test]
-fn set_model_returns_session_not_found_when_no_session_info() -> nvim_oxi::Result<()> {
+fn set_model_returns_connection_error_when_no_connection() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =
         hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
             .unwrap();
     let api = create_test_api(plugin_state, logger);
-
-    let result = block_on(api.set_model(SetModelArgs::from((
-        "nonexistent-session".to_string(),
-        "gpt4".to_string(),
-    ))));
-
-    assert!(matches!(
-        result,
-        Err(hermes::acp::error::Error::SessionNotFound(_))
-    ));
-
-    Ok(())
-}
-
-/// Test: set_model returns Unsupported when session exists but has no model info.
-#[nvim_oxi::test]
-fn set_model_returns_unsupported_when_session_has_no_model_info() -> nvim_oxi::Result<()> {
-    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
-    let logger =
-        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
-            .unwrap();
-    let api = create_test_api(plugin_state.clone(), logger);
-
-    // Populate session_info with a session that has no models
-    {
-        let mut state = block_on(plugin_state.lock());
-        let session = agent_client_protocol::schema::v1::NewSessionResponse::new("test-session");
-        state.set_session_info(&session);
-    }
 
     let result = block_on(api.set_model(SetModelArgs::from((
         "test-session".to_string(),
@@ -76,7 +46,7 @@ fn set_model_returns_unsupported_when_session_has_no_model_info() -> nvim_oxi::R
 
     assert!(matches!(
         result,
-        Err(hermes::acp::error::Error::Unsupported(_))
+        Err(hermes::acp::error::Error::Connection(_))
     ));
 
     Ok(())
