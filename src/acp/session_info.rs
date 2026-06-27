@@ -1,5 +1,6 @@
 use agent_client_protocol::schema::v1::{
-    NewSessionResponse, SessionConfigKind, SessionConfigOptionCategory, SessionConfigSelectOptions,
+    NewSessionResponse, SessionConfigKind, SessionConfigOption, SessionConfigOptionCategory,
+    SessionConfigSelectOptions,
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,11 +20,20 @@ pub struct Selection {
     legacy: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ModelConfigOption {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub selection: Selection,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct SessionDetails {
     pub modes: Option<Selection>,
     pub models: Option<Selection>,
     pub thought_levels: Option<Selection>,
+    pub model_configs: Vec<ModelConfigOption>,
 }
 
 impl SessionDetails {
@@ -32,6 +42,7 @@ impl SessionDetails {
             modes: Self::parse_modes(session),
             models: Self::parse_models(session),
             thought_levels: Self::parse_thought_levels(session),
+            model_configs: Self::parse_model_configs(session),
         }
     }
 
@@ -103,6 +114,61 @@ impl SessionDetails {
         self.thought_levels.as_ref().map(|model| &model.current)
     }
 
+    pub fn model_config_options(&self) -> &[ModelConfigOption] {
+        &self.model_configs
+    }
+
+    pub fn update_model_config(&mut self, id: &str, new_current: &str) {
+        if let Some(mc) = self.model_configs.iter_mut().find(|mc| mc.id == id) {
+            if let Some(new_option) = mc
+                .selection
+                .options
+                .iter()
+                .find(|o| o.value == new_current)
+                .cloned()
+            {
+                mc.selection.current = new_option;
+            }
+        }
+    }
+
+    pub fn get_model_config(&self, id: &str) -> Option<&ModelConfigOption> {
+        self.model_configs.iter().find(|mc| mc.id == id)
+    }
+
+    fn parse_option_selection(opt: &SessionConfigOption) -> Option<(Vec<HermesOption>, String)> {
+        match &opt.kind {
+            SessionConfigKind::Select(select) => {
+                let current_value = select.current_value.to_string();
+                let options = match &select.options {
+                    SessionConfigSelectOptions::Grouped(groups) => groups
+                        .iter()
+                        .flat_map(|group| {
+                            group.options.iter().map(|o| HermesOption {
+                                value: o.value.to_string(),
+                                name: o.name.to_string(),
+                                description: o.description.clone(),
+                                group: Some(group.name.to_string()),
+                            })
+                        })
+                        .collect(),
+                    SessionConfigSelectOptions::Ungrouped(ungrouped) => ungrouped
+                        .iter()
+                        .map(|o| HermesOption {
+                            value: o.value.to_string(),
+                            name: o.name.to_string(),
+                            description: o.description.clone(),
+                            group: None,
+                        })
+                        .collect(),
+                    _ => return None,
+                };
+                Some((options, current_value))
+            }
+            _ => None,
+        }
+    }
+
     fn parse_options(
         session: &NewSessionResponse,
         category: SessionConfigOptionCategory,
@@ -115,37 +181,11 @@ impl SessionDetails {
                 options
                     .iter()
                     .filter_map(|opt| {
-                        if let SessionConfigKind::Select(select) = &opt.kind
-                            && opt.category.as_ref() == Some(&category)
-                        {
-                            current_option = select.current_value.to_string();
-                            match &select.options {
-                                SessionConfigSelectOptions::Grouped(groups) => Some(
-                                    groups
-                                        .iter()
-                                        .flat_map(|group| {
-                                            group.options.iter().map(move |opt| HermesOption {
-                                                value: opt.value.to_string(),
-                                                name: opt.name.to_string(),
-                                                description: opt.description.clone(),
-                                                group: Some(group.name.to_string()),
-                                            })
-                                        })
-                                        .collect::<Vec<HermesOption>>(),
-                                ),
-                                SessionConfigSelectOptions::Ungrouped(ungrouped) => Some(
-                                    ungrouped
-                                        .iter()
-                                        .map(|opt| HermesOption {
-                                            value: opt.value.to_string(),
-                                            name: opt.name.to_string(),
-                                            description: opt.description.clone(),
-                                            group: None,
-                                        })
-                                        .collect::<Vec<HermesOption>>(),
-                                ),
-                                _ => None,
-                            }
+                        if opt.category.as_ref() == Some(&category) {
+                            Self::parse_option_selection(opt).map(|(opts, cur)| {
+                                current_option = cur;
+                                opts
+                            })
                         } else {
                             None
                         }
@@ -185,6 +225,58 @@ impl SessionDetails {
 
     fn parse_models(session: &NewSessionResponse) -> Option<Selection> {
         Self::parse_options(session, SessionConfigOptionCategory::Model)
+    }
+
+    fn parse_model_configs(session: &NewSessionResponse) -> Vec<ModelConfigOption> {
+        session
+            .config_options
+            .as_ref()
+            .map(|options| Self::parse_model_configs_from_options(options))
+            .unwrap_or_default()
+    }
+
+    pub fn parse_model_configs_from_options(
+        config_options: &[SessionConfigOption],
+    ) -> Vec<ModelConfigOption> {
+        config_options
+            .iter()
+            .filter_map(|opt| {
+                if opt.category.as_ref() != Some(&SessionConfigOptionCategory::ModelConfig) {
+                    return None;
+                }
+
+                let (selection_options, current_value) =
+                    Self::parse_option_selection(opt)?;
+
+                if selection_options.is_empty() {
+                    return None;
+                }
+
+                let current = selection_options
+                    .iter()
+                    .find(|o| o.value == current_value)
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        tracing::warn!(
+                            "Current value '{}' not found in model config '{}', defaulting to first option",
+                            current_value,
+                            opt.id
+                        );
+                        selection_options[0].clone()
+                    });
+
+                Some(ModelConfigOption {
+                    id: opt.id.to_string(),
+                    name: opt.name.to_string(),
+                    description: opt.description.clone(),
+                    selection: Selection {
+                        current,
+                        options: selection_options,
+                        legacy: false,
+                    },
+                })
+            })
+            .collect()
     }
 
     fn parse_modes(session: &NewSessionResponse) -> Option<Selection> {

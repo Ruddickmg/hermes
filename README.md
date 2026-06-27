@@ -857,6 +857,55 @@ vim.api.nvim_create_autocmd("User", {
 > - `options` (array): Available model options
 > - `current` (object): The currently selected model
 
+### ModelConfigurations
+
+Get the model configuration options for a session.
+
+Fires a `ModelConfigurations` User autocommand with the configuration data instead of returning it.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+hermes.model_configurations(session_id)
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "ModelConfigurations",
+  callback = function(args)
+    local configs = args.data
+    for _, config in ipairs(configs) do
+      print("Config: " .. config.name .. " (current: " .. config.selection.current.value .. ")")
+    end
+  end,
+})
+```
+
+> **Triggers:** [ModelConfigurations](#modelconfigurations) autocommand with an array of model configuration options.
+
+### Configure model (**Optional**)
+
+Configure a model option for a session. Takes a table with `id` and `value` keys.
+
+```lua
+local hermes = require("hermes")
+
+-- call signature
+hermes.configure_model(session_id, { id = "context_size", value = "200k" })
+
+-- example
+vim.api.nvim_create_autocmd("User", {
+  group = "hermes",
+  pattern = "ModelConfigurationUpdated",
+  callback = function(args)
+    print("Model configuration updated")
+  end,
+})
+```
+
+> **Triggers:** [ModelConfigurationUpdated](#modelconfigurationupdated) autocommand upon completion.
+
 ### Set thought_level (**Optional**)
 
 Set the thought level for a session.
@@ -1533,6 +1582,58 @@ Below is a list of all autocommands and their associated data (passed to the cal
     "currentModeId": "string"
   }
 }</code></pre></td>
+    </tr>
+    <tr id="modelconfigurations">
+      <td><code>ModelConfigurations</code></td>
+      <td>Available model configuration options retrieved</td>
+      <td>⚡ <a href="#modelconfigurations">model_configurations()</a></td>
+      <td><pre><code class="language-json">[{
+  "id": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "selection": {
+    "options": [
+      {
+        "value": "string",
+        "name": "string",
+        "description": "string (optional)",
+        "group": "string (optional)"
+      }
+    ],
+    "current": {
+      "value": "string",
+      "name": "string",
+      "description": "string (optional)",
+      "group": "string (optional)"
+    }
+  }
+}]</code></pre></td>
+    </tr>
+    <tr id="modelconfigurationupdated">
+      <td><code>ModelConfigurationUpdated</code></td>
+      <td>Model configuration options updated</td>
+      <td>⚡ <a href="#configure-model-optional">configure_model()</a></td>
+      <td><pre><code class="language-json">[{
+  "id": "string",
+  "name": "string",
+  "description": "string (optional)",
+  "selection": {
+    "options": [
+      {
+        "value": "string",
+        "name": "string",
+        "description": "string (optional)",
+        "group": "string (optional)"
+      }
+    ],
+    "current": {
+      "value": "string",
+      "name": "string",
+      "description": "string (optional)",
+      "group": "string (optional)"
+    }
+  }
+}]</code></pre></td>
     </tr>
     <tr id="models-1">
       <td><code>Models</code></td>
