@@ -8,7 +8,7 @@
 // channel architecture stays the same so existing tests don't change.
 
 use agent_client_protocol::{
-    self as acp, Agent, ByteStreams, ConnectionTo, Responder, on_receive_notification,
+    self as acp, Agent, ByteStreams, ConnectionTo, Lines, Responder, on_receive_notification,
     on_receive_request,
     schema::v1::{
         AuthenticateRequest, AuthenticateResponse, CancelNotification, CloseSessionRequest,
@@ -27,6 +27,7 @@ use agent_client_protocol::{
 };
 use async_channel::{Receiver, Sender, bounded, unbounded};
 use async_io::{Async, Timer};
+use futures::StreamExt;
 use futures::future::{Either, select};
 use futures::io::AsyncReadExt;
 use std::rc::Rc;
@@ -230,6 +231,194 @@ impl MockAgent {
                             let result = builder
                                 .connect_to(ByteStreams::new(write_half, read_half))
                                 .await;
+                            if let Err(e) = result {
+                                error!("Mock agent connection error: {}", e);
+                            }
+                            info!("Mock agent connection completed");
+                        };
+
+                        let shutdown_wait = async {
+                            let _ = shutdown_rx.recv().await;
+                            info!("Shutdown received while serving connection");
+                        };
+
+                        let _ = select(Box::pin(serve_fut), Box::pin(shutdown_wait)).await;
+                    }
+                    Either::Left((None, _)) => {
+                        info!("Mock agent accept failed, exiting");
+                    }
+                    Either::Right((_, _)) => {
+                        info!("Mock agent shutting down before connection established");
+                    }
+                }
+
+                info!("Mock agent main task completed");
+            }));
+
+            info!("Mock agent thread exiting");
+        });
+
+        Ok(MockAgentHandle::new(
+            config_clone,
+            port,
+            thread_handle,
+            shutdown_tx,
+        ))
+    }
+
+    /// Start the mock agent on a random available port, accepting WebSocket connections.
+    ///
+    /// Identical to `start` but performs a WebSocket upgrade on the accepted TCP
+    /// connection and drives the ACP protocol over WebSocket text frames.
+    pub fn start_websocket(
+        agent: MockAgent,
+        conn_rx: MockAgentReceiver,
+    ) -> Result<MockAgentHandle, std::io::Error> {
+        let std_listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+        let port = std_listener.local_addr()?.port();
+
+        info!("Mock agent (websocket) starting on port {}", port);
+
+        let (shutdown_tx, shutdown_rx) = bounded::<()>(1);
+        let config_clone = agent.config.clone();
+        let MockAgent { config, conn_tx } = agent;
+
+        let thread_handle = std::thread::spawn(move || {
+            let executor = Rc::new(smol::LocalExecutor::new());
+
+            let listener = match Async::new(std_listener) {
+                Ok(l) => l,
+                Err(e) => {
+                    error!("Failed to create async listener: {}", e);
+                    return;
+                }
+            };
+
+            smol::block_on(executor.clone().run(async move {
+                let accept_fut = async {
+                    match listener.accept().await {
+                        Ok((stream, addr)) => {
+                            info!("Mock agent accepted connection from {}", addr);
+                            Some(stream)
+                        }
+                        Err(e) => {
+                            error!("Failed to accept connection: {}", e);
+                            None
+                        }
+                    }
+                };
+
+                let shutdown_fut = async {
+                    let _ = shutdown_rx.recv().await;
+                    info!("Mock agent received shutdown signal before connection");
+                };
+
+                match select(Box::pin(accept_fut), Box::pin(shutdown_fut)).await {
+                    Either::Left((Some(stream), _)) => {
+                        let ws_stream = match async_tungstenite::accept_async(stream).await {
+                            Ok(ws) => ws,
+                            Err(e) => {
+                                error!("WebSocket accept failed: {}", e);
+                                return;
+                            }
+                        };
+
+                        let (ws_sender, ws_receiver) = ws_stream.split();
+
+                        let outgoing_sink = futures::sink::unfold(
+                            ws_sender,
+                            |mut sender, text: String| async move {
+                                sender
+                                    .send(async_tungstenite::tungstenite::Message::Text(
+                                        text.into(),
+                                    ))
+                                    .await
+                                    .map_err(|e| {
+                                        std::io::Error::new(std::io::ErrorKind::Other, e)
+                                    })?;
+                                Ok::<_, std::io::Error>(sender)
+                            },
+                        );
+
+                        let incoming_stream = ws_receiver.map(|msg| match msg {
+                            Ok(async_tungstenite::tungstenite::Message::Text(text)) => {
+                                Ok(text.to_string())
+                            }
+                            Ok(async_tungstenite::tungstenite::Message::Close(_)) => {
+                                Err(std::io::Error::new(
+                                    std::io::ErrorKind::ConnectionAborted,
+                                    "WebSocket closed",
+                                ))
+                            }
+                            Ok(other) => {
+                                tracing::debug!("Received non-text WebSocket message: {:?}", other);
+                                Err(std::io::Error::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    format!("Unexpected WebSocket message: {:?}", other),
+                                ))
+                            }
+                            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+                        });
+
+                        let lines = Lines::new(outgoing_sink, incoming_stream);
+
+                        let connection_task = move |cx: ConnectionTo<acp::Client>| async move {
+                            while let Ok(msg) = conn_rx.recv().await {
+                                match msg {
+                                    AgentToConnection::SessionNotification(notification, tx) => {
+                                        if let Err(e) = cx.send_notification(notification) {
+                                            error!("Error sending session notification: {}", e);
+                                            break;
+                                        }
+                                        tx.try_send(()).ok();
+                                    }
+                                    AgentToConnection::PermissionRequest(request, tx) => {
+                                        match cx.send_request(request).block_task().await {
+                                            Ok(response) => {
+                                                tx.try_send(response.outcome).ok();
+                                            }
+                                            Err(e) => {
+                                                error!("Error sending permission request: {}", e);
+                                                tx.try_send(RequestPermissionOutcome::Cancelled)
+                                                    .ok();
+                                            }
+                                        }
+                                    }
+                                    AgentToConnection::CreateTerminal(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::TerminalOutput(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::WaitForTerminalExit(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::ReadTextFile(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::WriteTextFile(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::ReleaseTerminal(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                }
+                            }
+                            info!("Message handling loop ended");
+                            Ok(())
+                        };
+
+                        let builder = build_mock_agent_builder(config.clone(), conn_tx.clone())
+                            .with_spawned(connection_task);
+
+                        let serve_fut = async move {
+                            let result = builder.connect_to(lines).await;
                             if let Err(e) = result {
                                 error!("Mock agent connection error: {}", e);
                             }

@@ -62,13 +62,33 @@ pub fn setup_mock_agent() -> Result<MockAgentSetup, nvim_oxi::Error> {
     })
 }
 
-/// Connect to a mock agent, converting Dictionary options to ConnectionOptions
+/// Connect to a mock agent via TCP protocol
 pub fn connect_to_mock_agent(
     connect: &Function<ConnectionArgs, ()>,
     mock_handle: &MockAgentHandle,
 ) -> Result<(), nvim_oxi::Error> {
     let mut options = Dictionary::new();
     options.insert("protocol", "tcp");
+    options.insert("host", "localhost");
+    options.insert("port", mock_handle.port() as i64);
+    let connection_options: ConnectionOptions =
+        FromObject::from_object(nvim_oxi::Object::from(options))
+            .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))?;
+    connect
+        .call((
+            nvim_oxi::String::from("mock-agent"),
+            Some(connection_options),
+        ))
+        .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))
+}
+
+/// Connect to a mock agent via HTTP (WebSocket) protocol
+pub fn connect_to_mock_agent_http(
+    connect: &Function<ConnectionArgs, ()>,
+    mock_handle: &MockAgentHandle,
+) -> Result<(), nvim_oxi::Error> {
+    let mut options = Dictionary::new();
+    options.insert("protocol", "http");
     options.insert("host", "localhost");
     options.insert("port", mock_handle.port() as i64);
     let connection_options: ConnectionOptions =

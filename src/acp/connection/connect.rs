@@ -7,11 +7,8 @@ use crate::{
         handler::build_client,
     },
 };
-use agent_client_protocol::ByteStreams;
 use agent_client_protocol::{self as acp, ConnectionTo};
 use async_channel::Receiver;
-use futures::AsyncRead;
-use futures::AsyncWrite;
 use std::sync::Arc;
 use tracing::{debug, error, instrument, trace};
 
@@ -99,16 +96,15 @@ async fn dispatch(
     Ok(())
 }
 
-#[instrument(level = "trace", skip(client, receiver, stream))]
-pub async fn handle_connection<OB, IB>(
+#[instrument(level = "trace", skip(client, receiver, transport))]
+pub async fn handle_connection<T>(
     client: Arc<Handler>,
     agent: Assistant,
     receiver: Receiver<UserRequest>,
-    stream: ByteStreams<OB, IB>,
+    transport: T,
 ) -> Result<()>
 where
-    OB: AsyncWrite + Send + 'static,
-    IB: AsyncRead + Send + 'static,
+    T: acp::ConnectTo<acp::Client> + Send + 'static,
 {
     trace!("Starting ACP client connection for '{}'", agent);
 
@@ -116,7 +112,7 @@ where
     let client_for_main = client.clone();
 
     build_client(client)
-        .connect_with(stream, async move |cx| {
+        .connect_with(transport, async move |cx| {
             while let Ok(msg) = receiver.recv().await {
                 debug!("Received request from '{}': {:#?}", agent, msg);
                 if matches!(msg, UserRequest::Close) {

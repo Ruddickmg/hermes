@@ -23,6 +23,7 @@ pub struct ConnectionOptions {
     args: Option<Vec<String>>,
     host: Option<String>,
     port: Option<u16>,
+    path: Option<String>,
 }
 
 impl ConnectionOptions {
@@ -53,7 +54,12 @@ impl ConnectionOptions {
                 }
             },
             _ => match (self.host, self.port) {
-                (Some(host), Some(port)) => Ok(Assistant::CustomUrl { name, host, port }),
+                (Some(host), Some(port)) => Ok(Assistant::CustomUrl {
+                    name,
+                    host,
+                    port,
+                    path: self.path,
+                }),
                 _ => Err(Error::InvalidInput(format!(
                     "Host and port must be provided for {} connections",
                     self.protocol
@@ -132,6 +138,13 @@ impl FromObject for ConnectionOptions {
 
         let port: Option<u16> = dict.get("port").and_then(|o| o.clone().try_into().ok());
 
+        let path: Option<String> = dict.get("path").and_then(|o| {
+            o.clone()
+                .try_into()
+                .ok()
+                .map(|s: nvim_oxi::String| s.to_string())
+        });
+
         Ok(Self {
             protocol,
             distribution,
@@ -139,6 +152,7 @@ impl FromObject for ConnectionOptions {
             args,
             host,
             port,
+            path,
         })
     }
 }
@@ -171,6 +185,9 @@ impl Pushable for ConnectionOptions {
         }
         if let Some(port) = self.port {
             dict.insert("port", port);
+        }
+        if let Some(path) = self.path {
+            dict.insert("path", path);
         }
         unsafe { Object::from(dict).push(lua_state) }
     }
@@ -220,6 +237,7 @@ impl Api {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
     // Strategy for generating agent names
@@ -324,7 +342,7 @@ mod tests {
         let result = opts.into_assistant("socket-agent".to_string());
         let assistant = result.unwrap();
         assert!(
-            matches!(assistant, Assistant::CustomUrl { name, host, port } 
+            matches!(assistant, Assistant::CustomUrl { name, host, port, path: _ }
             if name == "socket-agent" && host == "localhost" && port == 8080)
         );
     }
@@ -340,7 +358,23 @@ mod tests {
         let result = opts.into_assistant("http-agent".to_string());
         let assistant = result.unwrap();
         assert!(
-            matches!(assistant, Assistant::CustomUrl { name: _, host, port } 
+            matches!(assistant, Assistant::CustomUrl { name: _, host, port, path: _ }
+            if host == "api.example.com" && port == 443)
+        );
+    }
+
+    #[test]
+    fn connection_options_into_assistant_https_with_host_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Https,
+            host: Some("api.example.com".to_string()),
+            port: Some(443),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("https-agent".to_string());
+        let assistant = result.unwrap();
+        assert!(
+            matches!(assistant, Assistant::CustomUrl { name: _, host, port, path: _ }
             if host == "api.example.com" && port == 443)
         );
     }
@@ -367,7 +401,7 @@ mod tests {
         let result = opts.into_assistant("tcp-agent".to_string());
         let assistant = result.unwrap();
         assert!(
-            matches!(assistant, Assistant::CustomUrl { name, host, port } 
+            matches!(assistant, Assistant::CustomUrl { name, host, port, path: _ }
             if name == "tcp-agent" && host == "tcp.example.com" && port == 9090)
         );
     }
@@ -431,6 +465,14 @@ mod tests {
         dict.insert("protocol", "socket");
         let result = ConnectionOptions::from_object(Object::from(dict));
         assert_eq!(result.unwrap().protocol, Protocol::Socket);
+    }
+
+    #[test]
+    fn connection_options_from_object_protocol_https() {
+        let mut dict = Dictionary::new();
+        dict.insert("protocol", "https");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().protocol, Protocol::Https);
     }
 
     #[test]
@@ -519,6 +561,18 @@ mod tests {
     }
 
     #[test]
+    fn connection_options_from_object_with_path() {
+        let mut dict = Dictionary::new();
+        dict.insert("protocol", "http");
+        dict.insert("host", "localhost");
+        dict.insert("port", 8080i64);
+        dict.insert("path", "/v1/acp");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        let opts = result.unwrap();
+        assert_eq!(opts.path.as_deref(), Some("/v1/acp"));
+    }
+
+    #[test]
     fn connection_options_from_object_protocol_defaults_to_stdio() {
         let dict = Dictionary::new();
         let result = ConnectionOptions::from_object(Object::from(dict));
@@ -546,6 +600,12 @@ mod tests {
     }
 
     #[test]
+    fn test_protocol_from_str_https() {
+        assert!(matches!(Protocol::from("https"), Protocol::Https));
+        assert!(matches!(Protocol::from("HTTPS"), Protocol::Https));
+    }
+
+    #[test]
     fn test_protocol_from_str_unknown_defaults_to_stdio() {
         assert!(matches!(Protocol::from("unknown"), Protocol::Stdio));
         assert!(matches!(Protocol::from(""), Protocol::Stdio));
@@ -565,6 +625,11 @@ mod tests {
     #[test]
     fn test_protocol_display_http() {
         assert_eq!(format!("{}", Protocol::Http), "http");
+    }
+
+    #[test]
+    fn test_protocol_display_https() {
+        assert_eq!(format!("{}", Protocol::Https), "https");
     }
 
     // Proptest for protocol parsing
@@ -597,6 +662,14 @@ mod tests {
         ) {
             let protocol = Protocol::from(variant.as_str());
             prop_assert!(matches!(protocol, Protocol::Http));
+        }
+
+        #[test]
+        fn test_protocol_https_case_insensitive(
+            variant in "(https|HTTPS|Https|HtTpS)"
+        ) {
+            let protocol = Protocol::from(variant.as_str());
+            prop_assert!(matches!(protocol, Protocol::Https));
         }
     }
 }
