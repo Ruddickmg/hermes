@@ -68,6 +68,52 @@ fn configure_model_returns_session_not_found() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn configure_model_returns_error_for_empty_id() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state, logger);
+
+    let config = ConfigureModelConfig {
+        id: String::new(),
+        value: "val1".to_string(),
+    };
+    let result = block_on(api.configure_model(("test-session".to_string(), config)));
+
+    assert!(matches!(
+        result,
+        Err(hermes::acp::error::Error::Internal(ref msg))
+        if msg.contains("Invalid configure_model argument")
+    ));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn configure_model_returns_error_for_empty_value() -> nvim_oxi::Result<()> {
+    let plugin_state = Arc::new(Mutex::new(PluginState::new()));
+    let logger =
+        hermes::utilities::logging::Logger::inititalize(&detect_project_storage_path().unwrap())
+            .unwrap();
+    let api = create_test_api(plugin_state, logger);
+
+    let config = ConfigureModelConfig {
+        id: "mc-1".to_string(),
+        value: String::new(),
+    };
+    let result = block_on(api.configure_model(("test-session".to_string(), config)));
+
+    assert!(matches!(
+        result,
+        Err(hermes::acp::error::Error::Internal(ref msg))
+        if msg.contains("Invalid configure_model argument")
+    ));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn configure_model_returns_config_not_found() -> nvim_oxi::Result<()> {
     let plugin_state = Arc::new(Mutex::new(PluginState::new()));
     let logger =

@@ -72,6 +72,13 @@ impl Pushable for ConfigureModelConfig {
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn configure_model(&self, (session_id, config): ConfigureModelArgs) -> Result<()> {
+        if config.id.is_empty() || config.value.is_empty() {
+            return Err(AcpError::Internal(format!(
+                "Invalid configure_model argument: 'id' and 'value' must be non-empty strings, got id='{}' and value='{}'",
+                config.id, config.value
+            )));
+        }
+
         let state = self.state.lock().await;
         let has_config = state
             .session_info
