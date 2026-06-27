@@ -8,7 +8,7 @@
 use crate::{
     Handler,
     acp::{
-        connection::{Assistant, UserRequest, connect::handle_connection},
+        connection::{Assistant, Protocol, UserRequest, connect::handle_connection},
         error::Error,
     },
 };
@@ -46,15 +46,20 @@ where
 
 #[instrument(level = "trace", skip(client, request_receiver))]
 pub async fn connect(
+    protocol: Protocol,
     client: Arc<Handler>,
     agent: Assistant,
     request_receiver: Receiver<UserRequest>,
 ) -> Result<(), Error> {
+    let scheme = match protocol {
+        Protocol::Https => "wss",
+        _ => "ws",
+    };
     let url = match &agent {
         Assistant::CustomUrl {
             host, port, path, ..
         } => {
-            let mut url = format!("ws://{}:{}", host, port);
+            let mut url = format!("{}://{}:{}", scheme, host, port);
             if let Some(path) = path {
                 url.push_str(path);
             }

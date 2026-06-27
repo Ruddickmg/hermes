@@ -363,6 +363,22 @@ mod tests {
     }
 
     #[test]
+    fn connection_options_into_assistant_https_with_host_port() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Https,
+            host: Some("api.example.com".to_string()),
+            port: Some(443),
+            ..Default::default()
+        };
+        let result = opts.into_assistant("https-agent".to_string());
+        let assistant = result.unwrap();
+        assert!(
+            matches!(assistant, Assistant::CustomUrl { name: _, host, port, path: _ }
+            if host == "api.example.com" && port == 443)
+        );
+    }
+
+    #[test]
     fn connection_options_into_assistant_socket_missing_host() {
         let opts = ConnectionOptions {
             protocol: Protocol::Socket,
@@ -448,6 +464,14 @@ mod tests {
         dict.insert("protocol", "socket");
         let result = ConnectionOptions::from_object(Object::from(dict));
         assert_eq!(result.unwrap().protocol, Protocol::Socket);
+    }
+
+    #[test]
+    fn connection_options_from_object_protocol_https() {
+        let mut dict = Dictionary::new();
+        dict.insert("protocol", "https");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        assert_eq!(result.unwrap().protocol, Protocol::Https);
     }
 
     #[test]
@@ -563,6 +587,12 @@ mod tests {
     }
 
     #[test]
+    fn test_protocol_from_str_https() {
+        assert!(matches!(Protocol::from("https"), Protocol::Https));
+        assert!(matches!(Protocol::from("HTTPS"), Protocol::Https));
+    }
+
+    #[test]
     fn test_protocol_from_str_unknown_defaults_to_stdio() {
         assert!(matches!(Protocol::from("unknown"), Protocol::Stdio));
         assert!(matches!(Protocol::from(""), Protocol::Stdio));
@@ -582,6 +612,11 @@ mod tests {
     #[test]
     fn test_protocol_display_http() {
         assert_eq!(format!("{}", Protocol::Http), "http");
+    }
+
+    #[test]
+    fn test_protocol_display_https() {
+        assert_eq!(format!("{}", Protocol::Https), "https");
     }
 
     // Proptest for protocol parsing
@@ -614,6 +649,14 @@ mod tests {
         ) {
             let protocol = Protocol::from(variant.as_str());
             prop_assert!(matches!(protocol, Protocol::Http));
+        }
+
+        #[test]
+        fn test_protocol_https_case_insensitive(
+            variant in "(https|HTTPS|Https|HtTpS)"
+        ) {
+            let protocol = Protocol::from(variant.as_str());
+            prop_assert!(matches!(protocol, Protocol::Https));
         }
     }
 }

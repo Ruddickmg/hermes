@@ -19,6 +19,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 pub enum Protocol {
     Tcp,
     Http,
+    Https,
     Socket,
     #[default]
     Stdio,
@@ -30,6 +31,7 @@ impl std::fmt::Display for Protocol {
             Protocol::Tcp => write!(f, "tcp"),
             Protocol::Socket => write!(f, "socket"),
             Protocol::Http => write!(f, "http"),
+            Protocol::Https => write!(f, "https"),
             Protocol::Stdio => write!(f, "stdio"),
         }
     }
@@ -41,6 +43,7 @@ impl From<&str> for Protocol {
             "tcp" => Protocol::Tcp,
             "socket" => Protocol::Socket,
             "http" => Protocol::Http,
+            "https" => Protocol::Https,
             "stdio" => Protocol::Stdio,
             _ => Protocol::Stdio, // default to Stdio for unknown protocols
         }
@@ -323,7 +326,9 @@ impl ConnectionManager {
                         stdio::connect(handler, thread_agent, receiver, child.unwrap()).await
                     }
                     Protocol::Tcp => tcp::connect(handler, thread_agent, receiver).await,
-                    Protocol::Http => http::connect(handler, thread_agent, receiver).await,
+                    Protocol::Http | Protocol::Https => {
+                        http::connect(protocol, handler, thread_agent, receiver).await
+                    }
                     Protocol::Socket => {
                         error!("Socket protocol is not yet implemented");
                         Err(Error::Internal(
@@ -435,6 +440,7 @@ mod tests {
             Protocol::Tcp,
             Protocol::Socket,
             Protocol::Http,
+            Protocol::Https,
             Protocol::Stdio,
         ];
         let results: Vec<String> = protocols.iter().map(|p| format!("{}", p)).collect();
@@ -443,6 +449,7 @@ mod tests {
             "tcp".to_string(),
             "socket".to_string(),
             "http".to_string(),
+            "https".to_string(),
             "stdio".to_string(),
         ];
 
@@ -453,7 +460,8 @@ mod tests {
     fn test_protocol_from_str() {
         // Test FromStr for known protocols using slice comparison
         let inputs: Vec<&str> = vec![
-            "tcp", "socket", "http", "stdio", "TCP", "SOCKET", "HTTP", "STDIO", "unknown",
+            "tcp", "socket", "http", "https", "stdio", "TCP", "SOCKET", "HTTP", "HTTPS", "STDIO",
+            "unknown",
         ];
         let results: Vec<Protocol> = inputs.iter().map(|&s| Protocol::from(s)).collect();
 
@@ -461,10 +469,12 @@ mod tests {
             Protocol::Tcp,    // tcp
             Protocol::Socket, // socket
             Protocol::Http,   // http
+            Protocol::Https,  // https
             Protocol::Stdio,  // stdio
             Protocol::Tcp,    // TCP (case-insensitive)
             Protocol::Socket, // SOCKET (case-insensitive)
             Protocol::Http,   // HTTP (case-insensitive)
+            Protocol::Https,  // HTTPS (case-insensitive)
             Protocol::Stdio,  // STDIO (case-insensitive)
             Protocol::Stdio,  // unknown (defaults to Stdio)
         ];
