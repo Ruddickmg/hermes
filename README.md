@@ -1,6 +1,6 @@
 # Hermes
 
-[![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=ff69b4)](https://github.com/sponsors/Ruddickmg)
+[![❤️ Support this project](https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge&logo=github)](https://github.com/sponsors/Ruddickmg) [![codecov](https://codecov.io/gh/Ruddickmg/hermes.nvim/branch/main/graph/badge.svg)](https://codecov.io/gh/Ruddickmg/hermes.nvim)
 
 An [ACP (Agent Client Protocol)](https://agentclientprotocol.com) client designed for integration with Neovim. 
 
@@ -2329,6 +2329,14 @@ Run the health check to see full diagnostics including Neovim version, binary st
 ```
 :checkhealth hermes
 ```
+
+## ❤️ Support
+
+Hermes is free and open source. If you find it useful, please consider supporting its development:
+
+- [GitHub Sponsors](https://github.com/sponsors/Ruddickmg)
+- [Patreon](https://patreon.com/Ruddickmg)
+- [thanks.dev](https://thanks.dev/u/gh/Ruddickmg)
 
 ## TODO:
 
