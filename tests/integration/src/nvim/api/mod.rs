@@ -5,9 +5,11 @@
 //!
 //! See request/handler.rs for examples of actual integration tests.
 
+pub mod configure_model;
 pub mod delete_session;
 pub mod load_session;
 pub mod logout;
+pub mod model_configurations;
 pub mod models;
 pub mod modes;
 pub mod set_mode;
