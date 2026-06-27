@@ -20,6 +20,7 @@ Hermes focuses on:
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
 - [x] Neovim 0.12 progress integration via `nvim_echo` with `kind="progress"`
+- [x] Communication over Stdio and Tcp Protocols
 
 ## Installation
 
@@ -2341,12 +2342,9 @@ Hermes is free and open source. If you find it useful, please consider supportin
 ## TODO:
 
 -- functionality
-- [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
 - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
 - [x] Allow connecting to Agents
-  - [x] Via stdio
   - [ ] Via http
-  - [x] Via tcp socket
   - [ ] Via unix socket
 - [ ] Support "unstable"/proposed ACP methods
   - [ ] authentication
@@ -2357,6 +2355,8 @@ Hermes is free and open source. If you find it useful, please consider supportin
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
+  - [ ] [Configurable LLM Providers](https://agentclientprotocol.com/rfds/custom-llm-endpoint)
+  - [ ] [Plan Operations Support](https://agentclientprotocol.com/rfds/plan-operations)
 
 -- nice to haves
 - [ ] look into ways of improving ai integration
