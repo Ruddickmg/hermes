@@ -266,10 +266,19 @@ mod tests {
     fn terminal_manager_kill_returns_ok_for_existing_terminal() {
         let mut manager = TerminalManager::default();
         let terminal = MockTerminal::new("term-1", "");
-        manager.initialize_terminal("term-1".to_string(), terminal.clone());
+        manager.initialize_terminal("term-1".to_string(), terminal);
 
         let result = manager.kill("term-1");
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn terminal_manager_kill_marks_terminal_killed() {
+        let mut manager = TerminalManager::default();
+        let terminal = MockTerminal::new("term-1", "");
+        manager.initialize_terminal("term-1".to_string(), terminal.clone());
+
+        let _ = manager.kill("term-1");
         assert!(*terminal.killed.borrow());
     }
 
