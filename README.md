@@ -2341,19 +2341,17 @@ Hermes is free and open source. If you find it useful, please consider supportin
 ## TODO:
 
 -- functionality
+- [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
+- [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
 - [x] Allow connecting to Agents
   - [x] Via stdio
   - [ ] Via http
   - [x] Via tcp socket
   - [ ] Via unix socket
 - [ ] Support "unstable"/proposed ACP methods
-  - [x] [Handle message Ids](https://agentclientprotocol.com/rfds/message-id)
-  - [ ] model
-    - [ ] [configuration](https://agentclientprotocol.com/rfds/model-config-category)
   - [ ] authentication
     - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
   - [ ] session
-    - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
     - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
   - [ ] [ACP over MCP](https://agentclientprotocol.com/rfds/mcp-over-acp)
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
@@ -2361,9 +2359,6 @@ Hermes is free and open source. If you find it useful, please consider supportin
   - [ ] ["elicitation"](https://agentclientprotocol.com/rfds/elicitation)
 
 -- nice to haves
-- [ ] quickfix list integration
-  - [ ] add files updated by agent to quickfix list 
-  - [ ] add references made by agent to quickfix list
 - [ ] look into ways of improving ai integration
   - [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
   - [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)
