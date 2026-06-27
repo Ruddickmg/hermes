@@ -237,6 +237,7 @@ impl Api {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use proptest::prelude::*;
 
     // Strategy for generating agent names
@@ -557,6 +558,18 @@ mod tests {
         let result = ConnectionOptions::from_object(Object::from(dict));
         let opts = result.unwrap();
         assert_eq!(opts.host.as_deref(), Some("localhost"));
+    }
+
+    #[test]
+    fn connection_options_from_object_with_path() {
+        let mut dict = Dictionary::new();
+        dict.insert("protocol", "http");
+        dict.insert("host", "localhost");
+        dict.insert("port", 8080i64);
+        dict.insert("path", "/v1/acp");
+        let result = ConnectionOptions::from_object(Object::from(dict));
+        let opts = result.unwrap();
+        assert_eq!(opts.path.as_deref(), Some("/v1/acp"));
     }
 
     #[test]

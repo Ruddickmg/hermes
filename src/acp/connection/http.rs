@@ -14,20 +14,14 @@ use crate::{
 };
 use agent_client_protocol::Lines;
 use async_channel::Receiver;
-use async_tungstenite::tungstenite::Message;
+use async_tungstenite::tungstenite::{Bytes, Error as WsError, Message};
 use futures::{Stream, StreamExt};
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument};
 
-/// Converts a `WebSocketReceiver` into a `Stream<Item = io::Result<String>>`
-/// by extracting text messages and mapping errors.
-fn ws_text_stream<S>(
-    ws_receiver: async_tungstenite::WebSocketReceiver<S>,
-) -> impl Stream<Item = std::io::Result<String>> + Send + 'static
-where
-    S: futures::AsyncRead + futures::AsyncWrite + Unpin + Send + 'static,
-{
-    ws_receiver.map(|msg| match msg {
+/// Maps a single WebSocket message into an `io::Result<String>`.
+fn map_ws_message(msg: Result<Message, WsError>) -> std::io::Result<String> {
+    match msg {
         Ok(Message::Text(text)) => Ok(text.to_string()),
         Ok(Message::Close(_)) => Err(std::io::Error::new(
             std::io::ErrorKind::ConnectionAborted,
@@ -41,7 +35,18 @@ where
             ))
         }
         Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
-    })
+    }
+}
+
+/// Converts a `WebSocketReceiver` into a `Stream<Item = io::Result<String>>`
+/// by extracting text messages and mapping errors.
+fn ws_text_stream<S>(
+    ws_receiver: async_tungstenite::WebSocketReceiver<S>,
+) -> impl Stream<Item = std::io::Result<String>> + Send + 'static
+where
+    S: futures::AsyncRead + futures::AsyncWrite + Unpin + Send + 'static,
+{
+    ws_receiver.map(map_ws_message)
 }
 
 #[instrument(level = "trace", skip(client, request_receiver))]
@@ -176,5 +181,33 @@ mod tests {
                 .to_string()
                 .contains("HTTP protocol requires a CustomUrl assistant")
         );
+    }
+
+    #[test]
+    fn map_ws_message_text_returns_ok() {
+        let result = map_ws_message(Ok(Message::Text("hello".into())));
+        assert_eq!(result.unwrap(), "hello");
+    }
+
+    #[test]
+    fn map_ws_message_close_returns_connection_aborted() {
+        let result = map_ws_message(Ok(Message::Close(None)));
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::ConnectionAborted);
+    }
+
+    #[test]
+    fn map_ws_message_binary_returns_invalid_data() {
+        let result = map_ws_message(Ok(Message::Binary(Bytes::from(vec![1u8, 2, 3]))));
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn map_ws_message_error_returns_other() {
+        let ws_err = WsError::from(std::io::Error::new(std::io::ErrorKind::Other, "test error"));
+        let result = map_ws_message(Err(ws_err));
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::Other);
     }
 }
