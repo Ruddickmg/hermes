@@ -1,6 +1,6 @@
-# Hermes
-
 [![❤️ Support this project](https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge)](https://github.com/sponsors/Ruddickmg) [![codecov](https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov)](https://codecov.io/gh/Ruddickmg/hermes.nvim)
+
+# Hermes
 
 An [ACP (Agent Client Protocol)](https://agentclientprotocol.com) client designed for integration with Neovim. 
 
