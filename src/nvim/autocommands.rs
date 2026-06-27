@@ -29,6 +29,8 @@ pub enum Commands {
     Authenticated,
     LoggedOut,
     ConfigurationUpdated,
+    ModelConfigurations,
+    ModelConfigurationUpdated,
     ModeUpdated,
     SessionLoaded,
     SessionsListed,
@@ -97,6 +99,8 @@ impl TryFrom<&str> for Commands {
             "Authenticated" => Ok(Commands::Authenticated),
             "LoggedOut" => Ok(Commands::LoggedOut),
             "ConfigurationUpdated" => Ok(Commands::ConfigurationUpdated),
+            "ModelConfigurations" => Ok(Commands::ModelConfigurations),
+            "ModelConfigurationUpdated" => Ok(Commands::ModelConfigurationUpdated),
             "ModeUpdated" => Ok(Commands::ModeUpdated),
             "SessionLoaded" => Ok(Commands::SessionLoaded),
             "SessionsListed" => Ok(Commands::SessionsListed),
@@ -589,6 +593,22 @@ mod tests {
         assert_eq!(
             Commands::try_from("AgentList").unwrap(),
             Commands::AgentList
+        );
+    }
+
+    #[test]
+    fn test_commands_model_configurations() {
+        assert_eq!(
+            Commands::try_from("ModelConfigurations").unwrap(),
+            Commands::ModelConfigurations
+        );
+    }
+
+    #[test]
+    fn test_commands_model_configuration_updated() {
+        assert_eq!(
+            Commands::try_from("ModelConfigurationUpdated").unwrap(),
+            Commands::ModelConfigurationUpdated
         );
     }
 }

@@ -2,6 +2,7 @@ pub mod agents;
 pub mod authenticate;
 pub mod cancel;
 pub mod close_session;
+pub mod configure_model;
 pub mod connect;
 pub mod create_session;
 pub mod delete_session;
@@ -10,6 +11,7 @@ pub mod list_sessions;
 pub mod load_session;
 pub mod logout;
 pub mod mcp_servers;
+pub mod model_configurations;
 pub mod models;
 pub mod modes;
 pub mod prompt;
@@ -27,6 +29,7 @@ use std::{cell::RefCell, rc::Rc};
 use super::requests::Requests;
 pub use agents::*;
 use async_lock::Mutex;
+pub use configure_model::*;
 pub use connect::*;
 pub use create_session::*;
 pub use delete_session::*;
@@ -34,6 +37,7 @@ pub use disconnect::*;
 pub use list_sessions::*;
 pub use load_session::*;
 pub use logout::*;
+pub use model_configurations::*;
 pub use models::*;
 pub use modes::*;
 use nvim_oxi::{
@@ -194,6 +198,20 @@ impl Hermes {
         })
     }
 
+    fn model_configurations_method(&self) -> Object {
+        self.api_method(|api: Rc<RefCell<Api>>, session_id: String| async move {
+            api.try_borrow()?.model_configurations(session_id).await
+        })
+    }
+
+    fn configure_model_method(&self) -> Object {
+        self.api_method(
+            |api: Rc<RefCell<Api>>, args: ConfigureModelArgs| async move {
+                api.try_borrow()?.configure_model(args).await
+            },
+        )
+    }
+
     fn set_mode_method(&self) -> Object {
         self.api_method(|api: Rc<RefCell<Api>>, args: SetModeArgs| async move {
             api.try_borrow()?.set_mode(args).await
@@ -255,6 +273,8 @@ impl From<Hermes> for Dictionary {
             ("resume_session", hermes.resume_session_method()),
             ("modes", hermes.modes_method()),
             ("models", hermes.models_method()),
+            ("model_configurations", hermes.model_configurations_method()),
+            ("configure_model", hermes.configure_model_method()),
             ("authenticate", hermes.authenticate_method()),
             ("set_mode", hermes.set_mode_method()),
             ("set_model", hermes.set_model_method()),

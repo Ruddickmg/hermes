@@ -178,6 +178,26 @@
 ---@field name string Human-readable name
 ---@field description? string Optional description
 ---@field group? string Optional group name
+
+---@class SelectionOption
+---@field value string Option ID
+---@field name string Human-readable name
+---@field description? string Optional description
+---@field group? string Optional group name
+
+---@class ModelConfigSelection
+---@field options SelectionOption[] Available values
+---@field current SelectionOption Currently selected value
+
+---@class ModelConfigOption
+---@field id string Config option ID
+---@field name string Human-readable name
+---@field description? string Optional description
+---@field selection ModelConfigSelection Current selection and available options
+
+---@class ConfigureModelConfig
+---@field id string Config option ID to set
+---@field value string Value to set
 -- luacov: enable
 
 local M = {}
@@ -730,6 +750,23 @@ end
 function M.thought_levels(session_id)
 	return execute_async(function()
 		return M._load_native_sync().thought_levels(session_id)
+	end)
+end
+
+---Get available model configuration options for a session
+---@param session_id string Session ID
+function M.model_configurations(session_id)
+	return execute_async(function()
+		return M._load_native_sync().model_configurations(session_id)
+	end)
+end
+
+---Configure a model option for a session
+---@param session_id string Session ID
+---@param config ConfigureModelConfig Table with `id` and `value` keys
+function M.configure_model(session_id, config)
+	execute_async(function()
+		M._load_native_sync().configure_model(session_id, config)
 	end)
 end
 

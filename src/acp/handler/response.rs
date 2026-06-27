@@ -1,7 +1,7 @@
 use agent_client_protocol::schema::v1::{
     AuthenticateResponse, CloseSessionResponse, DeleteSessionResponse, ExtResponse,
     ForkSessionResponse, InitializeResponse, ListSessionsResponse, LoadSessionResponse,
-    LogoutResponse, NewSessionResponse, PromptResponse, ResumeSessionResponse,
+    LogoutResponse, NewSessionResponse, PromptResponse, ResumeSessionResponse, SessionConfigOption,
     SessionConfigOptionCategory, SetSessionConfigOptionResponse, SetSessionModeResponse,
 };
 use serde::Serialize;
@@ -104,6 +104,9 @@ impl Handler {
         updated: &str,
         response: SetSessionConfigOptionResponse,
     ) -> Result<(), Error> {
+        let model_config_options = response.config_options.clone();
+        let model_config_ref = &model_config_options;
+
         let futures = response
             .config_options
             .iter()
@@ -118,6 +121,10 @@ impl Handler {
                 }
                 SessionConfigOptionCategory::ThoughtLevel => {
                     self.session_thought_level_set(session_id, updated).await
+                }
+                SessionConfigOptionCategory::ModelConfig => {
+                    self.session_model_config_set(session_id, model_config_ref)
+                        .await
                 }
                 _ => Ok(()),
             })
@@ -204,6 +211,30 @@ impl Handler {
                     updated_to, session_id
                 )))
             }
+        } else {
+            drop(state);
+            Err(Error::SessionNotFound(session_id.to_string()))
+        }
+    }
+
+    pub async fn session_model_config_set(
+        &self,
+        session_id: &str,
+        config_options: &[SessionConfigOption],
+    ) -> Result<(), Error> {
+        let model_configs =
+            crate::acp::session_info::SessionDetails::parse_model_configs_from_options(
+                config_options,
+            );
+
+        let mut state = self.state.lock().await;
+        let session_info = state.get_session_info_mut(session_id);
+        if let Some(session) = session_info {
+            session.merge_or_replace_model_configs(model_configs);
+            let merged = session.model_configs.clone();
+            drop(state);
+            self.execute_autocommand(Commands::ModelConfigurationUpdated, merged)
+                .await
         } else {
             drop(state);
             Err(Error::SessionNotFound(session_id.to_string()))
