@@ -7,13 +7,13 @@ pub mod response;
 use crate::helpers::{MockRequestHandler, mock_runtime};
 use agent_client_protocol::{
     Error,
-    schema::{
+    schema::ProtocolVersion,
+    schema::v1::{
         AgentCapabilities, ContentBlock, ContentChunk, InitializeResponse, LoadSessionResponse,
-        NewSessionResponse, ProtocolVersion, ResumeSessionResponse, SessionCapabilities,
-        SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode,
-        SessionModeState, SessionNotification, SessionResumeCapabilities, SessionUpdate,
-        SetSessionConfigOptionResponse, SetSessionModeResponse, SetSessionModelResponse,
-        TextContent, UsageUpdate,
+        NewSessionResponse, ResumeSessionResponse, SessionCapabilities, SessionConfigOption,
+        SessionConfigOptionCategory, SessionConfigSelectOption, SessionMode, SessionModeState,
+        SessionNotification, SessionResumeCapabilities, SessionUpdate,
+        SetSessionConfigOptionResponse, SetSessionModeResponse, TextContent, UsageUpdate,
     },
 };
 use async_lock::Mutex;
@@ -171,7 +171,7 @@ fn test_set_agent_info_updates_agent_information() -> nvim_oxi::Result<()> {
     .expect("Handler creation should succeed");
 
     let agent = hermes::acp::connection::Assistant::from("test-agent");
-    let info = agent_client_protocol::schema::InitializeResponse::new(
+    let info = agent_client_protocol::schema::v1::InitializeResponse::new(
         agent_client_protocol::schema::ProtocolVersion::LATEST,
     );
 
@@ -234,7 +234,7 @@ fn test_can_receive_notifications_returns_false_when_disabled() -> nvim_oxi::Res
 fn test_execute_autocommand_request_sends_with_responder() -> nvim_oxi::Result<()> {
     // Test execute_autocommand_request with a responder - covers lines 207-208
     // This sends an autocommand with response_data, triggering the full flow
-    use agent_client_protocol::schema::WriteTextFileResponse;
+    use agent_client_protocol::schema::v1::WriteTextFileResponse;
     use hermes::nvim::requests::Responder;
     use std::sync::Arc;
 
@@ -249,8 +249,8 @@ fn test_execute_autocommand_request_sends_with_responder() -> nvim_oxi::Result<(
     let (sender, _receiver) = async_channel::bounded::<WriteTextFileResponse>(1);
     let responder = Responder::WriteFileResponse(
         sender,
-        agent_client_protocol::schema::WriteTextFileRequest::new(
-            agent_client_protocol::schema::SessionId::from("test-session"),
+        agent_client_protocol::schema::v1::WriteTextFileRequest::new(
+            agent_client_protocol::schema::v1::SessionId::from("test-session"),
             std::path::Path::new("/tmp/test.txt"),
             "test content",
         ),
@@ -274,7 +274,7 @@ fn test_no_listener_with_request_triggers_default_response_error_path() -> nvim_
     // Test lines 71-78: "No listener but has request" error handling path
     // This triggers when no autocommand listener is attached but a request is provided
     // AND when default_response fails (to trigger the error! at lines 74-77)
-    use agent_client_protocol::schema::WriteTextFileResponse;
+    use agent_client_protocol::schema::v1::WriteTextFileResponse;
     use hermes::nvim::requests::{RequestHandler, Responder};
     use std::sync::Arc;
     use uuid::Uuid;
@@ -330,8 +330,8 @@ fn test_no_listener_with_request_triggers_default_response_error_path() -> nvim_
     let (sender, _receiver) = async_channel::bounded::<WriteTextFileResponse>(1);
     let responder = Responder::WriteFileResponse(
         sender,
-        agent_client_protocol::schema::WriteTextFileRequest::new(
-            agent_client_protocol::schema::SessionId::from("test-session"),
+        agent_client_protocol::schema::v1::WriteTextFileRequest::new(
+            agent_client_protocol::schema::v1::SessionId::from("test-session"),
             std::path::Path::new("/tmp/test.txt"),
             "test content",
         ),
@@ -356,7 +356,7 @@ fn test_no_listener_with_request_triggers_default_response_error_path() -> nvim_
 #[nvim_oxi::test]
 fn test_no_listener_with_request_logs_default_response_error() -> nvim_oxi::Result<()> {
     // Test error logging at lines 74-77 when default_response fails
-    use agent_client_protocol::schema::WriteTextFileResponse;
+    use agent_client_protocol::schema::v1::WriteTextFileResponse;
     use hermes::nvim::requests::{RequestHandler, Responder};
     use std::sync::Arc;
     use uuid::Uuid;
@@ -408,8 +408,8 @@ fn test_no_listener_with_request_logs_default_response_error() -> nvim_oxi::Resu
     let (sender, _receiver) = async_channel::bounded::<WriteTextFileResponse>(1);
     let responder = Responder::WriteFileResponse(
         sender,
-        agent_client_protocol::schema::WriteTextFileRequest::new(
-            agent_client_protocol::schema::SessionId::from("test-session"),
+        agent_client_protocol::schema::v1::WriteTextFileRequest::new(
+            agent_client_protocol::schema::v1::SessionId::from("test-session"),
             std::path::Path::new("/tmp/test.txt"),
             "test content",
         ),
@@ -879,6 +879,34 @@ fn config_option_set_with_other_category_succeeds() -> nvim_oxi::Result<()> {
 }
 
 #[nvim_oxi::test]
+fn session_loaded_stores_model_config_options_info() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let option = SessionConfigOption::select(
+        "model",
+        "Model",
+        "gpt4",
+        vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+    )
+    .category(SessionConfigOptionCategory::Model);
+    let response = LoadSessionResponse::default().config_options(vec![option]);
+
+    smol::block_on(handler.session_loaded("test-session".to_string(), response))?;
+
+    let state_guard = smol::block_on(state.lock());
+    let details = state_guard.session_info.get("test-session").unwrap();
+    assert_eq!(details.model_is_legacy(), Some(false));
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
 fn session_mode_set_mode_not_found() -> nvim_oxi::Result<()> {
     let state = Arc::new(Mutex::new(PluginState::default()));
     let handler = Handler::new(
@@ -962,15 +990,44 @@ fn session_model_set_model_not_found() -> nvim_oxi::Result<()> {
         state.lock().await.set_session_info(&session);
     });
 
-    let result = smol::block_on(handler.session_model_set(
-        "test-session",
-        "nonexistent",
-        SetSessionModelResponse::default(),
-    ));
+    let result = smol::block_on(handler.session_model_set("test-session", "nonexistent"));
 
     assert!(
         matches!(result, Err(hermes::acp::error::Error::Internal(_))),
         "Should return Internal error when model not in selection"
+    );
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn session_model_set_succeeds() -> nvim_oxi::Result<()> {
+    let state = Arc::new(Mutex::new(PluginState::default()));
+    let handler = Handler::new(
+        state.clone(),
+        mock_runtime(),
+        Rc::new(MockRequestHandler::new()),
+    )
+    .expect("Handler creation should succeed");
+
+    let session = NewSessionResponse::new("test-session").config_options(vec![
+        SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model),
+    ]);
+    smol::block_on(async {
+        state.lock().await.set_session_info(&session);
+    });
+
+    let result = smol::block_on(handler.session_model_set("test-session", "gpt4"));
+
+    assert!(
+        result.is_ok(),
+        "session_model_set should succeed when model exists"
     );
 
     Ok(())
@@ -986,11 +1043,7 @@ fn session_model_set_session_not_found() -> nvim_oxi::Result<()> {
     )
     .expect("Handler creation should succeed");
 
-    let result = smol::block_on(handler.session_model_set(
-        "nonexistent-session",
-        "gpt4",
-        SetSessionModelResponse::default(),
-    ));
+    let result = smol::block_on(handler.session_model_set("nonexistent-session", "gpt4"));
 
     assert!(
         matches!(result, Err(hermes::acp::error::Error::SessionNotFound(_))),
@@ -1329,7 +1382,7 @@ fn handler_callback_sends_default_response_when_no_listener() -> nvim_oxi::Resul
     // Dummy sender – the mock default_response returns Ok without sending,
     // but the callback branch itself is what we want to exercise for coverage.
     let (sender, _receiver) =
-        async_channel::bounded::<agent_client_protocol::schema::RequestPermissionOutcome>(1);
+        async_channel::bounded::<agent_client_protocol::schema::v1::RequestPermissionOutcome>(1);
 
     let executor = smol::LocalExecutor::new();
     smol::block_on(executor.run(async {

@@ -80,14 +80,6 @@ async fn dispatch(
                 .session_resumed(session_id.to_string(), response)
                 .await?;
         }
-        UserRequest::SetSessionModel(request) => {
-            let session_id = request.session_id.to_string();
-            let model = request.model_id.to_string();
-            let response = cx.send_request(request).block_task().await?;
-            client
-                .session_model_set(&session_id, &model, response)
-                .await?;
-        }
         UserRequest::CloseSession(request) => {
             let session_id = request.session_id.to_string();
             let response = cx.send_request(request).block_task().await?;

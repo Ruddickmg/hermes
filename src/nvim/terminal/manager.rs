@@ -155,7 +155,7 @@ mod tests {
             Ok(1) // Return a mock job ID
         }
 
-        fn from_request(_data: agent_client_protocol::schema::CreateTerminalRequest) -> Self {
+        fn from_request(_data: agent_client_protocol::schema::v1::CreateTerminalRequest) -> Self {
             Self::new("550e8400-e29b-41d4-a716-446655440000", "")
         }
 
@@ -260,5 +260,32 @@ mod tests {
     fn terminal_manager_default_creates_empty_manager() {
         let manager: TerminalManager<MockTerminal> = TerminalManager::default();
         assert!(manager.get_terminal("any-id").is_none());
+    }
+
+    #[test]
+    fn terminal_manager_kill_returns_ok_for_existing_terminal() {
+        let mut manager = TerminalManager::default();
+        let terminal = MockTerminal::new("term-1", "");
+        manager.initialize_terminal("term-1".to_string(), terminal);
+
+        let result = manager.kill("term-1");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn terminal_manager_kill_marks_terminal_killed() {
+        let mut manager = TerminalManager::default();
+        let terminal = MockTerminal::new("term-1", "");
+        manager.initialize_terminal("term-1".to_string(), terminal.clone());
+
+        let _ = manager.kill("term-1");
+        assert!(*terminal.killed.borrow());
+    }
+
+    #[test]
+    fn terminal_manager_kill_returns_error_for_missing_terminal() {
+        let manager: TerminalManager<MockTerminal> = TerminalManager::default();
+        let result = manager.kill("nonexistent");
+        assert!(result.is_err());
     }
 }

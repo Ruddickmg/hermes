@@ -7,7 +7,7 @@ use crate::{
         test_helpers::connect_to_mock_agent,
     },
 };
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     InitializeResponse, NewSessionResponse, PermissionOption, SessionId, ToolCallUpdate,
 };
 use hermes::{

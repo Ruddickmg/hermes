@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     InitializeResponse, NewSessionResponse, PromptResponse, StopReason,
 };
 use hermes::{

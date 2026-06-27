@@ -6,7 +6,7 @@ use crate::{
     },
     api::Api,
 };
-use agent_client_protocol::schema::LogoutRequest;
+use agent_client_protocol::schema::v1::LogoutRequest;
 use futures::future;
 use nvim_oxi::{
     Object, ObjectKind,

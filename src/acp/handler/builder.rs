@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use agent_client_protocol::{
     self as acp, Client, ConnectionTo, Responder, on_receive_notification, on_receive_request,
-    schema::{
+    schema::v1::{
         CreateTerminalRequest, CreateTerminalResponse, ReadTextFileRequest, ReadTextFileResponse,
         ReleaseTerminalRequest, ReleaseTerminalResponse, RequestPermissionRequest,
         RequestPermissionResponse, SessionNotification, TerminalOutputRequest,

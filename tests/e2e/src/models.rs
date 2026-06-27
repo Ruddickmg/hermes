@@ -7,9 +7,9 @@ use crate::{
         test_helpers::connect_to_mock_agent,
     },
 };
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     InitializeResponse, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
-    SessionConfigSelectOption, SessionModelState,
+    SessionConfigSelectOption,
 };
 use hermes::{
     acp::session_info::{HermesOption, Selection},
@@ -68,9 +68,15 @@ fn test_models_returns_legacy_models() -> Result<(), nvim_oxi::Error> {
     let (agent, conn_rx) = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
-        let model = agent_client_protocol::schema::ModelInfo::new("gpt4", "GPT-4");
-        let models = SessionModelState::new("gpt4", vec![model]);
-        config.new_session_response = NewSessionResponse::new(generate_session_id()).models(models);
+        let option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+        config.new_session_response =
+            NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
     }
     let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
 
