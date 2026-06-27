@@ -271,6 +271,7 @@ jobs:
             # Generate versioned rockspec (includes "lib" in copy_directories for binary rocks)
             SED_EXPR="s/scm-1/${VERSION}-1/g; /branch = \"main\"/d; s|git+https://github.com/Ruddickmg/hermes.nvim.git|https://github.com/Ruddickmg/hermes.nvim/archive/refs/tags/v${VERSION}.tar.gz|"
             sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec
+            sed -i "/url = \"https:.*archive.*tar\.gz\"/a\\  dir = \"hermes.nvim-v${VERSION}\"," /tmp/hermes.nvim-${VERSION}-1.rockspec
 
             # Publish source rock (remove "lib" since source tarball has no binary)
             sed -i '/"lib",/d' /tmp/hermes.nvim-${VERSION}-1.rockspec
@@ -279,6 +280,7 @@ jobs:
 
             # Re-generate full rockspec with "lib" for binary rock packaging
             sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec
+            sed -i "/url = \"https:.*archive.*tar\.gz\"/a\\  dir = \"hermes.nvim-v${VERSION}\"," /tmp/hermes.nvim-${VERSION}-1.rockspec
 
             # Publish binary rocks for each platform
             for ext in so dylib dll; do
