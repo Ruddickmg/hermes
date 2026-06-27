@@ -96,7 +96,12 @@ fn build_url(protocol: Protocol, agent: &Assistant) -> Result<String, Error> {
         } => {
             let mut url = format!("{}://{}:{}", scheme, host, port);
             if let Some(path) = path {
-                url.push_str(path);
+                if path.starts_with('/') {
+                    url.push_str(path);
+                } else {
+                    url.push('/');
+                    url.push_str(path);
+                }
             }
             Ok(url)
         }
