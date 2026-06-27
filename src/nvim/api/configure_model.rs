@@ -1,7 +1,7 @@
 use nvim_oxi::{
     Dictionary, Object,
     conversion::{Error as ConversionError, FromObject},
-    lua::Poppable,
+    lua::{Poppable, Pushable},
 };
 use tracing::error;
 
@@ -14,7 +14,7 @@ use crate::{
 pub type ConfigureModelArgs = (String, ConfigureModelConfig);
 
 /// Table with `id` and `value` keys for configuring a model option.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ConfigureModelConfig {
     pub id: String,
     pub value: String,
@@ -57,6 +57,18 @@ impl Poppable for ConfigureModelConfig {
     }
 }
 
+impl Pushable for ConfigureModelConfig {
+    unsafe fn push(
+        self,
+        lua_state: *mut nvim_oxi::lua::ffi::State,
+    ) -> std::result::Result<i32, nvim_oxi::lua::Error> {
+        let mut dict = Dictionary::new();
+        dict.insert("id", self.id);
+        dict.insert("value", self.value);
+        unsafe { Object::from(dict).push(lua_state) }
+    }
+}
+
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]
     pub async fn configure_model(&self, (session_id, config): ConfigureModelArgs) -> Result<()> {
@@ -94,5 +106,51 @@ impl Api {
             .await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn configure_model_config_from_object_valid() {
+        let mut dict = Dictionary::new();
+        dict.insert("id", "model-opt");
+        dict.insert("value", "new-value");
+        let obj = Object::from(dict);
+
+        let result = ConfigureModelConfig::from_object(obj);
+
+        assert_eq!(
+            result,
+            Ok(ConfigureModelConfig {
+                id: "model-opt".to_string(),
+                value: "new-value".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn configure_model_config_from_object_missing_id() {
+        let mut dict = Dictionary::new();
+        dict.insert("value", "new-value");
+        let obj = Object::from(dict);
+
+        let result = ConfigureModelConfig::from_object(obj);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn configure_model_config_from_object_missing_value() {
+        let mut dict = Dictionary::new();
+        dict.insert("id", "model-opt");
+        let obj = Object::from(dict);
+
+        let result = ConfigureModelConfig::from_object(obj);
+
+        assert!(result.is_err());
     }
 }

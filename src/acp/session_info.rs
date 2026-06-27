@@ -12,7 +12,7 @@ pub struct HermesOption {
     pub group: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 pub struct Selection {
     pub options: Vec<HermesOption>,
     pub current: HermesOption,
@@ -20,7 +20,7 @@ pub struct Selection {
     legacy: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ModelConfigOption {
     pub id: String,
     pub name: String,
@@ -615,5 +615,330 @@ mod tests {
         let session = NewSessionResponse::new("test-session");
         let details = SessionDetails::new(&session);
         assert!(details.model_is_legacy().is_none());
+    }
+
+    // Model config tests
+
+    fn model_config_option(id: &str, name: &str, current: &str) -> SessionConfigOption {
+        SessionConfigOption::select(
+            id.to_string(),
+            name.to_string(),
+            current.to_string(),
+            vec![SessionConfigSelectOption::new(
+                current.to_string(),
+                name.to_string(),
+            )],
+        )
+        .category(SessionConfigOptionCategory::ModelConfig)
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_filters_by_category() {
+        let model_conf = model_config_option("mc-1", "MC One", "val1");
+        let model_option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+
+        let result = SessionDetails::parse_model_configs_from_options(&[model_conf, model_option]);
+
+        assert_eq!(
+            result,
+            vec![ModelConfigOption {
+                id: "mc-1".to_string(),
+                name: "MC One".to_string(),
+                description: None,
+                selection: Selection {
+                    options: vec![HermesOption {
+                        value: "val1".to_string(),
+                        name: "MC One".to_string(),
+                        description: None,
+                        group: None,
+                    }],
+                    current: HermesOption {
+                        value: "val1".to_string(),
+                        name: "MC One".to_string(),
+                        description: None,
+                        group: None,
+                    },
+                    legacy: false,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_empty_options() {
+        let result = SessionDetails::parse_model_configs_from_options(&[]);
+
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_no_model_config_category() {
+        let option = SessionConfigOption::select(
+            "model",
+            "Model",
+            "gpt4",
+            vec![SessionConfigSelectOption::new("gpt4", "GPT-4")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+
+        let result = SessionDetails::parse_model_configs_from_options(&[option]);
+
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_parses_ungrouped_options() {
+        let option = SessionConfigOption::select(
+            "mc-1",
+            "MC One",
+            "val1",
+            vec![SessionConfigSelectOption::new("val1", "Value 1")],
+        )
+        .category(SessionConfigOptionCategory::ModelConfig);
+
+        let result = SessionDetails::parse_model_configs_from_options(&[option]);
+
+        assert_eq!(
+            result,
+            vec![ModelConfigOption {
+                id: "mc-1".to_string(),
+                name: "MC One".to_string(),
+                description: None,
+                selection: Selection {
+                    options: vec![HermesOption {
+                        value: "val1".to_string(),
+                        name: "Value 1".to_string(),
+                        description: None,
+                        group: None,
+                    }],
+                    current: HermesOption {
+                        value: "val1".to_string(),
+                        name: "Value 1".to_string(),
+                        description: None,
+                        group: None,
+                    },
+                    legacy: false,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_parses_grouped_options() {
+        let group = SessionConfigSelectGroup::new(
+            "g1",
+            "Group One",
+            vec![SessionConfigSelectOption::new("val1", "Value 1")],
+        );
+        let option = SessionConfigOption::new(
+            "mc-1",
+            "MC One",
+            agent_client_protocol::schema::v1::SessionConfigKind::Select(
+                agent_client_protocol::schema::v1::SessionConfigSelect::new("val1", vec![group]),
+            ),
+        )
+        .category(SessionConfigOptionCategory::ModelConfig);
+
+        let result = SessionDetails::parse_model_configs_from_options(&[option]);
+
+        assert_eq!(
+            result,
+            vec![ModelConfigOption {
+                id: "mc-1".to_string(),
+                name: "MC One".to_string(),
+                description: None,
+                selection: Selection {
+                    options: vec![HermesOption {
+                        value: "val1".to_string(),
+                        name: "Value 1".to_string(),
+                        description: None,
+                        group: Some("Group One".to_string()),
+                    }],
+                    current: HermesOption {
+                        value: "val1".to_string(),
+                        name: "Value 1".to_string(),
+                        description: None,
+                        group: Some("Group One".to_string()),
+                    },
+                    legacy: false,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_current_value_preserved() {
+        let option = SessionConfigOption::select(
+            "mc-1",
+            "MC One",
+            "val2",
+            vec![
+                SessionConfigSelectOption::new("val1", "Value 1"),
+                SessionConfigSelectOption::new("val2", "Value 2"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ModelConfig);
+
+        let result = SessionDetails::parse_model_configs_from_options(&[option]);
+
+        assert_eq!(result[0].selection.current.value, "val2");
+    }
+
+    #[test]
+    fn parse_model_configs_from_options_unknown_category_returns_empty() {
+        let option = SessionConfigOption::select(
+            "mc-1",
+            "MC One",
+            "val1",
+            vec![SessionConfigSelectOption::new("val1", "Value 1")],
+        )
+        .category(SessionConfigOptionCategory::Model);
+
+        let result = SessionDetails::parse_model_configs_from_options(&[option]);
+
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn session_details_new_populates_model_configs() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+
+        let details = SessionDetails::new(&session);
+
+        assert_eq!(
+            details.model_configs,
+            vec![ModelConfigOption {
+                id: "mc-1".to_string(),
+                name: "MC One".to_string(),
+                description: None,
+                selection: Selection {
+                    options: vec![HermesOption {
+                        value: "val1".to_string(),
+                        name: "MC One".to_string(),
+                        description: None,
+                        group: None,
+                    }],
+                    current: HermesOption {
+                        value: "val1".to_string(),
+                        name: "MC One".to_string(),
+                        description: None,
+                        group: None,
+                    },
+                    legacy: false,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn model_config_options_returns_configs() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let details = SessionDetails::new(&session);
+
+        assert_eq!(
+            details.model_config_options(),
+            &[ModelConfigOption {
+                id: "mc-1".to_string(),
+                name: "MC One".to_string(),
+                description: None,
+                selection: Selection {
+                    options: vec![HermesOption {
+                        value: "val1".to_string(),
+                        name: "MC One".to_string(),
+                        description: None,
+                        group: None,
+                    }],
+                    current: HermesOption {
+                        value: "val1".to_string(),
+                        name: "MC One".to_string(),
+                        description: None,
+                        group: None,
+                    },
+                    legacy: false,
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn model_config_options_returns_empty_when_none() {
+        let session = NewSessionResponse::new("test-session");
+        let details = SessionDetails::new(&session);
+
+        let configs = details.model_config_options();
+
+        assert!(configs.is_empty());
+    }
+
+    #[test]
+    fn get_model_config_returns_some_for_existing_id() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let details = SessionDetails::new(&session);
+
+        let config = details.get_model_config("mc-1");
+
+        assert_eq!(config.map(|c| c.id.as_str()), Some("mc-1"));
+    }
+
+    #[test]
+    fn get_model_config_returns_none_for_missing_id() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let details = SessionDetails::new(&session);
+
+        let config = details.get_model_config("nonexistent");
+
+        assert!(config.is_none());
+    }
+
+    #[test]
+    fn update_model_config_updates_current_value() {
+        let option = SessionConfigOption::select(
+            "mc-1",
+            "MC One",
+            "val1",
+            vec![
+                SessionConfigSelectOption::new("val1", "Value 1"),
+                SessionConfigSelectOption::new("val2", "Value 2"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::ModelConfig);
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let mut details = SessionDetails::new(&session);
+
+        details.update_model_config("mc-1", "val2");
+
+        assert_eq!(details.model_configs[0].selection.current.value, "val2");
+    }
+
+    #[test]
+    fn update_model_config_invalid_id_does_nothing() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let mut details = SessionDetails::new(&session);
+
+        details.update_model_config("nonexistent", "val2");
+
+        assert_eq!(details.model_configs[0].selection.current.value, "val1");
+    }
+
+    #[test]
+    fn update_model_config_invalid_value_does_nothing() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let mut details = SessionDetails::new(&session);
+
+        details.update_model_config("mc-1", "nonexistent");
+
+        assert_eq!(details.model_configs[0].selection.current.value, "val1");
     }
 }

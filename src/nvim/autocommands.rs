@@ -595,4 +595,20 @@ mod tests {
             Commands::AgentList
         );
     }
+
+    #[test]
+    fn test_commands_model_configurations() {
+        assert_eq!(
+            Commands::try_from("ModelConfigurations").unwrap(),
+            Commands::ModelConfigurations
+        );
+    }
+
+    #[test]
+    fn test_commands_model_configuration_updated() {
+        assert_eq!(
+            Commands::try_from("ModelConfigurationUpdated").unwrap(),
+            Commands::ModelConfigurationUpdated
+        );
+    }
 }
