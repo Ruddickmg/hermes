@@ -14,7 +14,7 @@ use crate::{
 };
 use agent_client_protocol::Lines;
 use async_channel::Receiver;
-use async_tungstenite::tungstenite::{Bytes, Error as WsError, Message};
+use async_tungstenite::tungstenite::{Error as WsError, Message};
 use futures::{Stream, StreamExt};
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument};

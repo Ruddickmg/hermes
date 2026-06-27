@@ -13,7 +13,9 @@ use crate::{
     utilities::{
         autocommand,
         mock_agent::MockAgent,
-        test_helpers::{connect_to_mock_agent, connect_to_mock_agent_http},
+        test_helpers::{
+            connect_to_mock_agent, connect_to_mock_agent_http, connect_to_mock_agent_unix,
+        },
     },
 };
 
@@ -154,6 +156,43 @@ fn test_connection_via_http() -> Result<(), nvim_oxi::Error> {
         MockAgent::start_websocket(agent, conn_rx).expect("Failed to start mock agent");
 
     connect_to_mock_agent_http(&connect, &mock_handle)?;
+
+    let init_response = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert_eq!(
+        init_response
+            .agent_info
+            .unwrap()
+            .name
+            .to_lowercase()
+            .as_str(),
+        "mock-agent"
+    );
+
+    Ok(())
+}
+
+#[cfg(unix)]
+#[nvim_oxi::test]
+fn test_connection_via_unix_socket() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+
+    let wait_for_init =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+
+    let (agent, conn_rx) = MockAgent::new();
+    let mock_handle =
+        MockAgent::start_unix_socket(agent, conn_rx).expect("Failed to start mock agent");
+
+    connect_to_mock_agent_unix(&connect, &mock_handle)?;
 
     let init_response = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 

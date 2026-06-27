@@ -453,6 +453,154 @@ impl MockAgent {
             shutdown_tx,
         ))
     }
+
+    /// Start the mock agent on a Unix domain socket.
+    ///
+    /// Identical to `start` but listens on a Unix domain socket instead of TCP.
+    #[cfg(unix)]
+    pub fn start_unix_socket(
+        agent: MockAgent,
+        conn_rx: MockAgentReceiver,
+    ) -> Result<MockAgentHandle, std::io::Error> {
+        let socket_path =
+            std::env::temp_dir().join(format!("hermes-test-{}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&socket_path);
+        let std_listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+        let path = socket_path.to_string_lossy().to_string();
+
+        info!("Mock agent (unix socket) starting at {}", path);
+
+        let (shutdown_tx, shutdown_rx) = bounded::<()>(1);
+        let config_clone = agent.config.clone();
+        let MockAgent { config, conn_tx } = agent;
+
+        let thread_handle = std::thread::spawn(move || {
+            let executor = Rc::new(smol::LocalExecutor::new());
+
+            let listener = match Async::new(std_listener) {
+                Ok(l) => l,
+                Err(e) => {
+                    error!("Failed to create async listener: {}", e);
+                    return;
+                }
+            };
+
+            smol::block_on(executor.clone().run(async move {
+                let accept_fut = async {
+                    match listener.accept().await {
+                        Ok((stream, _)) => {
+                            info!("Mock agent accepted unix socket connection");
+                            Some(stream)
+                        }
+                        Err(e) => {
+                            error!("Failed to accept connection: {}", e);
+                            None
+                        }
+                    }
+                };
+
+                let shutdown_fut = async {
+                    let _ = shutdown_rx.recv().await;
+                    info!("Mock agent received shutdown signal before connection");
+                };
+
+                match select(Box::pin(accept_fut), Box::pin(shutdown_fut)).await {
+                    Either::Left((Some(stream), _)) => {
+                        let (read_half, write_half) = stream.split();
+
+                        let connection_task = move |cx: ConnectionTo<acp::Client>| async move {
+                            while let Ok(msg) = conn_rx.recv().await {
+                                match msg {
+                                    AgentToConnection::SessionNotification(notification, tx) => {
+                                        if let Err(e) = cx.send_notification(notification) {
+                                            error!("Error sending session notification: {}", e);
+                                            break;
+                                        }
+                                        tx.try_send(()).ok();
+                                    }
+                                    AgentToConnection::PermissionRequest(request, tx) => {
+                                        match cx.send_request(request).block_task().await {
+                                            Ok(response) => {
+                                                tx.try_send(response.outcome).ok();
+                                            }
+                                            Err(e) => {
+                                                error!("Error sending permission request: {}", e);
+                                                tx.try_send(RequestPermissionOutcome::Cancelled)
+                                                    .ok();
+                                            }
+                                        }
+                                    }
+                                    AgentToConnection::CreateTerminal(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::TerminalOutput(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::WaitForTerminalExit(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::ReadTextFile(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::WriteTextFile(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                    AgentToConnection::ReleaseTerminal(request, tx) => {
+                                        let result = cx.send_request(request).block_task().await;
+                                        tx.try_send(result).ok();
+                                    }
+                                }
+                            }
+                            info!("Message handling loop ended");
+                            Ok(())
+                        };
+
+                        let builder = build_mock_agent_builder(config.clone(), conn_tx.clone())
+                            .with_spawned(connection_task);
+
+                        let serve_fut = async move {
+                            let result = builder
+                                .connect_to(ByteStreams::new(write_half, read_half))
+                                .await;
+                            if let Err(e) = result {
+                                error!("Mock agent connection error: {}", e);
+                            }
+                            info!("Mock agent connection completed");
+                        };
+
+                        let shutdown_wait = async {
+                            let _ = shutdown_rx.recv().await;
+                            info!("Shutdown received while serving connection");
+                        };
+
+                        let _ = select(Box::pin(serve_fut), Box::pin(shutdown_wait)).await;
+                    }
+                    Either::Left((None, _)) => {
+                        info!("Mock agent accept failed, exiting");
+                    }
+                    Either::Right((_, _)) => {
+                        info!("Mock agent shutting down before connection established");
+                    }
+                }
+
+                info!("Mock agent main task completed");
+            }));
+
+            info!("Mock agent thread exiting");
+        });
+
+        Ok(MockAgentHandle::new_unix_socket(
+            config_clone,
+            path,
+            thread_handle,
+            shutdown_tx,
+        ))
+    }
 }
 
 /// Helper: race a future against a timeout, matching tokio::time::timeout semantics.
