@@ -10,7 +10,11 @@ use tracing::warn;
 
 use crate::{
     TIMEOUT_IN_SECONDS,
-    utilities::{autocommand, mock_agent::MockAgent, test_helpers::connect_to_mock_agent},
+    utilities::{
+        autocommand,
+        mock_agent::MockAgent,
+        test_helpers::{connect_to_mock_agent, connect_to_mock_agent_http},
+    },
 };
 
 #[nvim_oxi::test]
@@ -129,6 +133,42 @@ fn test_disconnect_with_invalid_arg_succeeds() -> Result<(), nvim_oxi::Error> {
     let result = disconnect.call(Object::from(42i64));
 
     assert!(result.is_ok(), "disconnect should succeed with invalid arg");
+
+    Ok(())
+}
+
+#[nvim_oxi::test]
+fn test_connection_via_http() -> Result<(), nvim_oxi::Error> {
+    let dict: Dictionary = hermes()?;
+
+    let connect: Function<ConnectionArgs, ()> =
+        FromObject::from_object(dict.get("connect").unwrap().clone())?;
+    let disconnect: Function<DisconnectArgs, ()> =
+        FromObject::from_object(dict.get("disconnect").unwrap().clone())?;
+
+    let wait_for_init =
+        autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
+
+    let (agent, conn_rx) = MockAgent::new();
+    let mock_handle =
+        MockAgent::start_websocket(agent, conn_rx).expect("Failed to start mock agent");
+
+    connect_to_mock_agent_http(&connect, &mock_handle)?;
+
+    let init_response = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
+    disconnect.call(DisconnectArgs::All)?;
+    mock_handle.close();
+
+    assert_eq!(
+        init_response
+            .agent_info
+            .unwrap()
+            .name
+            .to_lowercase()
+            .as_str(),
+        "mock-agent"
+    );
 
     Ok(())
 }

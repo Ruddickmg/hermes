@@ -260,7 +260,7 @@ jobs:
             fi
 
             apt-get update
-            apt-get install -y lua5.1 liblua5.1-dev wget
+            apt-get install -y lua5.1 liblua5.1-dev wget zip unzip
             wget -q https://luarocks.org/releases/luarocks-3.9.2.tar.gz
             tar zxf luarocks-3.9.2.tar.gz
             cd luarocks-3.9.2 && ./configure && make && make install
