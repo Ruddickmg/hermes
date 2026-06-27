@@ -132,6 +132,16 @@ impl SessionDetails {
         }
     }
 
+    pub fn merge_or_replace_model_configs(&mut self, configs: Vec<ModelConfigOption>) {
+        for config in configs {
+            if let Some(existing) = self.model_configs.iter_mut().find(|mc| mc.id == config.id) {
+                *existing = config;
+            } else {
+                self.model_configs.push(config);
+            }
+        }
+    }
+
     pub fn get_model_config(&self, id: &str) -> Option<&ModelConfigOption> {
         self.model_configs.iter().find(|mc| mc.id == id)
     }
@@ -940,5 +950,140 @@ mod tests {
         details.update_model_config("mc-1", "nonexistent");
 
         assert_eq!(details.model_configs[0].selection.current.value, "val1");
+    }
+
+    #[test]
+    fn merge_or_replace_replaces_existing_by_id() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let mut details = SessionDetails::new(&session);
+
+        let replacement = ModelConfigOption {
+            id: "mc-1".to_string(),
+            name: "MC One Updated".to_string(),
+            description: None,
+            selection: Selection {
+                options: vec![HermesOption {
+                    value: "val2".to_string(),
+                    name: "Value 2".to_string(),
+                    description: None,
+                    group: None,
+                }],
+                current: HermesOption {
+                    value: "val2".to_string(),
+                    name: "Value 2".to_string(),
+                    description: None,
+                    group: None,
+                },
+                legacy: false,
+            },
+        };
+
+        details.merge_or_replace_model_configs(vec![replacement]);
+
+        assert_eq!(details.model_configs.len(), 1);
+        assert_eq!(details.model_configs[0].name, "MC One Updated");
+        assert_eq!(details.model_configs[0].selection.current.value, "val2");
+    }
+
+    #[test]
+    fn merge_or_replace_preserves_unrelated_configs() {
+        let opt1 = model_config_option("mc-1", "MC One", "val1");
+        let opt2 = model_config_option("mc-2", "MC Two", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![opt1, opt2]);
+        let mut details = SessionDetails::new(&session);
+
+        let replacement = ModelConfigOption {
+            id: "mc-1".to_string(),
+            name: "MC One Updated".to_string(),
+            description: None,
+            selection: Selection {
+                options: vec![HermesOption {
+                    value: "val2".to_string(),
+                    name: "Value 2".to_string(),
+                    description: None,
+                    group: None,
+                }],
+                current: HermesOption {
+                    value: "val2".to_string(),
+                    name: "Value 2".to_string(),
+                    description: None,
+                    group: None,
+                },
+                legacy: false,
+            },
+        };
+
+        details.merge_or_replace_model_configs(vec![replacement]);
+
+        assert_eq!(details.model_configs.len(), 2);
+        assert_eq!(details.model_configs[0].name, "MC One Updated");
+        assert_eq!(details.model_configs[1].name, "MC Two");
+    }
+
+    #[test]
+    fn merge_or_replace_appends_new_config() {
+        let option = model_config_option("mc-1", "MC One", "val1");
+        let session = NewSessionResponse::new("test-session").config_options(vec![option]);
+        let mut details = SessionDetails::new(&session);
+
+        let new_config = ModelConfigOption {
+            id: "mc-2".to_string(),
+            name: "MC Two".to_string(),
+            description: None,
+            selection: Selection {
+                options: vec![HermesOption {
+                    value: "val1".to_string(),
+                    name: "Value 1".to_string(),
+                    description: None,
+                    group: None,
+                }],
+                current: HermesOption {
+                    value: "val1".to_string(),
+                    name: "Value 1".to_string(),
+                    description: None,
+                    group: None,
+                },
+                legacy: false,
+            },
+        };
+
+        details.merge_or_replace_model_configs(vec![new_config]);
+
+        assert_eq!(details.model_configs.len(), 2);
+        assert_eq!(details.model_configs[0].id, "mc-1");
+        assert_eq!(details.model_configs[1].id, "mc-2");
+    }
+
+    #[test]
+    fn merge_or_replace_empty_existing_list() {
+        let session = NewSessionResponse::new("test-session");
+        let mut details = SessionDetails::new(&session);
+
+        let new_config = ModelConfigOption {
+            id: "mc-1".to_string(),
+            name: "MC One".to_string(),
+            description: None,
+            selection: Selection {
+                options: vec![HermesOption {
+                    value: "val1".to_string(),
+                    name: "Value 1".to_string(),
+                    description: None,
+                    group: None,
+                }],
+                current: HermesOption {
+                    value: "val1".to_string(),
+                    name: "Value 1".to_string(),
+                    description: None,
+                    group: None,
+                },
+                legacy: false,
+            },
+        };
+
+        details.merge_or_replace_model_configs(vec![new_config]);
+
+        assert_eq!(details.model_configs.len(), 1);
+        assert_eq!(details.model_configs[0].id, "mc-1");
     }
 }

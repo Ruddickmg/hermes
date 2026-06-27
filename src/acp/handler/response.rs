@@ -230,9 +230,10 @@ impl Handler {
         let mut state = self.state.lock().await;
         let session_info = state.get_session_info_mut(session_id);
         if let Some(session) = session_info {
-            session.model_configs = model_configs.clone();
+            session.merge_or_replace_model_configs(model_configs);
+            let merged = session.model_configs.clone();
             drop(state);
-            self.execute_autocommand(Commands::ModelConfigurationUpdated, model_configs)
+            self.execute_autocommand(Commands::ModelConfigurationUpdated, merged)
                 .await
         } else {
             drop(state);
