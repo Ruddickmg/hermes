@@ -2,7 +2,7 @@
 
 An [ACP (Agent Client Protocol)](https://agentclientprotocol.com) client designed for integration with Neovim. 
 
-<a href="https://github.com/sponsors/Ruddickmg"><img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=flat" height="44" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=flat&logo=codecov" height="44" /></a>
+<a href="https://github.com/sponsors/Ruddickmg"><img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge" style="border-radius: 6px;" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov" style="border-radius: 6px;" /></a>
 
 ## Overview
 
