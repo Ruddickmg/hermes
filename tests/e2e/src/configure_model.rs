@@ -97,10 +97,11 @@ fn test_configure_model_success() -> Result<(), nvim_oxi::Error> {
         },
     ))?;
 
+    let model_configs = wait_for_model_updated(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    let model_configs = wait_for_model_updated(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     assert_eq!(model_configs[0].id, "mc-1");
 
     Ok(())

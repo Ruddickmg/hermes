@@ -93,10 +93,11 @@ fn test_model_configurations_returns_config_options() -> Result<(), nvim_oxi::Er
 
     let _result = model_configurations.call(session_id);
 
+    let model_configs = wait_for_model_configs(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
+
     disconnect.call(DisconnectArgs::All)?;
     mock_handle.close();
 
-    let model_configs = wait_for_model_configs(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
     assert_eq!(model_configs[0].id, "mc-1");
 
     Ok(())
