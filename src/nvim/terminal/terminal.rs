@@ -5,7 +5,7 @@ use crate::{
         create_hidden_buffer, delete_buffer_force, set_buf_option, start_job_in_buffer, stop_job,
     },
 };
-use agent_client_protocol::schema::EnvVariable;
+use agent_client_protocol::schema::v1::EnvVariable;
 use async_channel::Sender;
 use nvim_oxi::{Dictionary, Function};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
@@ -29,8 +29,8 @@ pub struct TerminalInfo {
     pub configuration: Dictionary,
 }
 
-impl From<agent_client_protocol::schema::CreateTerminalRequest> for TerminalInfo {
-    fn from(request: agent_client_protocol::schema::CreateTerminalRequest) -> Self {
+impl From<agent_client_protocol::schema::v1::CreateTerminalRequest> for TerminalInfo {
+    fn from(request: agent_client_protocol::schema::v1::CreateTerminalRequest) -> Self {
         let mut info = TerminalInfo::new(request.output_byte_limit).environment(request.env);
         if let Some(cwd) = request.cwd {
             info = info.working_directory(cwd);
@@ -188,7 +188,7 @@ pub trait Terminal {
     fn stop(&self) -> Result<()>;
     fn report_exit_to(&self, sender: OneshotSender<Result<ExitStatus>>) -> Result<()>;
     fn id(&self) -> Uuid;
-    fn from_request(data: agent_client_protocol::schema::CreateTerminalRequest) -> Self;
+    fn from_request(data: agent_client_protocol::schema::v1::CreateTerminalRequest) -> Self;
     fn delete(&mut self) -> Result<()>;
     fn buffer(&self) -> Option<nvim_oxi::api::Buffer>;
 
@@ -209,7 +209,7 @@ pub trait Terminal {
 }
 
 impl Terminal for TerminalInfo {
-    fn from_request(data: agent_client_protocol::schema::CreateTerminalRequest) -> Self {
+    fn from_request(data: agent_client_protocol::schema::v1::CreateTerminalRequest) -> Self {
         Self::from(data)
     }
 
@@ -494,6 +494,36 @@ mod tests {
         assert!(output.len() <= 10);
     }
 
+    #[test]
+    fn process_input_byte_limit_zero_truncates_all() {
+        let mut output = String::new();
+        let mut truncated = None;
+
+        process_terminal_input(
+            vec!["some content".to_string()],
+            &mut output,
+            &mut truncated,
+            Some(0),
+        );
+
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn process_input_byte_limit_zero_sets_truncated_flag() {
+        let mut output = String::new();
+        let mut truncated = None;
+
+        process_terminal_input(
+            vec!["some content".to_string()],
+            &mut output,
+            &mut truncated,
+            Some(0),
+        );
+
+        assert_eq!(truncated, Some(true));
+    }
+
     // === Tests for handle_terminal_exit ===
 
     #[test]
@@ -634,5 +664,43 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(exit_status, Some((Some(0), None)));
+    }
+
+    #[test]
+    fn handle_exit_returns_error_when_sender_dropped() {
+        let mut exit_status: Option<ExitStatus> = None;
+        let mut exit_response: Option<OneshotSender<Result<ExitStatus>>>;
+
+        let (sender, receiver) = async_channel::bounded(1);
+        exit_response = Some(sender);
+        drop(receiver);
+
+        let result = handle_terminal_exit(
+            0,
+            "ignored".to_string(),
+            &mut exit_status,
+            &mut exit_response,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn handle_exit_clears_sender_after_error() {
+        let mut exit_status: Option<ExitStatus> = None;
+        let mut exit_response: Option<OneshotSender<Result<ExitStatus>>>;
+
+        let (sender, receiver) = async_channel::bounded(1);
+        exit_response = Some(sender);
+        drop(receiver);
+
+        let _ = handle_terminal_exit(
+            0,
+            "ignored".to_string(),
+            &mut exit_status,
+            &mut exit_response,
+        );
+
+        assert!(exit_response.is_none());
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     acp::{Result, error::Error},
     api::Api,
 };
-use agent_client_protocol::schema::CancelNotification;
+use agent_client_protocol::schema::v1::CancelNotification;
 
 impl Api {
     #[tracing::instrument(level = "trace", skip(self))]

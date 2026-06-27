@@ -3,7 +3,7 @@
 //! Each test verifies exactly ONE behavior with exactly ONE assertion.
 //! Setup code and .expect() calls don't count as assertions.
 use crate::helpers::ui::wait_for;
-use agent_client_protocol::schema::{ReadTextFileRequest, ReadTextFileResponse, SessionId};
+use agent_client_protocol::schema::v1::{ReadTextFileRequest, ReadTextFileResponse, SessionId};
 use assert_fs::NamedTempFile;
 use assert_fs::prelude::*;
 use async_channel::bounded as oneshot_channel;

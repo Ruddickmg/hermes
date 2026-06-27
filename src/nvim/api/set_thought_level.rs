@@ -30,7 +30,7 @@ impl Api {
 
         connection
             .set_config_option(
-                agent_client_protocol::schema::SetSessionConfigOptionRequest::new(
+                agent_client_protocol::schema::v1::SetSessionConfigOptionRequest::new(
                     session_id,
                     "thought_level".to_string(),
                     level,

@@ -4,9 +4,10 @@ use crate::{
     TIMEOUT_IN_SECONDS,
     utilities::{autocommand, mock_agent::MockAgent, test_helpers::connect_to_mock_agent},
 };
-use agent_client_protocol::schema::{
-    AgentCapabilities, InitializeResponse, NewSessionResponse, PromptResponse, ProtocolVersion,
-    SessionCapabilities, SessionResumeCapabilities, StopReason,
+use agent_client_protocol::schema::ProtocolVersion;
+use agent_client_protocol::schema::v1::{
+    AgentCapabilities, InitializeResponse, NewSessionResponse, PromptResponse, SessionCapabilities,
+    SessionResumeCapabilities, StopReason,
 };
 use hermes::{
     api::{ConnectionArgs, CreateSessionArgs, DisconnectArgs, PromptArgs, PromptContent},

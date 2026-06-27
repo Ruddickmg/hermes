@@ -1,4 +1,4 @@
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::v1::{
     NewSessionResponse, SessionConfigKind, SessionConfigOptionCategory, SessionConfigSelectOptions,
 };
 use serde::{Deserialize, Serialize};
@@ -184,29 +184,7 @@ impl SessionDetails {
     }
 
     fn parse_models(session: &NewSessionResponse) -> Option<Selection> {
-        Self::parse_options(session, SessionConfigOptionCategory::Model).or_else(|| {
-            let mut current: HermesOption = HermesOption::default();
-            session.models.as_ref().map(|models| Selection {
-                options: models
-                    .available_models
-                    .iter()
-                    .map(|model| {
-                        let option = HermesOption {
-                            value: model.model_id.to_string(),
-                            name: model.name.to_string(),
-                            description: model.description.clone(),
-                            group: None,
-                        };
-                        if option.value == models.current_model_id.to_string() {
-                            current = option.clone();
-                        }
-                        option
-                    })
-                    .collect(),
-                current,
-                legacy: true,
-            })
-        })
+        Self::parse_options(session, SessionConfigOptionCategory::Model)
     }
 
     fn parse_modes(session: &NewSessionResponse) -> Option<Selection> {
@@ -239,10 +217,9 @@ impl SessionDetails {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_client_protocol::schema::{
-        ModelInfo, NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
+    use agent_client_protocol::schema::v1::{
+        NewSessionResponse, SessionConfigOption, SessionConfigOptionCategory,
         SessionConfigSelectGroup, SessionConfigSelectOption, SessionMode, SessionModeState,
-        SessionModelState,
     };
     use pretty_assertions::assert_eq;
 
@@ -405,8 +382,8 @@ mod tests {
         let option = SessionConfigOption::new(
             "mode",
             "Mode",
-            agent_client_protocol::schema::SessionConfigKind::Select(
-                agent_client_protocol::schema::SessionConfigSelect::new(
+            agent_client_protocol::schema::v1::SessionConfigKind::Select(
+                agent_client_protocol::schema::v1::SessionConfigSelect::new(
                     "chat",
                     vec![group1, group2],
                 ),
@@ -431,8 +408,8 @@ mod tests {
         let option = SessionConfigOption::new(
             "mode",
             "Mode",
-            agent_client_protocol::schema::SessionConfigKind::Select(
-                agent_client_protocol::schema::SessionConfigSelect::new("chat", vec![group]),
+            agent_client_protocol::schema::v1::SessionConfigKind::Select(
+                agent_client_protocol::schema::v1::SessionConfigSelect::new("chat", vec![group]),
             ),
         )
         .category(SessionConfigOptionCategory::Mode);
@@ -457,8 +434,8 @@ mod tests {
         let option = SessionConfigOption::new(
             "mode",
             "Mode",
-            agent_client_protocol::schema::SessionConfigKind::Select(
-                agent_client_protocol::schema::SessionConfigSelect::new("code", vec![group]),
+            agent_client_protocol::schema::v1::SessionConfigKind::Select(
+                agent_client_protocol::schema::v1::SessionConfigSelect::new("code", vec![group]),
             ),
         )
         .category(SessionConfigOptionCategory::Mode);
@@ -512,8 +489,8 @@ mod tests {
         let option = SessionConfigOption::new(
             "mode",
             "Mode",
-            agent_client_protocol::schema::SessionConfigKind::Select(
-                agent_client_protocol::schema::SessionConfigSelect::new("chat", vec![group]),
+            agent_client_protocol::schema::v1::SessionConfigKind::Select(
+                agent_client_protocol::schema::v1::SessionConfigSelect::new("chat", vec![group]),
             ),
         )
         .category(SessionConfigOptionCategory::Mode);
@@ -539,17 +516,6 @@ mod tests {
 
         let details = SessionDetails::new(&session);
         assert_eq!(details.model_is_legacy(), Some(false));
-    }
-
-    #[test]
-    fn parse_models_legacy_fallback_returns_legacy() {
-        let model = ModelInfo::new("gpt4", "GPT-4");
-        let models = SessionModelState::new("gpt4", vec![model]);
-
-        let session = NewSessionResponse::new("test-session").models(models);
-
-        let details = SessionDetails::new(&session);
-        assert_eq!(details.model_is_legacy(), Some(true));
     }
 
     #[test]

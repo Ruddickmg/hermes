@@ -1,16 +1,17 @@
 //! Configuration for MockAgent
 
-use agent_client_protocol::schema::{
+use agent_client_protocol::schema::ProtocolVersion;
+use agent_client_protocol::schema::v1::{
     AgentCapabilities, AuthenticateResponse, CloseSessionResponse, CreateTerminalRequest,
     DeleteSessionResponse, ExtResponse, Implementation, InitializeResponse, ListSessionsResponse,
     LoadSessionResponse, McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionId,
-    PermissionOptionKind, PromptCapabilities, ProtocolVersion, ReadTextFileRequest,
-    ReleaseTerminalRequest, RequestPermissionRequest, ResumeSessionResponse,
-    SessionAdditionalDirectoriesCapabilities, SessionCapabilities, SessionCloseCapabilities,
-    SessionDeleteCapabilities, SessionForkCapabilities, SessionId, SessionInfo,
-    SessionListCapabilities, SessionResumeCapabilities, SetSessionConfigOptionResponse,
-    SetSessionModeResponse, SetSessionModelResponse, TerminalOutputRequest, ToolCallId,
-    ToolCallUpdate, ToolCallUpdateFields, WaitForTerminalExitRequest, WriteTextFileRequest,
+    PermissionOptionKind, PromptCapabilities, ReadTextFileRequest, ReleaseTerminalRequest,
+    RequestPermissionRequest, ResumeSessionResponse, SessionAdditionalDirectoriesCapabilities,
+    SessionCapabilities, SessionCloseCapabilities, SessionDeleteCapabilities,
+    SessionForkCapabilities, SessionId, SessionInfo, SessionListCapabilities,
+    SessionResumeCapabilities, SetSessionConfigOptionResponse, SetSessionModeResponse,
+    TerminalOutputRequest, ToolCallId, ToolCallUpdate, ToolCallUpdateFields,
+    WaitForTerminalExitRequest, WriteTextFileRequest,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -34,8 +35,6 @@ pub struct MockConfig {
     pub set_session_mode_response: Option<SetSessionModeResponse>,
     /// Optional override for set_session_config_option response
     pub set_session_config_option_response: Option<SetSessionConfigOptionResponse>,
-    /// Optional override for set_session_model response
-    pub set_session_model_response: Option<SetSessionModelResponse>,
     /// Optional override for ext_method response
     pub ext_response: Option<ExtResponse>,
     /// Session tracking (used for default behavior of load_session and list_sessions)
@@ -95,7 +94,6 @@ impl Default for MockConfig {
             list_sessions_response: None,
             set_session_mode_response: None,
             set_session_config_option_response: None,
-            set_session_model_response: None,
             ext_response: None,
             sessions: HashMap::new(),
             timeout: Duration::from_secs(30),
@@ -296,7 +294,7 @@ pub fn create_test_create_terminal_request(
 /// Create a default terminal output request for testing
 pub fn create_test_terminal_output_request(
     session_id: impl Into<SessionId>,
-    terminal_id: impl Into<agent_client_protocol::schema::TerminalId>,
+    terminal_id: impl Into<agent_client_protocol::schema::v1::TerminalId>,
 ) -> TerminalOutputRequest {
     TerminalOutputRequest::new(session_id, terminal_id)
 }
@@ -304,7 +302,7 @@ pub fn create_test_terminal_output_request(
 /// Create a default wait for terminal exit request for testing
 pub fn create_test_wait_for_terminal_exit_request(
     session_id: impl Into<SessionId>,
-    terminal_id: impl Into<agent_client_protocol::schema::TerminalId>,
+    terminal_id: impl Into<agent_client_protocol::schema::v1::TerminalId>,
 ) -> WaitForTerminalExitRequest {
     WaitForTerminalExitRequest::new(session_id, terminal_id)
 }
