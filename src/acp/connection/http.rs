@@ -171,6 +171,18 @@ mod tests {
     }
 
     #[test]
+    fn build_url_http_with_path_missing_leading_slash() {
+        let agent = Assistant::CustomUrl {
+            name: String::from("test-agent"),
+            host: String::from("localhost"),
+            port: 8080,
+            path: Some(String::from("acp")),
+        };
+        let result = build_url(Protocol::Http, &agent).unwrap();
+        assert_eq!(result, "ws://localhost:8080/acp");
+    }
+
+    #[test]
     fn build_url_rejects_non_custom_url() {
         let agent = Assistant::Copilot;
         let result = build_url(Protocol::Http, &agent);
