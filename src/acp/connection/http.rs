@@ -51,28 +51,9 @@ pub async fn connect(
     agent: Assistant,
     request_receiver: Receiver<UserRequest>,
 ) -> Result<(), Error> {
-    let scheme = match protocol {
-        Protocol::Https => "wss",
-        _ => "ws",
-    };
-    let url = match &agent {
-        Assistant::CustomUrl {
-            host, port, path, ..
-        } => {
-            let mut url = format!("{}://{}:{}", scheme, host, port);
-            if let Some(path) = path {
-                url.push_str(path);
-            }
-            url
-        }
-        other => {
-            error!("Unsupported agent type for http connection: {}", other);
-            return Err(Error::Connection(format!(
-                "HTTP protocol requires a CustomUrl assistant, got {}",
-                other
-            )));
-        }
-    };
+    let url = build_url(protocol, &agent).inspect_err(|e| {
+        error!("Failed to build WebSocket URL: {}", e);
+    })?;
 
     debug!("Connecting to agent at {}", url);
 
@@ -101,4 +82,94 @@ pub async fn connect(
 
     info!("Disconnected from '{}' via websocket", agent);
     result
+}
+
+/// Build the WebSocket URL from protocol and assistant configuration.
+fn build_url(protocol: Protocol, agent: &Assistant) -> Result<String, Error> {
+    let scheme = match protocol {
+        Protocol::Https => "wss",
+        _ => "ws",
+    };
+    match agent {
+        Assistant::CustomUrl {
+            host, port, path, ..
+        } => {
+            let mut url = format!("{}://{}:{}", scheme, host, port);
+            if let Some(path) = path {
+                url.push_str(path);
+            }
+            Ok(url)
+        }
+        other => Err(Error::Connection(format!(
+            "HTTP protocol requires a CustomUrl assistant, got {}",
+            other
+        ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn build_url_http_without_path() {
+        let agent = Assistant::CustomUrl {
+            name: String::from("test-agent"),
+            host: String::from("localhost"),
+            port: 8080,
+            path: None,
+        };
+        let result = build_url(Protocol::Http, &agent).unwrap();
+        assert_eq!(result, "ws://localhost:8080");
+    }
+
+    #[test]
+    fn build_url_https_without_path() {
+        let agent = Assistant::CustomUrl {
+            name: String::from("test-agent"),
+            host: String::from("api.example.com"),
+            port: 443,
+            path: None,
+        };
+        let result = build_url(Protocol::Https, &agent).unwrap();
+        assert_eq!(result, "wss://api.example.com:443");
+    }
+
+    #[test]
+    fn build_url_http_with_path() {
+        let agent = Assistant::CustomUrl {
+            name: String::from("test-agent"),
+            host: String::from("localhost"),
+            port: 8080,
+            path: Some(String::from("/acp")),
+        };
+        let result = build_url(Protocol::Http, &agent).unwrap();
+        assert_eq!(result, "ws://localhost:8080/acp");
+    }
+
+    #[test]
+    fn build_url_https_with_path() {
+        let agent = Assistant::CustomUrl {
+            name: String::from("test-agent"),
+            host: String::from("api.example.com"),
+            port: 443,
+            path: Some(String::from("/v1/acp")),
+        };
+        let result = build_url(Protocol::Https, &agent).unwrap();
+        assert_eq!(result, "wss://api.example.com:443/v1/acp");
+    }
+
+    #[test]
+    fn build_url_rejects_non_custom_url() {
+        let agent = Assistant::Copilot;
+        let result = build_url(Protocol::Http, &agent);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("HTTP protocol requires a CustomUrl assistant")
+        );
+    }
 }
