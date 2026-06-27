@@ -23,6 +23,7 @@ pub struct ConnectionOptions {
     args: Option<Vec<String>>,
     host: Option<String>,
     port: Option<u16>,
+    path: Option<String>,
 }
 
 impl ConnectionOptions {
@@ -53,7 +54,12 @@ impl ConnectionOptions {
                 }
             },
             _ => match (self.host, self.port) {
-                (Some(host), Some(port)) => Ok(Assistant::CustomUrl { name, host, port }),
+                (Some(host), Some(port)) => Ok(Assistant::CustomUrl {
+                    name,
+                    host,
+                    port,
+                    path: self.path,
+                }),
                 _ => Err(Error::InvalidInput(format!(
                     "Host and port must be provided for {} connections",
                     self.protocol
@@ -132,6 +138,13 @@ impl FromObject for ConnectionOptions {
 
         let port: Option<u16> = dict.get("port").and_then(|o| o.clone().try_into().ok());
 
+        let path: Option<String> = dict.get("path").and_then(|o| {
+            o.clone()
+                .try_into()
+                .ok()
+                .map(|s: nvim_oxi::String| s.to_string())
+        });
+
         Ok(Self {
             protocol,
             distribution,
@@ -139,6 +152,7 @@ impl FromObject for ConnectionOptions {
             args,
             host,
             port,
+            path,
         })
     }
 }
@@ -171,6 +185,9 @@ impl Pushable for ConnectionOptions {
         }
         if let Some(port) = self.port {
             dict.insert("port", port);
+        }
+        if let Some(path) = self.path {
+            dict.insert("path", path);
         }
         unsafe { Object::from(dict).push(lua_state) }
     }
@@ -324,7 +341,7 @@ mod tests {
         let result = opts.into_assistant("socket-agent".to_string());
         let assistant = result.unwrap();
         assert!(
-            matches!(assistant, Assistant::CustomUrl { name, host, port } 
+            matches!(assistant, Assistant::CustomUrl { name, host, port, path: _ }
             if name == "socket-agent" && host == "localhost" && port == 8080)
         );
     }
@@ -340,7 +357,7 @@ mod tests {
         let result = opts.into_assistant("http-agent".to_string());
         let assistant = result.unwrap();
         assert!(
-            matches!(assistant, Assistant::CustomUrl { name: _, host, port } 
+            matches!(assistant, Assistant::CustomUrl { name: _, host, port, path: _ }
             if host == "api.example.com" && port == 443)
         );
     }
@@ -367,7 +384,7 @@ mod tests {
         let result = opts.into_assistant("tcp-agent".to_string());
         let assistant = result.unwrap();
         assert!(
-            matches!(assistant, Assistant::CustomUrl { name, host, port } 
+            matches!(assistant, Assistant::CustomUrl { name, host, port, path: _ }
             if name == "tcp-agent" && host == "tcp.example.com" && port == 9090)
         );
     }

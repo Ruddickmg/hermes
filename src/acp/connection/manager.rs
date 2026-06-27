@@ -1,5 +1,5 @@
 use crate::PluginState;
-use crate::acp::connection::{Connection, stdio, tcp};
+use crate::acp::connection::{Connection, http, stdio, tcp};
 use crate::acp::registry::distribution::Distribution;
 use crate::acp::registry::entry::AgentEntry;
 use crate::acp::registry::resolution::fetch_agent_from_registry;
@@ -77,6 +77,7 @@ pub enum Assistant {
         name: String,
         host: String,
         port: u16,
+        path: Option<String>,
     },
 }
 
@@ -87,7 +88,18 @@ impl std::fmt::Display for Assistant {
             Assistant::Opencode => write!(f, "opencode"),
             Assistant::Gemini => write!(f, "gemini"),
             Assistant::CustomStdio { name, .. } => write!(f, "{}", name),
-            Assistant::CustomUrl { name, host, port } => write!(f, "{} ({}:{})", name, host, port),
+            Assistant::CustomUrl {
+                name,
+                host,
+                port,
+                path: Some(path),
+            } => write!(f, "{} ({}:{}{})", name, host, port, path),
+            Assistant::CustomUrl {
+                name,
+                host,
+                port,
+                path: None,
+            } => write!(f, "{} ({}:{})", name, host, port),
             Assistant::Registered {
                 agent,
                 distribution,
@@ -311,12 +323,7 @@ impl ConnectionManager {
                         stdio::connect(handler, thread_agent, receiver, child.unwrap()).await
                     }
                     Protocol::Tcp => tcp::connect(handler, thread_agent, receiver).await,
-                    Protocol::Http => {
-                        error!("HTTP protocol is not yet implemented");
-                        Err(Error::Internal(
-                            "HTTP protocol is not yet implemented".to_string(),
-                        ))
-                    }
+                    Protocol::Http => http::connect(handler, thread_agent, receiver).await,
                     Protocol::Socket => {
                         error!("Socket protocol is not yet implemented");
                         Err(Error::Internal(
@@ -547,8 +554,20 @@ mod tests {
             name: String::from("my-agent"),
             host: String::from("localhost"),
             port: 8080,
+            path: None,
         };
         assert_eq!(format!("{}", assistant), "my-agent (localhost:8080)");
+    }
+
+    #[test]
+    fn test_assistant_custom_url_display_with_path() {
+        let assistant = Assistant::CustomUrl {
+            name: String::from("my-agent"),
+            host: String::from("localhost"),
+            port: 8080,
+            path: Some(String::from("/acp")),
+        };
+        assert_eq!(format!("{}", assistant), "my-agent (localhost:8080/acp)");
     }
 
     #[test]

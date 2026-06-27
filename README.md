@@ -19,8 +19,8 @@ Hermes focuses on:
 - [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
+- [x] Communication over Stdio, Tcp, and Http Protocols
 - [x] Neovim 0.12 progress integration via `nvim_echo` with `kind="progress"`
-- [x] Communication over Stdio and Tcp Protocols
 
 ## 📦 Installation
 
@@ -2438,20 +2438,17 @@ Hermes is free and open source. If you find it useful, please consider supportin
 
 - [GitHub Sponsors](https://github.com/sponsors/Ruddickmg)
 - [Patreon](https://patreon.com/Ruddickmg)
+- [ko_fi](https://ko-fi.com/ruddickmg)
 - [thanks.dev](https://thanks.dev/u/gh/Ruddickmg)
 
 ## 📋 TODO:
 
 -- functionality
-- [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
 - [x] Allow connecting to Agents
-  - [ ] Via http
   - [ ] Via unix socket
 - [ ] Support "unstable"/proposed ACP methods
-  - [ ] authentication
-    - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
-  - [ ] session
-    - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
+  - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
+  - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)
   - [ ] [ACP over MCP](https://agentclientprotocol.com/rfds/mcp-over-acp)
   - [ ] [Boolean config option](https://agentclientprotocol.com/rfds/boolean-config-option)
   - [ ] [NES (next edit suggestions)](https://agentclientprotocol.com/rfds/next-edit-suggestions)
