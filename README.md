@@ -4,7 +4,7 @@ An [ACP (Agent Client Protocol)](https://agentclientprotocol.com) client designe
 
 <a href="https://github.com/sponsors/Ruddickmg"><img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge" /></a> <a href="https://neovim.io"><img src="https://img.shields.io/badge/Neovim-0.11%2B-green?style=for-the-badge&logo=neovim" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov" /></a> <a href="https://circleci.com/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/circleci/build/github/Ruddickmg/hermes.nvim/main?style=for-the-badge&logo=circleci" /></a>
 
-## Overview
+## 📋 Overview
 
 Hermes is a messaging layer for Neovim. It has no built-in UI, instead it provides APIs and hooks for building your own workflow while routing client-agent communication.
 
@@ -13,7 +13,7 @@ Hermes focuses on:
 - Hooks into requests from AI assistants that require responses (permission requests, access requests, etc)
 - Autocommands for updates on communication between the user (client) and assistant (agent) 
 
-## Features
+## ✨ Features
 
 - [x] Full implementation of ACP Client (Built on the official [Rust ACP Sdk](https://github.com/agentclientprotocol/rust-sdk))
 - [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
@@ -22,7 +22,7 @@ Hermes focuses on:
 - [x] Neovim 0.12 progress integration via `nvim_echo` with `kind="progress"`
 - [x] Communication over Stdio and Tcp Protocols
 
-## Installation
+## 📦 Installation
 
 **vim.pack** (v0.12+)
 ```lua
@@ -44,15 +44,15 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 :Rocks install hermes.nvim
 ```
 
-### Requirements
+### ⚙️ Requirements
 
 - Neovim 0.11 or later
 
-### Pre-built Binary
+### ⬇️ Pre-built Binary
 
 Hermes is built in Rust and so must be integrated with lua during installation, pre built binaries are provided for convenience
 
-#### Supported Platforms
+#### 💻 Supported Platforms
 
 Binaries are available for:
 
@@ -89,7 +89,7 @@ Binaries are available for:
 > })
 > ```
 
-### Building from Source (Unsupported Platforms)
+### 🔨 Building from Source (Unsupported Platforms)
 
 If your platform is not in the supported list above, you can build from source:
 
@@ -130,7 +130,7 @@ cargo build --release
 > cargo build --release --features with-icons
 > ```
 
-## Commands
+## ⌨️ Commands
 
 Show recent log messages and current state information.
 ```vim
@@ -164,14 +164,14 @@ Cancel an in-progress source build. Shows warning if no build is running.
 :Hermes cancel
 ```
 
-## API
+## 🔌 API
 
 Hermes exposes the following functions for sending requests to AI assistants.
 
 > [!WARNING]
 > Methods marked “Optional” are implemented by Hermes but are not mandatory for agent implementations.
 
-### Setup
+### ⚙️ Setup
 
 Configure Hermes plugin settings.
 
@@ -269,7 +269,7 @@ hermes.setup({
 > - Multiple `setup()` calls merge configurations - only specified fields are updated
 > - All unspecified fields preserve their existing values
 
-### Agents
+### 🤖 Agents
 
 This method retrieves a list of available agents to choose from.
 
@@ -290,7 +290,7 @@ hermes.agents({
 >   - [AgentList](#agentslist) autocommand upon completion.
 >   - [Progress](#progress) autocommand if the `update` option is enabled (for registry download progress)
 
-### Connect
+### 🔗 Connect
 
 This method allows you to connect to an agent, it takes the agent name and the protocol for the connection (defaults to `stdio`).
 
@@ -349,7 +349,7 @@ vim.api.nvim_create_autocmd("User", {
 >   - [ConnectionInitialized](#connectioninitialized) autocommand upon completion.
 >   - [Progress](#progress) autocommand if the `distributions.binary.enabled` configuration is enabled (reports binary download progress)
 
-### Disconnect
+### 🔌 Disconnect
 
 Below are examples of how you can disconnect from agent(s).
 
@@ -367,7 +367,7 @@ hermes.disconnect()
 ```
 
 
-### Logout
+### 🚪 Logout
 
 Below are examples of how you can log out from agent(s).
 
@@ -387,7 +387,7 @@ hermes.logout()
 > **Triggers:** [LoggedOut](#loggedout) autocommand upon completion.
 
 
-### Authenticate
+### 🔑 Authenticate
 
 Handle agent authentication.
 
@@ -411,7 +411,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [Authenticated](#authenticated) autocommand upon completion.
 
-### Prompt
+### 💬 Prompt
 > **Note on `promptId`:** All agent notification autocommands (sourced from 🤖 Agent) include a `promptId` field. This UUID is generated when a prompt is sent (via `prompt()`) or when a user message chunk arrives from the agent, and it is attached to all subsequent notifications for that session so you can correlate messages within a single prompt/response cycle.
 
 
@@ -490,7 +490,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [Prompted](#prompted) autocommand upon completion.
 
-### Create Session
+### ➕ Create Session
 
 Create a new session. If no arguments are provided, the session defaults to either the project root or the current directory. 
 
@@ -530,7 +530,7 @@ hermes.create_session({
 
 > **Triggers:** [SessionCreated](#sessioncreated) autocommand upon completion.
 
-### Load Session (**Optional**)
+### 📂 Load Session (**Optional**)
 
 Load an existing session (replays session history)
 
@@ -582,7 +582,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionLoaded](#sessionloaded) autocommand upon completion
 
-### Resume Session (**Optional**)
+### ▶️ Resume Session (**Optional**)
 
 Resume an existing session (without replaying the session history)
 
@@ -634,7 +634,7 @@ vim.api.nvim_create_autocmd("User", {
 > **Triggers:** [SessionResumed](#sessionresumed) autocommand upon completion
 
 
-### List Sessions (**Optional**)
+### 📋 List Sessions (**Optional**)
 
 List sessions, can be filtered by project path or cursor pagination.
 
@@ -672,7 +672,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionsListed](#sessionslisted) autocommand upon completion
 
-### Close Session (**Optional**)
+### ❌ Close Session (**Optional**)
 
 Close active session and free all resources associated with it
 
@@ -697,7 +697,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionClosed](#sessionclosed) autocommand upon completion
 
-### Delete Session (**Optional**)
+### 🗑️ Delete Session (**Optional**)
 
 Delete session from the session list
 
@@ -729,7 +729,7 @@ vim.api.nvim_create_autocmd("User", {
 > **Triggers:** [SessionDeleted](#sessiondeleted) autocommand upon completion
 > [!WARNING]
 
-### Cancel (**Optional**)
+### ⏹️ Cancel (**Optional**)
 
 Cancel the current operation of the agent (e.g., stop generating text, stop a tool call in progress, etc)
 
@@ -752,7 +752,7 @@ vim.api.nvim_create_autocmd("User", {
 })
 ```
 
-### Set mode (**Optional**)
+### 🎯 Set mode (**Optional**)
 
 Set what mode the agent is in (the plan/build modes for opencode for example)
 
@@ -776,7 +776,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [ModeUpdated](#modeupdated) autocommand upon completion.
 
-### Modes
+### 🎯 Modes
 
 Get the selectable modes for a session.
 
@@ -805,7 +805,7 @@ vim.api.nvim_create_autocmd("User", {
 > - `options` (array): Available mode options
 > - `current` (object): The currently selected mode
 
-### Set model (**Optional**)
+### 🧠 Set model (**Optional**)
 
 Set what model the agent is using.
 
@@ -827,7 +827,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [SessionModelUpdated](#sessionmodelupdated) autocommand upon completion.
 
-### Models
+### 🧠 Models
 
 Get the selectable models for a session.
 
@@ -857,7 +857,7 @@ vim.api.nvim_create_autocmd("User", {
 > - `options` (array): Available model options
 > - `current` (object): The currently selected model
 
-### ModelConfigurations
+### ⚙️ ModelConfigurations
 
 Get the model configuration options for a session.
 
@@ -884,7 +884,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [ModelConfigurations](#modelconfigurations) autocommand with an array of model configuration options.
 
-### Configure model (**Optional**)
+### ⚙️ Configure model (**Optional**)
 
 Configure a model option for a session. Takes a table with `id` and `value` keys.
 
@@ -906,7 +906,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [ModelConfigurationUpdated](#modelconfigurationupdated) autocommand upon completion.
 
-### Set thought_level (**Optional**)
+### 💭 Set thought_level (**Optional**)
 
 Set the thought level for a session.
 
@@ -928,7 +928,7 @@ vim.api.nvim_create_autocmd("User", {
 
 > **Triggers:** [ThoughtLevelUpdated](#thoughtlevelupdated) autocommand upon completion.
 
-### ThoughtLevels
+### 💭 ThoughtLevels
 
 Get the selectable thought levels for a session.
 
@@ -957,14 +957,14 @@ vim.api.nvim_create_autocmd("User", {
 > - `options` (array): Available thought level options
 > - `current` (object): The currently selected thought level
 
-### Respond
+### ↩️ Respond
 
 When an agent makes a request that requires user input (such as a permission request), it triggers an autocommand and pauses until the user responds. Use the `respond` method with the request ID to resume the agent's operation. If no autocommand handler is defined, a default workflow will be triggered. Requests can be disabled via the setup configuration. 
 
 > [!WARNING]
 > While Hermes is a complete ACP client, most agents available today don't fully utilize the protocol. The following autocommands are [optional features](https://agentclientprotocol.com/protocol/overview#optional-methods-2) and often handled through agent-specific tools rather than calling the ACP methods that trigger them. This means some Hermes capabilities may not be exercised depending on which agent you use.
 
-#### Permission request
+#### 🔒 Permission request
 
 ```lua
 local hermes = require("hermes")
@@ -990,7 +990,7 @@ vim.api.nvim_create_autocmd("User", {
 > **Default behavior:** If no autocommand handler is defined for `PermissionRequest`, Hermes will use the native Neovim select menu to gather a response from the user.
 
 
-#### Write to file
+#### ✏️ Write to file
 
 ```lua
 local hermes = require("hermes")
@@ -1019,7 +1019,7 @@ vim.api.nvim_create_autocmd("User", {
 > - Write to the file on disk if it is not open in a buffer
 
 
-#### Read from file
+#### 📖 Read from file
 
 ```lua
 local hermes = require("hermes")
@@ -1054,7 +1054,7 @@ vim.api.nvim_create_autocmd("User", {
 > - End at the `limit` number if defined
 
 
-#### Create Terminal for agent communication 
+#### 💻 Create Terminal for agent communication 
 
 ```lua
 local hermes = require("hermes")
@@ -1096,7 +1096,7 @@ vim.api.nvim_create_autocmd("User", {
 > [!WARNING]
 > If no `TerminalCreate` autocommand is registered, Hermes will use default functionality to manage **all** subsequent terminal interaction.
 
-#### Provide terminal output to the assistant 
+#### 📤 Provide terminal output to the assistant 
 
 ```lua
 local hermes = require("hermes")
@@ -1131,7 +1131,7 @@ vim.api.nvim_create_autocmd("User", {
 > **Default behavior:** If no autocommand handler is defined for [TerminalCreate](#terminalcreate), Hermes will:
 > - Collect and send the terminal output to the agent
 
-#### Reporting terminal exit
+#### 🚪 Reporting terminal exit
 
 ```lua
 local hermes = require("hermes")
@@ -1171,7 +1171,7 @@ vim.api.nvim_create_autocmd("User", {
 > **Default behavior:** If no autocommand handler is defined for [TerminalCreate](#terminalcreate), Hermes will:
 > - Wait for and report terminal exit details
 
-#### Kill terminal process
+#### ⚡ Kill terminal process
 
 ```lua
 local hermes = require("hermes")
@@ -1197,7 +1197,7 @@ vim.api.nvim_create_autocmd("User", {
 > **Default behavior:** If no autocommand handler is defined for [TerminalCreate](#terminalcreate), Hermes will:
 > - Stop the process running in the terminal
 
-#### Release terminal process
+#### 🔓 Release terminal process
 
 ```lua
 local hermes = require("hermes")
@@ -1225,7 +1225,7 @@ vim.api.nvim_create_autocmd("User", {
 > - Remove the terminal
 > - Delete the attached buffer (can be configured to omit this step)
 
-## Autocommands
+## 📡 Autocommands
 
 Hermes generates autocommands for all communication between agent and client. Here's an example of hooking into one:
 
@@ -2386,9 +2386,9 @@ Below is a list of all autocommands and their associated data (passed to the cal
 </table>
 
 
-## Logging
+## 📝 Logging
 
-### Level
+### 🔽 Level
 Hermes defaults to `INFO` log level until configured via `setup()`.
 
 Configure log levels and formats via the `setup()` function:
@@ -2404,7 +2404,7 @@ require("hermes").setup({
 })
 ```
 
-### Format
+### 🎨 Format
 
 Log formats can be configured per-target via `setup()`. Each target has its own format setting that defaults to "compact" if not specified:
 
@@ -2425,7 +2425,7 @@ Available formats:
 - **full** - Complete information including timestamps and metadata
 - **json** - Machine-readable JSON format
 
-### Health & Configuration details
+### 🏥 Health & Configuration details
 
 Run the health check to see full diagnostics including Neovim version, binary status, platform info, download tools, log files, registry binaries, and configuration.
 ```
@@ -2440,7 +2440,7 @@ Hermes is free and open source. If you find it useful, please consider supportin
 - [Patreon](https://patreon.com/Ruddickmg)
 - [thanks.dev](https://thanks.dev/u/gh/Ruddickmg)
 
-## TODO:
+## 📋 TODO:
 
 -- functionality
 - [ ] [Track cost/token usage updates](https://agentclientprotocol.com/rfds/session-usage)
