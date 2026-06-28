@@ -1,5 +1,5 @@
 use crate::PluginState;
-use crate::acp::connection::{Connection, http, stdio, tcp};
+use crate::acp::connection::{Connection, http, socket, stdio, tcp};
 use crate::acp::registry::distribution::Distribution;
 use crate::acp::registry::entry::AgentEntry;
 use crate::acp::registry::resolution::fetch_agent_from_registry;
@@ -82,6 +82,10 @@ pub enum Assistant {
         port: u16,
         path: Option<String>,
     },
+    CustomSocket {
+        name: String,
+        path: String,
+    },
 }
 
 impl std::fmt::Display for Assistant {
@@ -103,6 +107,7 @@ impl std::fmt::Display for Assistant {
                 port,
                 path: None,
             } => write!(f, "{} ({}:{})", name, host, port),
+            Assistant::CustomSocket { name, path } => write!(f, "{} (socket:{})", name, path),
             Assistant::Registered {
                 agent,
                 distribution,
@@ -170,6 +175,11 @@ impl Assistant {
                     "CustomUrl assistants do not use stdio connections".to_string(),
                 ));
             }
+            Assistant::CustomSocket { .. } => {
+                return Err(Error::Connection(
+                    "Socket assistants do not use stdio connections".to_string(),
+                ));
+            }
         };
         let mut cmd = async_process::Command::new(program);
         cmd.args(args);
@@ -181,6 +191,7 @@ impl Assistant {
         match self {
             Assistant::CustomStdio { name, .. } => name.clone(),
             Assistant::CustomUrl { name, .. } => name.clone(),
+            Assistant::CustomSocket { name, .. } => name.clone(),
             assistant => assistant.to_string(),
         }
     }
@@ -329,12 +340,7 @@ impl ConnectionManager {
                     Protocol::Http | Protocol::Https => {
                         http::connect(protocol, handler, thread_agent, receiver).await
                     }
-                    Protocol::Socket => {
-                        error!("Socket protocol is not yet implemented");
-                        Err(Error::Internal(
-                            "Socket protocol is not yet implemented".to_string(),
-                        ))
-                    }
+                    Protocol::Socket => socket::connect(handler, thread_agent, receiver).await,
                 }
             }));
 

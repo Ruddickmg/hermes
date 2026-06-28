@@ -19,7 +19,7 @@ Hermes focuses on:
 - [x] Support for all registered ACP Agents ([Full list here](https://agentclientprotocol.com/get-started/agents))
 - [x] Configurable capabilities (filesystem, terminal, etc)
 - [x] Autocommands for messages/notifications
-- [x] Communication over Stdio, Tcp, and Http Protocols
+- [x] Communication over Stdio, TCP, Socket, and HTTP protocols
 - [x] Neovim 0.12 progress integration via `nvim_echo` with `kind="progress"`
 
 ## 📦 Installation
@@ -2444,8 +2444,6 @@ Hermes is free and open source. If you find it useful, please consider supportin
 ## 📋 TODO:
 
 -- functionality
-- [x] Allow connecting to Agents
-  - [ ] Via unix socket
 - [ ] Support "unstable"/proposed ACP methods
   - [ ] [improve authentication data](https://agentclientprotocol.com/rfds/auth-methods)
   - [ ] [Fork sessions](https://agentclientprotocol.com/rfds/session-fork)

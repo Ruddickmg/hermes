@@ -102,6 +102,26 @@ pub fn connect_to_mock_agent_http(
         .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))
 }
 
+/// Connect to a mock agent via Unix domain socket
+#[cfg(unix)]
+pub fn connect_to_mock_agent_unix(
+    connect: &Function<ConnectionArgs, ()>,
+    mock_handle: &MockAgentHandle,
+) -> Result<(), nvim_oxi::Error> {
+    let mut options = Dictionary::new();
+    options.insert("protocol", "socket");
+    options.insert("path", mock_handle.path().unwrap());
+    let connection_options: ConnectionOptions =
+        FromObject::from_object(nvim_oxi::Object::from(options))
+            .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))?;
+    connect
+        .call((
+            nvim_oxi::String::from("mock-agent"),
+            Some(connection_options),
+        ))
+        .map_err(|e| nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(e.to_string())))
+}
+
 /// Setup result containing session-related resources
 pub struct MockAgentWithSession {
     pub setup: MockAgentSetup,
