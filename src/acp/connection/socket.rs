@@ -29,7 +29,7 @@ pub async fn connect(
     receiver: Receiver<UserRequest>,
 ) -> Result<(), Error> {
     let path = match &agent {
-        Assistant::Socket { path, .. } => path,
+        Assistant::CustomSocket { path, .. } => path,
         other => {
             error!("Unsupported agent type for socket connection: {}", other);
             return Err(Error::Connection(format!(

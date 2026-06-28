@@ -260,7 +260,7 @@ jobs:
             fi
 
             apt-get update
-            apt-get install -y lua5.1 liblua5.1-dev wget zip unzip
+            apt-get install -y lua5.1 liblua5.1-dev wget zip unzip jq
             wget -q https://luarocks.org/releases/luarocks-3.9.2.tar.gz
             tar zxf luarocks-3.9.2.tar.gz
             cd luarocks-3.9.2 && ./configure && make && make install
@@ -278,9 +278,20 @@ jobs:
             luarocks upload "/tmp/hermes.nvim-${VERSION}-1.rockspec" --api-key="${LUAROCKS_API_KEY}"
             echo "Source rock published: hermes.nvim-${VERSION}-1"
 
+            # Get version_id for binary rock uploads
+            CHECK_RESPONSE=$(curl -s "https://luarocks.org/api/1/${LUAROCKS_API_KEY}/check_rockspec?package=hermes.nvim&version=${VERSION}-1")
+            VERSION_ID=$(echo "$CHECK_RESPONSE" | jq -r '.version.id')
+
+            if [ -z "$VERSION_ID" ] || [ "$VERSION_ID" = "null" ]; then
+              echo "Failed to obtain version_id from API"
+              echo "Response: $CHECK_RESPONSE"
+              exit 1
+            fi
+            echo "Version ID: $VERSION_ID"
+
             # Re-generate full rockspec with "lib" for binary rock packaging
-            sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1.rockspec
-            sed -i "/url = \"https:.*archive.*tar\.gz\"/a\\  dir = \"hermes.nvim-${VERSION}\"," /tmp/hermes.nvim-${VERSION}-1.rockspec
+            sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > /tmp/hermes.nvim-${VERSION}-1-binary.rockspec
+            sed -i "/url = \"https:.*archive.*tar\.gz\"/a\\  dir = \"hermes.nvim-${VERSION}\"," /tmp/hermes.nvim-${VERSION}-1-binary.rockspec
 
             # Publish binary rocks for each platform
             for ext in so dylib dll; do
@@ -309,17 +320,25 @@ jobs:
                 cp plugin/hermes.lua "$ROCK_DIR/plugin/"
                 cp doc/hermes.txt "$ROCK_DIR/doc/"
                 cp "$binary" "$ROCK_DIR/lib/"
-                cp "/tmp/hermes.nvim-${VERSION}-1.rockspec" "$ROCK_DIR/"
+                cp "/tmp/hermes.nvim-${VERSION}-1-binary.rockspec" "$ROCK_DIR/hermes.nvim-${VERSION}-1.rockspec"
 
-                # Create .rock file (tar.gz with the correct internal structure)
+                # Create proper .rock file using luarocks make
                 cd "$ROCK_DIR"
-                tar czf "/tmp/hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" \
-                  "hermes.nvim-${VERSION}-1.rockspec" \
-                  lua/ plugin/ doc/ lib/
-                cd /
+                luarocks make --pack-binary-rock "hermes.nvim-${VERSION}-1.rockspec"
 
-                luarocks upload "/tmp/hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" --api-key="${LUAROCKS_API_KEY}"
+                # Rename to correct platform (luarocks uses current machine's platform)
+                mv "hermes.nvim-${VERSION}-1.linux-x86_64.rock" "hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock"
+
+                # Upload binary rock via LuaRocks API
+                curl -s -o /dev/null -w "%{http_code}" -X POST \
+                  "https://luarocks.org/api/1/${LUAROCKS_API_KEY}/upload_rock/${VERSION_ID}" \
+                  -F "rock_file=@hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock" | grep -q '^2' || {
+                    echo "Binary rock upload failed for ${LR_PLATFORM}"
+                    exit 1
+                  }
+
                 echo "Binary rock published: hermes.nvim-${VERSION}-1.${LR_PLATFORM}.rock"
+                cd /
                 rm -rf "$ROCK_DIR"
               done
             done

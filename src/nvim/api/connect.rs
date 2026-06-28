@@ -54,7 +54,7 @@ impl ConnectionOptions {
                 }
             },
             Protocol::Socket => match self.path {
-                Some(path) => Ok(Assistant::Socket { name, path }),
+                Some(path) => Ok(Assistant::CustomSocket { name, path }),
                 None => Err(Error::InvalidInput(
                     "Path must be provided for socket connections".into(),
                 )),
@@ -378,7 +378,7 @@ mod tests {
         };
         let result = opts.into_assistant("socket-agent".to_string());
         let assistant = result.unwrap();
-        assert!(matches!(assistant, Assistant::Socket { name, path }
+        assert!(matches!(assistant, Assistant::CustomSocket { name, path }
             if name == "socket-agent" && path == "/tmp/agent.sock"));
     }
 

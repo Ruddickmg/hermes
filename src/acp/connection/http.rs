@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn map_ws_message_binary_returns_invalid_data() {
-        let result = map_ws_message(Ok(Message::Binary(Bytes::from(vec![1u8, 2, 3]))));
+        let result = map_ws_message(Ok(Message::Binary(vec![1u8, 2, 3].into())));
         let err = result.unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
     }
