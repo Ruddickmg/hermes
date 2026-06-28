@@ -151,6 +151,27 @@ workflows:
 #-----------------------------------------------------------------------------------------------------------------------------
 
 commands:
+  check-release-needed:
+    steps:
+      - run:
+          name: Check if release needed
+          command: |
+            if [ ! -s version.txt ]; then
+              echo "No release version detected, skipping build"
+              circleci-agent step halt
+            fi
+
+  check-release-needed-windows:
+    steps:
+      - run:
+          name: Check if release needed
+          command: |
+            if (-not (Test-Path "version.txt") -or ((Get-Item "version.txt").Length -eq 0)) {
+              Write-Output "No release version detected, skipping build"
+              circleci-agent step halt
+            }
+
+
   upload-coverage:
     description: Upload a coverage report to Codecov using the CLI
     parameters:
@@ -294,6 +315,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - check-release-needed
       - restore-cargo-cache
       - run:
           name: Build for x86_64
@@ -312,6 +334,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - check-release-needed
       - restore-cargo-cache
       - run:
           name: Build for aarch64
@@ -331,6 +354,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - check-release-needed
       - run:
           name: Install Rust
           command: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -351,6 +375,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - check-release-needed
       - run:
           name: Install Rosetta 2
           command: softwareupdate --install-rosetta --agree-to-license
@@ -377,6 +402,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
+      - check-release-needed-windows
       - run:
           name: Install Rust (MSVC)
           command: |
