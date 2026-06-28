@@ -28,8 +28,8 @@ fn test_logout_function() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(disconnect_obj.clone())?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let wait_for_init = autocommand::listen_for_autocommand::<
         agent_client_protocol::schema::v1::InitializeResponse,
@@ -73,8 +73,8 @@ fn test_logout_single() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(disconnect_obj.clone())?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let wait_for_init = autocommand::listen_for_autocommand::<
         agent_client_protocol::schema::v1::InitializeResponse,
@@ -118,8 +118,8 @@ fn test_logout_multiple() -> Result<(), nvim_oxi::Error> {
         FromObject::from_object(disconnect_obj.clone())?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let wait_for_init = autocommand::listen_for_autocommand::<
         agent_client_protocol::schema::v1::InitializeResponse,

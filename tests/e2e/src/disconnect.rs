@@ -24,8 +24,8 @@ fn test_disconnect_all() -> Result<(), nvim_oxi::Error> {
     )?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -61,8 +61,8 @@ fn test_disconnect_single() -> Result<(), nvim_oxi::Error> {
     )?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -100,8 +100,8 @@ fn test_disconnect_multiple() -> Result<(), nvim_oxi::Error> {
     )?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 

@@ -49,8 +49,8 @@ fn test_set_model_no_models_does_not_crash() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -93,7 +93,7 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Configure mock agent with config options path
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -115,7 +115,7 @@ fn test_set_model_with_config_options() -> Result<(), nvim_oxi::Error> {
         config.set_session_config_option_response =
             Some(SetSessionConfigOptionResponse::new(vec![response_option]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -156,7 +156,7 @@ fn test_set_model_with_config_options_updated() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<HermesOption>(Commands::SessionModelUpdated);
 
     // Configure mock agent with new config options path
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -178,7 +178,7 @@ fn test_set_model_with_config_options_updated() -> Result<(), nvim_oxi::Error> {
         config.set_session_config_option_response =
             Some(SetSessionConfigOptionResponse::new(vec![response_option]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 

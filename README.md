@@ -2,7 +2,7 @@
 
 An [ACP (Agent Client Protocol)](https://agentclientprotocol.com) client designed for integration with Neovim. 
 
-<a href="https://github.com/sponsors/Ruddickmg"><img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge" /></a> <a href="https://neovim.io"><img src="https://img.shields.io/badge/Neovim-0.11%2B-green?style=for-the-badge&logo=neovim" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov" /></a> <a href="https://circleci.com/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/circleci/build/github/Ruddickmg/hermes.nvim/main?style=for-the-badge&logo=circleci" /></a>
+<a href="https://github.com/sponsors/Ruddickmg"><img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge" /></a> <a href="https://neovim.io"><img src="https://img.shields.io/badge/Neovim-0.11%2B-green?style=for-the-badge&logo=neovim" /></a> <a href="https://luarocks.org/modules/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/luarocks/v/Ruddickmg/hermes.nvim?style=for-the-badge&logo=lua" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov" /></a>
 
 ## 📋 Overview
 
@@ -2425,21 +2425,12 @@ Available formats:
 - **full** - Complete information including timestamps and metadata
 - **json** - Machine-readable JSON format
 
-### 🏥 Health & Configuration details
+## 🏥 Health & Configuration details
 
 Run the health check to see full diagnostics including Neovim version, binary status, platform info, download tools, log files, registry binaries, and configuration.
 ```
 :checkhealth hermes
 ```
-
-## ❤️ Support
-
-Hermes is free and open source. If you find it useful, please consider supporting its development:
-
-- [GitHub Sponsors](https://github.com/sponsors/Ruddickmg)
-- [Patreon](https://patreon.com/Ruddickmg)
-- [ko_fi](https://ko-fi.com/ruddickmg)
-- [thanks.dev](https://thanks.dev/u/gh/Ruddickmg)
 
 ## 📋 TODO:
 
@@ -2455,14 +2446,6 @@ Hermes is free and open source. If you find it useful, please consider supportin
   - [ ] [Plan Operations Support](https://agentclientprotocol.com/rfds/plan-operations)
 
 -- nice to haves
-- [ ] look into ways of improving ai integration
-  - [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
-  - [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)
-  - [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text
-
--- architecture
-- [ ] figure out how to remove tokio dependencies (imported by the acp sdk)
-- [ ] acp outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `userrequest` dispatches. trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
-- [ ] connection threading model: currently one os thread per connection driving its own `smol::localexecutor`. explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
-- [ ] mockagent (e2e tests): the migration to `agent.builder()` may still leave the `agenttoconnection` channel hop in place for some sub-request flows. audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
-
+- [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
+- [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)
+- [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text

@@ -33,8 +33,8 @@ pub fn setup_mock_agent() -> Result<MockAgentSetup, nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     // Setup autocommand listeners
     let wait_for_initialization =

@@ -63,7 +63,7 @@ fn test_read_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
 
     let session_placeholder = SessionId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new().set_read_file_request(ReadTextFileRequest::new(
@@ -71,7 +71,7 @@ fn test_read_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
             file_path.clone(),
         ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -133,7 +133,7 @@ fn test_write_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
 
     let session_placeholder = SessionId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new().set_write_file_request(WriteTextFileRequest::new(
@@ -142,7 +142,7 @@ fn test_write_file_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
             write_content,
         ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -204,7 +204,7 @@ fn test_write_file_default_handler_writes_to_disk() -> Result<(), nvim_oxi::Erro
 
     let session_placeholder = SessionId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new().set_write_file_request(WriteTextFileRequest::new(
@@ -213,7 +213,7 @@ fn test_write_file_default_handler_writes_to_disk() -> Result<(), nvim_oxi::Erro
             write_content,
         ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -271,7 +271,7 @@ fn test_read_file_default_handler_reads_from_disk() -> Result<(), nvim_oxi::Erro
 
     let session_placeholder = SessionId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new().set_read_file_request(ReadTextFileRequest::new(
@@ -279,7 +279,7 @@ fn test_read_file_default_handler_reads_from_disk() -> Result<(), nvim_oxi::Erro
             file_path.clone(),
         ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");

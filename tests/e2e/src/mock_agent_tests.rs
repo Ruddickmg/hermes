@@ -27,8 +27,8 @@ fn test_mock_agent_connection() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
 
     // 1. Create mock agent and start it
-    let (agent, session_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, session_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     // 2. Connect to mock agent using socket protocol
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -55,8 +55,8 @@ fn test_mock_agent_prompt() -> Result<(), nvim_oxi::Error> {
     let dict: Dictionary = hermes()?;
 
     // Start mock agent
-    let (agent, session_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, session_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     // Connect
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
