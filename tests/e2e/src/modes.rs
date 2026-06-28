@@ -65,14 +65,14 @@ fn test_modes_returns_legacy_modes() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
     let wait_for_modes = autocommand::listen_for_autocommand::<Selection>(Commands::Modes);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let mode = SessionMode::new("chat", "Chat");
         let modes = SessionModeState::new("chat", vec![mode]);
         config.new_session_response = NewSessionResponse::new(generate_session_id()).modes(modes);
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -120,7 +120,7 @@ fn test_modes_returns_config_options() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
     let wait_for_modes = autocommand::listen_for_autocommand::<Selection>(Commands::Modes);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -133,7 +133,7 @@ fn test_modes_returns_config_options() -> Result<(), nvim_oxi::Error> {
         config.new_session_response =
             NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -181,7 +181,7 @@ fn test_modes_returns_grouped_options() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
     let wait_for_modes = autocommand::listen_for_autocommand::<Selection>(Commands::Modes);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let group = agent_client_protocol::schema::v1::SessionConfigSelectGroup::new(
@@ -200,7 +200,7 @@ fn test_modes_returns_grouped_options() -> Result<(), nvim_oxi::Error> {
         config.new_session_response =
             NewSessionResponse::new(generate_session_id()).config_options(vec![option]);
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 

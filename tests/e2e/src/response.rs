@@ -45,13 +45,13 @@ struct PermissionRequestData {
 #[nvim_oxi::test]
 fn test_permission_request_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     // 1. Create mock agent configured to request permission
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new()
             .set_permission_request(create_test_permission_request("mock-session"));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");

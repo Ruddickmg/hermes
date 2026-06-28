@@ -52,8 +52,8 @@ fn test_default_session_creation() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -87,8 +87,8 @@ fn test_custom_session_creation() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -133,8 +133,8 @@ fn test_cancel_during_prompt() -> Result<(), nvim_oxi::Error> {
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
     // Start mock agent with a long-running prompt behavior (simulated by sleeping)
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -202,8 +202,8 @@ fn test_load_session() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -255,8 +255,8 @@ fn test_list_sessions_no_filter() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<ListSessionsResponse>(Commands::SessionsListed);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -306,8 +306,8 @@ fn test_list_sessions_with_cwd_filter() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<ListSessionsResponse>(Commands::SessionsListed);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -420,14 +420,14 @@ fn test_load_session_with_legacy_modes() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<LoadSessionResponse>(Commands::SessionLoaded);
 
     // Configure mock agent with legacy modes in load_session response
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let mode = SessionMode::new("chat", "Chat");
         let modes = SessionModeState::new("chat", vec![mode]);
         config.load_session_response = Some(LoadSessionResponse::default().modes(modes));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -478,7 +478,7 @@ fn test_load_session_with_config_options() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<LoadSessionResponse>(Commands::SessionLoaded);
 
     // Configure mock agent with config options in load_session response
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -491,7 +491,7 @@ fn test_load_session_with_config_options() -> Result<(), nvim_oxi::Error> {
         config.load_session_response =
             Some(LoadSessionResponse::default().config_options(vec![option]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -547,7 +547,7 @@ fn test_load_session_then_set_mode_uses_legacy_path() -> Result<(), nvim_oxi::Er
     >(Commands::ModeUpdated);
 
     // Configure mock agent with legacy modes and set_mode response
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let mode = SessionMode::new("chat", "Chat");
@@ -556,7 +556,7 @@ fn test_load_session_then_set_mode_uses_legacy_path() -> Result<(), nvim_oxi::Er
         config.set_session_mode_response =
             Some(agent_client_protocol::schema::v1::SetSessionModeResponse::new());
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -615,7 +615,7 @@ fn test_load_session_then_set_mode_uses_config_path() -> Result<(), nvim_oxi::Er
     >(Commands::ConfigurationUpdated);
 
     // Configure mock agent with config options and set_config_option response
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -630,7 +630,7 @@ fn test_load_session_then_set_mode_uses_config_path() -> Result<(), nvim_oxi::Er
         config.set_session_config_option_response =
             Some(agent_client_protocol::schema::v1::SetSessionConfigOptionResponse::new(vec![]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -682,12 +682,12 @@ fn test_close_session_fires_session_closed() -> Result<(), nvim_oxi::Error> {
     let wait_for_session_closed =
         autocommand::listen_for_autocommand::<CloseSessionResponse>(Commands::SessionClosed);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         config.close_session_response = Some(CloseSessionResponse::new());
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -729,12 +729,12 @@ fn test_delete_session_fires_session_deleted() -> Result<(), nvim_oxi::Error> {
     let wait_for_session_deleted =
         autocommand::listen_for_autocommand::<DeleteSessionResponse>(Commands::SessionDeleted);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         config.delete_session_response = Some(DeleteSessionResponse::new());
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -779,12 +779,12 @@ fn test_delete_session_with_cancel_false() -> Result<(), nvim_oxi::Error> {
     let wait_for_session_deleted =
         autocommand::listen_for_autocommand::<DeleteSessionResponse>(Commands::SessionDeleted);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         config.delete_session_response = Some(DeleteSessionResponse::new());
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -829,8 +829,8 @@ fn test_resume_session() -> Result<(), nvim_oxi::Error> {
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -881,7 +881,7 @@ fn test_resume_session_replays_history() -> Result<(), nvim_oxi::Error> {
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
     // Start MockAgent configured for local history (resume without server load)
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let caps = AgentCapabilities::new()
@@ -892,7 +892,7 @@ fn test_resume_session_replays_history() -> Result<(), nvim_oxi::Error> {
         config.initialize_response =
             InitializeResponse::new(ProtocolVersion::LATEST).agent_capabilities(caps);
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;

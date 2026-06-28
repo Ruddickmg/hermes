@@ -50,7 +50,7 @@ fn test_configure_model_success() -> Result<(), nvim_oxi::Error> {
         Commands::ModelConfigurationUpdated,
     );
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -78,7 +78,7 @@ fn test_configure_model_success() -> Result<(), nvim_oxi::Error> {
         config.set_session_config_option_response =
             Some(SetSessionConfigOptionResponse::new(vec![response_option]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -127,7 +127,7 @@ fn test_configure_model_merges_instead_of_replacing() -> Result<(), nvim_oxi::Er
         Commands::ModelConfigurationUpdated,
     );
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let opt1 = SessionConfigOption::select(
@@ -163,7 +163,7 @@ fn test_configure_model_merges_instead_of_replacing() -> Result<(), nvim_oxi::Er
         config.set_session_config_option_response =
             Some(SetSessionConfigOptionResponse::new(vec![response_option]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
