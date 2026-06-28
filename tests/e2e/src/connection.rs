@@ -13,9 +13,7 @@ use crate::{
     utilities::{
         autocommand,
         mock_agent::MockAgent,
-        test_helpers::{
-            connect_to_mock_agent, connect_to_mock_agent_http, connect_to_mock_agent_unix,
-        },
+        test_helpers::{connect_to_mock_agent, connect_to_mock_agent_http},
     },
 };
 
@@ -192,7 +190,7 @@ fn test_connection_via_unix_socket() -> Result<(), nvim_oxi::Error> {
     let mock_handle =
         MockAgent::start_unix_socket(agent, conn_rx).expect("Failed to start mock agent");
 
-    connect_to_mock_agent_unix(&connect, &mock_handle)?;
+    crate::utilities::test_helpers::connect_to_mock_agent_unix(&connect, &mock_handle)?;
 
     let init_response = wait_for_init(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
 
