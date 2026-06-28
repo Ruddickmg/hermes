@@ -462,8 +462,15 @@ impl MockAgent {
         agent: MockAgent,
         conn_rx: MockAgentReceiver,
     ) -> Result<MockAgentHandle, std::io::Error> {
-        let socket_path =
-            std::env::temp_dir().join(format!("hermes-test-{}.sock", std::process::id()));
+        let unique = format!(
+            "hermes-test-{}-{}.sock",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let socket_path = std::env::temp_dir().join(unique);
         let _ = std::fs::remove_file(&socket_path);
         let std_listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
         let path = socket_path.to_string_lossy().to_string();

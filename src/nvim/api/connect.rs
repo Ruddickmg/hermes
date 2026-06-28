@@ -389,13 +389,8 @@ mod tests {
             ..Default::default()
         };
         let result = opts.into_assistant("socket-agent".to_string());
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Path must be provided")
-        );
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Path must be provided"));
     }
 
     #[test]
