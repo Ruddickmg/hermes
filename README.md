@@ -2425,7 +2425,7 @@ Available formats:
 - **full** - Complete information including timestamps and metadata
 - **json** - Machine-readable JSON format
 
-### 🏥 Health & Configuration details
+## 🏥 Health & Configuration details
 
 Run the health check to see full diagnostics including Neovim version, binary status, platform info, download tools, log files, registry binaries, and configuration.
 ```
@@ -2455,14 +2455,6 @@ Hermes is free and open source. If you find it useful, please consider supportin
   - [ ] [Plan Operations Support](https://agentclientprotocol.com/rfds/plan-operations)
 
 -- nice to haves
-- [ ] look into ways of improving ai integration
-  - [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
-  - [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)
-  - [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text
-
--- architecture
-- [ ] figure out how to remove tokio dependencies (imported by the acp sdk)
-- [ ] acp outbound request dispatch: explore switching `run_user_requests` from inline `.block_task().await?` to `cx.on_receiving_ok_result(...)` callbacks for fire-and-forget concurrency between sequential `userrequest` dispatches. trade-off: more concurrent dispatch, but adds callback indirection and complicates error propagation back to the loop.
-- [ ] connection threading model: currently one os thread per connection driving its own `smol::localexecutor`. explore consolidating to a single multi-threaded executor (one shared runtime, connections as spawned tasks) to reduce per-connection overhead.
-- [ ] mockagent (e2e tests): the migration to `agent.builder()` may still leave the `agenttoconnection` channel hop in place for some sub-request flows. audit and remove any remaining channel indirection in favor of direct `cx.send_request(...)` calls from spawned tasks inside the prompt handler closure.
-
+- [ ] research RLM ([example](https://github.com/JaredStewart/coderlm))
+- [ ] connect agent to lsp (try to set it up as a tool call/connect to neovim lsp)
+- [ ] use [whisper.rs](https://crates.io/crates/whisper-rs) to facilitate speech to text
