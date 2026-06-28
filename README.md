@@ -2,7 +2,7 @@
 
 An [ACP (Agent Client Protocol)](https://agentclientprotocol.com) client designed for integration with Neovim. 
 
-<a href="https://github.com/sponsors/Ruddickmg"><img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F-Support%20this%20project-ff69b4?style=for-the-badge" /></a> <a href="https://neovim.io"><img src="https://img.shields.io/badge/Neovim-0.11%2B-green?style=for-the-badge&logo=neovim" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov" /></a> <a href="https://circleci.com/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/circleci/build/github/Ruddickmg/hermes.nvim/main?style=for-the-badge&logo=circleci" /></a>
+<a href="https://neovim.io"><img src="https://img.shields.io/badge/Neovim-0.11%2B-green?style=for-the-badge&logo=neovim" /></a> <a href="https://codecov.io/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/codecov/c/github/Ruddickmg/hermes.nvim?style=for-the-badge&logo=codecov" /></a> <a href="https://circleci.com/gh/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/circleci/build/github/Ruddickmg/hermes.nvim/main?style=for-the-badge&logo=circleci" /></a> <a href="https://luarocks.org/modules/Ruddickmg/hermes.nvim"><img src="https://img.shields.io/luarocks/v/Ruddickmg/hermes.nvim?style=for-the-badge&logo=lua" /></a> <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.70%2B-orange?style=for-the-badge&logo=rust" /></a>
 
 ## 📋 Overview
 
@@ -2431,15 +2431,6 @@ Run the health check to see full diagnostics including Neovim version, binary st
 ```
 :checkhealth hermes
 ```
-
-## ❤️ Support
-
-Hermes is free and open source. If you find it useful, please consider supporting its development:
-
-- [GitHub Sponsors](https://github.com/sponsors/Ruddickmg)
-- [Patreon](https://patreon.com/Ruddickmg)
-- [ko_fi](https://ko-fi.com/ruddickmg)
-- [thanks.dev](https://thanks.dev/u/gh/Ruddickmg)
 
 ## 📋 TODO:
 
