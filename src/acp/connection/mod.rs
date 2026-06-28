@@ -1,6 +1,7 @@
 pub mod connect;
 pub mod http;
 pub mod manager;
+pub mod socket;
 pub mod stdio;
 pub mod tcp;
 use std::sync::Arc;

@@ -12,6 +12,7 @@ use super::mock_config::MockConfig;
 pub struct MockAgentHandle {
     pub config: Arc<Mutex<MockConfig>>,
     pub port: u16,
+    pub socket_path: Option<String>,
     thread_handle: Option<JoinHandle<()>>,
     shutdown_sender: Option<async_channel::Sender<()>>,
 }
@@ -27,6 +28,23 @@ impl MockAgentHandle {
         Self {
             config,
             port,
+            socket_path: None,
+            thread_handle: Some(thread_handle),
+            shutdown_sender: Some(shutdown_sender),
+        }
+    }
+
+    /// Create a new handle for a Unix socket mock agent
+    pub fn new_unix_socket(
+        config: Arc<Mutex<MockConfig>>,
+        socket_path: String,
+        thread_handle: JoinHandle<()>,
+        shutdown_sender: async_channel::Sender<()>,
+    ) -> Self {
+        Self {
+            config,
+            port: 0,
+            socket_path: Some(socket_path),
             thread_handle: Some(thread_handle),
             shutdown_sender: Some(shutdown_sender),
         }
@@ -40,6 +58,11 @@ impl MockAgentHandle {
     /// Get the port for connecting to this mock agent
     pub fn port(&self) -> u16 {
         self.port
+    }
+
+    /// Get the Unix socket path for connecting to this mock agent
+    pub fn path(&self) -> Option<&str> {
+        self.socket_path.as_deref()
     }
 
     /// Explicitly shut down the mock agent

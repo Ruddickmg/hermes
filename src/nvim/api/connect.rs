@@ -53,6 +53,12 @@ impl ConnectionOptions {
                     Ok(assistant)
                 }
             },
+            Protocol::Socket => match self.path {
+                Some(path) => Ok(Assistant::CustomSocket { name, path }),
+                None => Err(Error::InvalidInput(
+                    "Path must be provided for socket connections".into(),
+                )),
+            },
             _ => match (self.host, self.port) {
                 (Some(host), Some(port)) => Ok(Assistant::CustomUrl {
                     name,
@@ -332,22 +338,6 @@ mod tests {
     }
 
     #[test]
-    fn connection_options_into_assistant_socket_with_host_port() {
-        let opts = ConnectionOptions {
-            protocol: Protocol::Socket,
-            host: Some("localhost".to_string()),
-            port: Some(8080),
-            ..Default::default()
-        };
-        let result = opts.into_assistant("socket-agent".to_string());
-        let assistant = result.unwrap();
-        assert!(
-            matches!(assistant, Assistant::CustomUrl { name, host, port, path: _ }
-            if name == "socket-agent" && host == "localhost" && port == 8080)
-        );
-    }
-
-    #[test]
     fn connection_options_into_assistant_http_with_host_port() {
         let opts = ConnectionOptions {
             protocol: Protocol::Http,
@@ -380,14 +370,27 @@ mod tests {
     }
 
     #[test]
-    fn connection_options_into_assistant_socket_missing_host() {
+    fn connection_options_into_assistant_socket_with_path() {
         let opts = ConnectionOptions {
             protocol: Protocol::Socket,
-            port: Some(8080),
+            path: Some("/tmp/agent.sock".to_string()),
             ..Default::default()
         };
         let result = opts.into_assistant("socket-agent".to_string());
-        assert!(result.is_err());
+        let assistant = result.unwrap();
+        assert!(matches!(assistant, Assistant::CustomSocket { name, path }
+            if name == "socket-agent" && path == "/tmp/agent.sock"));
+    }
+
+    #[test]
+    fn connection_options_into_assistant_socket_missing_path() {
+        let opts = ConnectionOptions {
+            protocol: Protocol::Socket,
+            ..Default::default()
+        };
+        let result = opts.into_assistant("socket-agent".to_string());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Path must be provided"));
     }
 
     #[test]
