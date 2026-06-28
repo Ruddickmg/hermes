@@ -4,28 +4,27 @@
 //
 // In 0.10.x this was an `impl Agent for MockAgent` block driven by
 // `AgentSideConnection::new(...)`. In 0.11 there is no `Agent` trait; handlers
-// are closures registered on `Agent.builder()`. The MockConfig + AgentToConnection
-// channel architecture stays the same so existing tests don't change.
+// are closures registered on `Agent.builder()`. The prompt handler runs inside
+// `cx.spawn(...)` and calls `cx.send_request(...).block_task().await` directly
+// on the cloned `ConnectionTo<Client>`, eliminating the AgentToConnection channel
+// indirection that was carried over from 0.10.x.
 
 use agent_client_protocol::{
     self as acp, Agent, ByteStreams, ConnectionTo, Lines, Responder, on_receive_notification,
     on_receive_request,
     schema::v1::{
         AuthenticateRequest, AuthenticateResponse, CancelNotification, CloseSessionRequest,
-        CloseSessionResponse, ContentBlock, ContentChunk, CreateTerminalRequest,
-        CreateTerminalResponse, DeleteSessionRequest, DeleteSessionResponse, InitializeRequest,
-        InitializeResponse, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest,
-        LoadSessionResponse, LogoutRequest, LogoutResponse, NewSessionRequest, NewSessionResponse,
-        PromptRequest, PromptResponse, ReadTextFileRequest, ReadTextFileResponse,
-        ReleaseTerminalRequest, ReleaseTerminalResponse, RequestPermissionOutcome,
-        RequestPermissionRequest, ResumeSessionRequest, ResumeSessionResponse, SessionNotification,
-        SessionUpdate, SetSessionConfigOptionRequest, SetSessionConfigOptionResponse,
-        SetSessionModeRequest, SetSessionModeResponse, StopReason, TerminalOutputRequest,
-        TerminalOutputResponse, TextContent, WaitForTerminalExitRequest,
-        WaitForTerminalExitResponse, WriteTextFileRequest, WriteTextFileResponse,
+        CloseSessionResponse, ContentBlock, ContentChunk, DeleteSessionRequest,
+        DeleteSessionResponse, InitializeRequest, InitializeResponse, ListSessionsRequest,
+        ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, LogoutRequest,
+        LogoutResponse, NewSessionRequest, NewSessionResponse, PromptRequest, PromptResponse,
+        ResumeSessionRequest, ResumeSessionResponse, SessionNotification, SessionUpdate,
+        SetSessionConfigOptionRequest, SetSessionConfigOptionResponse, SetSessionModeRequest,
+        SetSessionModeResponse, StopReason, TerminalOutputRequest, TextContent,
+        WaitForTerminalExitRequest,
     },
 };
-use async_channel::{Receiver, Sender, bounded, unbounded};
+use async_channel::bounded;
 use async_io::{Async, Timer};
 use futures::StreamExt;
 use futures::future::{Either, select};
@@ -45,67 +44,17 @@ fn internal_error(message: impl Into<String>) -> acp::Error {
     acp::Error::new(INTERNAL_ERROR_CODE, message)
 }
 
-/// Messages sent from request handlers to the connection-management task.
-/// The connection-management task owns the `ConnectionTo<Client>` and forwards
-/// these into outbound `cx.send_request(...)` / `cx.send_notification(...)` calls.
-pub(crate) enum AgentToConnection {
-    /// Send a session notification to Hermes
-    SessionNotification(SessionNotification, Sender<()>),
-    /// Send a permission request to Hermes and return the outcome
-    PermissionRequest(RequestPermissionRequest, Sender<RequestPermissionOutcome>),
-    /// Send a terminal creation request to Hermes and return the response
-    CreateTerminal(
-        CreateTerminalRequest,
-        Sender<acp::Result<CreateTerminalResponse>>,
-    ),
-    /// Send a terminal output request to Hermes and return the response
-    TerminalOutput(
-        TerminalOutputRequest,
-        Sender<acp::Result<TerminalOutputResponse>>,
-    ),
-    /// Send a wait for terminal exit request to Hermes and return the response
-    WaitForTerminalExit(
-        WaitForTerminalExitRequest,
-        Sender<acp::Result<WaitForTerminalExitResponse>>,
-    ),
-    /// Send a read text file request to Hermes and return the response
-    ReadTextFile(
-        ReadTextFileRequest,
-        Sender<acp::Result<ReadTextFileResponse>>,
-    ),
-    /// Send a write text file request to Hermes and return the response
-    WriteTextFile(
-        WriteTextFileRequest,
-        Sender<acp::Result<WriteTextFileResponse>>,
-    ),
-    /// Send a release terminal request to Hermes and return the response
-    ReleaseTerminal(
-        ReleaseTerminalRequest,
-        Sender<acp::Result<ReleaseTerminalResponse>>,
-    ),
-}
-
-/// Opaque receiver type passed from `MockAgent::new()` to `MockAgent::start()`.
-pub type MockAgentReceiver = Receiver<AgentToConnection>;
-
 /// Mock agent state shared with the builder closures.
 pub struct MockAgent {
     config: Arc<Mutex<MockConfig>>,
-    /// Channel to send messages to the connection-management task
-    conn_tx: Sender<AgentToConnection>,
 }
 
 impl MockAgent {
     /// Create a new mock agent with default configuration.
-    ///
-    /// Returns the agent state and the receiver end of the connection channel.
-    pub fn new() -> (Self, MockAgentReceiver) {
-        let (conn_tx, conn_rx) = unbounded();
-        let agent = Self {
+    pub fn new() -> Self {
+        Self {
             config: Arc::new(Mutex::new(MockConfig::default())),
-            conn_tx,
-        };
-        (agent, conn_rx)
+        }
     }
 
     /// Get access to the configuration for customization
@@ -118,12 +67,8 @@ impl MockAgent {
     /// Spawns a thread with a smol LocalExecutor that:
     /// 1. Accepts one TCP connection
     /// 2. Builds an `Agent.builder()` with handlers that delegate to MockConfig
-    /// 3. Uses `with_spawned` to run the AgentToConnection translation task
-    /// 4. Drives the connection until the transport closes or shutdown is signaled
-    pub fn start(
-        agent: MockAgent,
-        conn_rx: MockAgentReceiver,
-    ) -> Result<MockAgentHandle, std::io::Error> {
+    /// 3. Drives the connection until the transport closes or shutdown is signaled
+    pub fn start(agent: MockAgent) -> Result<MockAgentHandle, std::io::Error> {
         let std_listener = std::net::TcpListener::bind("127.0.0.1:0")?;
         let port = std_listener.local_addr()?.port();
 
@@ -131,7 +76,7 @@ impl MockAgent {
 
         let (shutdown_tx, shutdown_rx) = bounded::<()>(1);
         let config_clone = agent.config.clone();
-        let MockAgent { config, conn_tx } = agent;
+        let MockAgent { config } = agent;
 
         let thread_handle = std::thread::spawn(move || {
             let executor = Rc::new(smol::LocalExecutor::new());
@@ -145,7 +90,6 @@ impl MockAgent {
             };
 
             smol::block_on(executor.clone().run(async move {
-                // Race between accept and shutdown signal
                 let accept_fut = async {
                     match listener.accept().await {
                         Ok((stream, addr)) => {
@@ -168,64 +112,7 @@ impl MockAgent {
                     Either::Left((Some(stream), _)) => {
                         let (read_half, write_half) = stream.split();
 
-                        // The connection-management task receives a ConnectionTo<Client> from the
-                        // builder once it starts serving traffic. It pulls AgentToConnection
-                        // messages off the channel and translates them to outbound
-                        // `cx.send_request(...)` / `cx.send_notification(...)` calls.
-                        let connection_task = move |cx: ConnectionTo<acp::Client>| async move {
-                            while let Ok(msg) = conn_rx.recv().await {
-                                match msg {
-                                    AgentToConnection::SessionNotification(notification, tx) => {
-                                        if let Err(e) = cx.send_notification(notification) {
-                                            error!("Error sending session notification: {}", e);
-                                            break;
-                                        }
-                                        tx.try_send(()).ok();
-                                    }
-                                    AgentToConnection::PermissionRequest(request, tx) => {
-                                        match cx.send_request(request).block_task().await {
-                                            Ok(response) => {
-                                                tx.try_send(response.outcome).ok();
-                                            }
-                                            Err(e) => {
-                                                error!("Error sending permission request: {}", e);
-                                                tx.try_send(RequestPermissionOutcome::Cancelled)
-                                                    .ok();
-                                            }
-                                        }
-                                    }
-                                    AgentToConnection::CreateTerminal(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::TerminalOutput(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::WaitForTerminalExit(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::ReadTextFile(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::WriteTextFile(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::ReleaseTerminal(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                }
-                            }
-                            info!("Message handling loop ended");
-                            Ok(())
-                        };
-
-                        let builder = build_mock_agent_builder(config.clone(), conn_tx.clone())
-                            .with_spawned(connection_task);
+                        let builder = build_mock_agent_builder(config.clone());
 
                         let serve_fut = async move {
                             let result = builder
@@ -270,10 +157,7 @@ impl MockAgent {
     ///
     /// Identical to `start` but performs a WebSocket upgrade on the accepted TCP
     /// connection and drives the ACP protocol over WebSocket text frames.
-    pub fn start_websocket(
-        agent: MockAgent,
-        conn_rx: MockAgentReceiver,
-    ) -> Result<MockAgentHandle, std::io::Error> {
+    pub fn start_websocket(agent: MockAgent) -> Result<MockAgentHandle, std::io::Error> {
         let std_listener = std::net::TcpListener::bind("127.0.0.1:0")?;
         let port = std_listener.local_addr()?.port();
 
@@ -281,7 +165,7 @@ impl MockAgent {
 
         let (shutdown_tx, shutdown_rx) = bounded::<()>(1);
         let config_clone = agent.config.clone();
-        let MockAgent { config, conn_tx } = agent;
+        let MockAgent { config } = agent;
 
         let thread_handle = std::thread::spawn(move || {
             let executor = Rc::new(smol::LocalExecutor::new());
@@ -362,60 +246,7 @@ impl MockAgent {
 
                         let lines = Lines::new(outgoing_sink, incoming_stream);
 
-                        let connection_task = move |cx: ConnectionTo<acp::Client>| async move {
-                            while let Ok(msg) = conn_rx.recv().await {
-                                match msg {
-                                    AgentToConnection::SessionNotification(notification, tx) => {
-                                        if let Err(e) = cx.send_notification(notification) {
-                                            error!("Error sending session notification: {}", e);
-                                            break;
-                                        }
-                                        tx.try_send(()).ok();
-                                    }
-                                    AgentToConnection::PermissionRequest(request, tx) => {
-                                        match cx.send_request(request).block_task().await {
-                                            Ok(response) => {
-                                                tx.try_send(response.outcome).ok();
-                                            }
-                                            Err(e) => {
-                                                error!("Error sending permission request: {}", e);
-                                                tx.try_send(RequestPermissionOutcome::Cancelled)
-                                                    .ok();
-                                            }
-                                        }
-                                    }
-                                    AgentToConnection::CreateTerminal(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::TerminalOutput(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::WaitForTerminalExit(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::ReadTextFile(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::WriteTextFile(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::ReleaseTerminal(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                }
-                            }
-                            info!("Message handling loop ended");
-                            Ok(())
-                        };
-
-                        let builder = build_mock_agent_builder(config.clone(), conn_tx.clone())
-                            .with_spawned(connection_task);
+                        let builder = build_mock_agent_builder(config.clone());
 
                         let serve_fut = async move {
                             let result = builder.connect_to(lines).await;
@@ -458,10 +289,7 @@ impl MockAgent {
     ///
     /// Identical to `start` but listens on a Unix domain socket instead of TCP.
     #[cfg(unix)]
-    pub fn start_unix_socket(
-        agent: MockAgent,
-        conn_rx: MockAgentReceiver,
-    ) -> Result<MockAgentHandle, std::io::Error> {
+    pub fn start_unix_socket(agent: MockAgent) -> Result<MockAgentHandle, std::io::Error> {
         let unique = format!(
             "hermes-test-{}-{}.sock",
             std::process::id(),
@@ -479,7 +307,7 @@ impl MockAgent {
 
         let (shutdown_tx, shutdown_rx) = bounded::<()>(1);
         let config_clone = agent.config.clone();
-        let MockAgent { config, conn_tx } = agent;
+        let MockAgent { config } = agent;
 
         let thread_handle = std::thread::spawn(move || {
             let executor = Rc::new(smol::LocalExecutor::new());
@@ -515,60 +343,7 @@ impl MockAgent {
                     Either::Left((Some(stream), _)) => {
                         let (read_half, write_half) = stream.split();
 
-                        let connection_task = move |cx: ConnectionTo<acp::Client>| async move {
-                            while let Ok(msg) = conn_rx.recv().await {
-                                match msg {
-                                    AgentToConnection::SessionNotification(notification, tx) => {
-                                        if let Err(e) = cx.send_notification(notification) {
-                                            error!("Error sending session notification: {}", e);
-                                            break;
-                                        }
-                                        tx.try_send(()).ok();
-                                    }
-                                    AgentToConnection::PermissionRequest(request, tx) => {
-                                        match cx.send_request(request).block_task().await {
-                                            Ok(response) => {
-                                                tx.try_send(response.outcome).ok();
-                                            }
-                                            Err(e) => {
-                                                error!("Error sending permission request: {}", e);
-                                                tx.try_send(RequestPermissionOutcome::Cancelled)
-                                                    .ok();
-                                            }
-                                        }
-                                    }
-                                    AgentToConnection::CreateTerminal(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::TerminalOutput(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::WaitForTerminalExit(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::ReadTextFile(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::WriteTextFile(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                    AgentToConnection::ReleaseTerminal(request, tx) => {
-                                        let result = cx.send_request(request).block_task().await;
-                                        tx.try_send(result).ok();
-                                    }
-                                }
-                            }
-                            info!("Message handling loop ended");
-                            Ok(())
-                        };
-
-                        let builder = build_mock_agent_builder(config.clone(), conn_tx.clone())
-                            .with_spawned(connection_task);
+                        let builder = build_mock_agent_builder(config.clone());
 
                         let serve_fut = async move {
                             let result = builder
@@ -621,28 +396,12 @@ async fn timeout<T>(
     }
 }
 
-/// Helper: race a channel recv against a timeout.
-async fn recv_timeout<T>(
-    rx: Receiver<T>,
-    duration: std::time::Duration,
-    timeout_msg: &str,
-    closed_msg: &str,
-) -> Result<T, acp::Error> {
-    match select(Box::pin(rx.recv()), Box::pin(Timer::after(duration))).await {
-        Either::Left((Ok(val), _)) => Ok(val),
-        Either::Left((Err(_), _)) => Err(internal_error(closed_msg)),
-        Either::Right((_, _)) => Err(internal_error(timeout_msg)),
-    }
-}
-
 /// Build an `Agent.builder()` with every inbound handler registered.
 ///
-/// Each closure clones the shared `config` (and `conn_tx` for the prompt handler)
-/// and reads from `MockConfig` to determine the response or to dispatch agent →
-/// client messages via the connection-management task.
+/// Each closure clones the shared `config` and reads from `MockConfig` to
+/// determine the response.
 fn build_mock_agent_builder(
     config: Arc<Mutex<MockConfig>>,
-    conn_tx: Sender<AgentToConnection>,
 ) -> acp::Builder<
     Agent,
     impl acp::HandleDispatchFrom<acp::Client>,
@@ -724,7 +483,6 @@ fn build_mock_agent_builder(
         .on_receive_request(
             {
                 let config = config.clone();
-                let conn_tx = conn_tx.clone();
                 // Prompt handling drives a multi-step workflow that calls
                 // `cx.send_request(...).block_task().await` on the spawned-task path.
                 // If we awaited that workflow inside this handler, the dispatch loop
@@ -735,10 +493,10 @@ fn build_mock_agent_builder(
                       responder: Responder<PromptResponse>,
                       cx: ConnectionTo<acp::Client>| {
                     let config = config.clone();
-                    let conn_tx = conn_tx.clone();
+                    let cx_for_prompt = cx.clone();
                     async move {
                         cx.spawn(async move {
-                            let result = handle_prompt(config, conn_tx, request).await;
+                            let result = handle_prompt(config, cx_for_prompt, request).await;
                             let _ = responder.respond_with_result(result);
                             Ok(())
                         })
@@ -971,11 +729,12 @@ fn build_mock_agent_builder(
 }
 
 /// Handle a prompt request. Drives the configured agent → client message flow
-/// (permission requests, terminal lifecycle, file ops) via `conn_tx`, then echoes
-/// the prompt content back as agent message chunks before returning EndTurn.
+/// (permission requests, terminal lifecycle, file ops) via `cx.send_request(...)`
+/// and `cx.send_notification(...)`, then echoes the prompt content back as agent
+/// message chunks before returning EndTurn.
 async fn handle_prompt(
     config: Arc<Mutex<MockConfig>>,
-    conn_tx: Sender<AgentToConnection>,
+    cx: ConnectionTo<acp::Client>,
     request: PromptRequest,
 ) -> Result<PromptResponse, acp::Error> {
     let dur = config.lock().unwrap().timeout;
@@ -987,20 +746,10 @@ async fn handle_prompt(
         };
 
         if let Some(perm_req) = permission_request {
-            let (tx, rx) = bounded(1);
-            conn_tx
-                .send(AgentToConnection::PermissionRequest(perm_req, tx))
+            cx.send_request(perm_req)
+                .block_task()
                 .await
-                .map_err(|_| internal_error("failed to send permission request"))?;
-
-            let inner_dur = config.lock().unwrap().timeout;
-            let _outcome = recv_timeout(
-                rx,
-                inner_dur,
-                "permission request timed out",
-                "permission request channel closed",
-            )
-            .await?;
+                .map_err(|e| internal_error(format!("permission request failed: {}", e)))?;
         }
 
         // Check if terminal workflow is configured
@@ -1014,59 +763,30 @@ async fn handle_prompt(
         };
 
         if let Some(create_req) = create_terminal {
-            let (tx, rx) = bounded(1);
-            conn_tx
-                .send(AgentToConnection::CreateTerminal(create_req, tx))
+            let create_response = cx
+                .send_request(create_req)
+                .block_task()
                 .await
-                .map_err(|_| internal_error("failed to send create_terminal request"))?;
-
-            let create_response = recv_timeout(
-                rx,
-                dur,
-                "create_terminal timed out",
-                "create_terminal channel closed",
-            )
-            .await?
-            .map_err(|e| internal_error(format!("create_terminal failed: {}", e)))?;
+                .map_err(|e| internal_error(format!("create_terminal failed: {}", e)))?;
 
             let terminal_id = create_response.terminal_id;
 
             if send_terminal_output {
                 let output_req =
                     TerminalOutputRequest::new(request.session_id.clone(), terminal_id.clone());
-                let (tx, rx) = bounded(1);
-                conn_tx
-                    .send(AgentToConnection::TerminalOutput(output_req, tx))
+                cx.send_request(output_req)
+                    .block_task()
                     .await
-                    .map_err(|_| internal_error("failed to send terminal_output request"))?;
-
-                recv_timeout(
-                    rx,
-                    dur,
-                    "terminal_output timed out",
-                    "terminal_output channel closed",
-                )
-                .await?
-                .map_err(|e| internal_error(format!("terminal_output failed: {}", e)))?;
+                    .map_err(|e| internal_error(format!("terminal_output failed: {}", e)))?;
             }
 
             if send_terminal_exit {
                 let exit_req =
                     WaitForTerminalExitRequest::new(request.session_id.clone(), terminal_id);
-                let (tx, rx) = bounded(1);
-                conn_tx
-                    .send(AgentToConnection::WaitForTerminalExit(exit_req, tx))
+                cx.send_request(exit_req)
+                    .block_task()
                     .await
-                    .map_err(|_| internal_error("failed to send wait_for_terminal_exit request"))?;
-
-                recv_timeout(
-                    rx,
-                    dur,
-                    "wait_for_terminal_exit timed out",
-                    "wait_for_terminal_exit channel closed",
-                )
-                .await?
-                .map_err(|e| internal_error(format!("wait_for_terminal_exit failed: {}", e)))?;
+                    .map_err(|e| internal_error(format!("wait_for_terminal_exit failed: {}", e)))?;
             }
         }
 
@@ -1077,20 +797,10 @@ async fn handle_prompt(
         };
 
         if let Some(read_req) = read_file_request {
-            let (tx, rx) = bounded(1);
-            conn_tx
-                .send(AgentToConnection::ReadTextFile(read_req, tx))
+            cx.send_request(read_req)
+                .block_task()
                 .await
-                .map_err(|_| internal_error("failed to send read_text_file request"))?;
-
-            recv_timeout(
-                rx,
-                dur,
-                "read_text_file timed out",
-                "read_text_file channel closed",
-            )
-            .await?
-            .map_err(|e| internal_error(format!("read_text_file failed: {}", e)))?;
+                .map_err(|e| internal_error(format!("read_text_file failed: {}", e)))?;
         }
 
         // Write text file (if configured)
@@ -1100,20 +810,10 @@ async fn handle_prompt(
         };
 
         if let Some(write_req) = write_file_request {
-            let (tx, rx) = bounded(1);
-            conn_tx
-                .send(AgentToConnection::WriteTextFile(write_req, tx))
+            cx.send_request(write_req)
+                .block_task()
                 .await
-                .map_err(|_| internal_error("failed to send write_text_file request"))?;
-
-            recv_timeout(
-                rx,
-                dur,
-                "write_text_file timed out",
-                "write_text_file channel closed",
-            )
-            .await?
-            .map_err(|e| internal_error(format!("write_text_file failed: {}", e)))?;
+                .map_err(|e| internal_error(format!("write_text_file failed: {}", e)))?;
         }
 
         // Release terminal (if configured)
@@ -1123,20 +823,10 @@ async fn handle_prompt(
         };
 
         if let Some(release_req) = release_terminal_request {
-            let (tx, rx) = bounded(1);
-            conn_tx
-                .send(AgentToConnection::ReleaseTerminal(release_req, tx))
+            cx.send_request(release_req)
+                .block_task()
                 .await
-                .map_err(|_| internal_error("failed to send release_terminal request"))?;
-
-            recv_timeout(
-                rx,
-                dur,
-                "release_terminal timed out",
-                "release_terminal channel closed",
-            )
-            .await?
-            .map_err(|e| internal_error(format!("release_terminal failed: {}", e)))?;
+                .map_err(|e| internal_error(format!("release_terminal failed: {}", e)))?;
         }
 
         // Echo back the prompt content as agent message chunks
@@ -1153,15 +843,9 @@ async fn handle_prompt(
                 ))),
             );
 
-            let (tx, rx) = bounded(1);
-            if conn_tx
-                .send(AgentToConnection::SessionNotification(notification, tx))
-                .await
-                .is_err()
-            {
+            if cx.send_notification(notification).is_err() {
                 break;
             }
-            let _ = rx.recv().await;
         }
 
         Ok(PromptResponse::new(StopReason::EndTurn))

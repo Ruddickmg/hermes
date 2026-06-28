@@ -37,8 +37,8 @@ async fn test_connect_function() -> Result<(), nvim_oxi::Error> {
     let connect: Function<ConnectionArgs, ()> = FromObject::from_object(connect_obj.clone())?;
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -63,8 +63,8 @@ fn test_initialization() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -98,8 +98,8 @@ fn test_authenticate_flow() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<AuthenticateResponse>(Commands::Authenticated);
 
     // Start mock agent for this test
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -149,9 +149,8 @@ fn test_connection_via_http() -> Result<(), nvim_oxi::Error> {
     let wait_for_init =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
 
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle =
-        MockAgent::start_websocket(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start_websocket(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent_http(&connect, &mock_handle)?;
 
@@ -186,9 +185,8 @@ fn test_connection_via_unix_socket() -> Result<(), nvim_oxi::Error> {
     let wait_for_init =
         autocommand::listen_for_autocommand::<InitializeResponse>(Commands::ConnectionInitialized);
 
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle =
-        MockAgent::start_unix_socket(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start_unix_socket(agent).expect("Failed to start mock agent");
 
     crate::utilities::test_helpers::connect_to_mock_agent_unix(&connect, &mock_handle)?;
 

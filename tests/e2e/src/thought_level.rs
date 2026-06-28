@@ -45,8 +45,8 @@ fn test_set_thought_level_no_thought_levels_does_not_crash() -> Result<(), nvim_
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -87,7 +87,7 @@ fn test_set_thought_level_with_config_options() -> Result<(), nvim_oxi::Error> {
     let wait_for_session =
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let option = SessionConfigOption::select(
@@ -102,7 +102,7 @@ fn test_set_thought_level_with_config_options() -> Result<(), nvim_oxi::Error> {
         config.set_session_config_option_response =
             Some(agent_client_protocol::schema::v1::SetSessionConfigOptionResponse::new(vec![]));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 

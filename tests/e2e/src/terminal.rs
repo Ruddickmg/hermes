@@ -79,7 +79,7 @@ fn make_err(msg: &str) -> nvim_oxi::Error {
 fn test_terminal_create_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let session_placeholder = SessionId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config =
@@ -89,7 +89,7 @@ fn test_terminal_create_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
                 vec!["success".to_string()],
             ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -152,7 +152,7 @@ fn test_terminal_output_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let session_placeholder = SessionId::from("placeholder");
     let terminal_placeholder = TerminalId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new()
@@ -166,7 +166,7 @@ fn test_terminal_output_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
                 terminal_placeholder.clone(),
             ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -241,7 +241,7 @@ fn test_terminal_exit_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
     let session_placeholder = SessionId::from("placeholder");
     let terminal_placeholder = TerminalId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new()
@@ -255,7 +255,7 @@ fn test_terminal_exit_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> {
                 terminal_placeholder.clone(),
             ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -326,7 +326,7 @@ fn test_terminal_full_workflow_with_mock_agent() -> Result<(), nvim_oxi::Error> 
     let session_placeholder = SessionId::from("placeholder");
     let terminal_placeholder = TerminalId::from("placeholder");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new()
@@ -344,7 +344,7 @@ fn test_terminal_full_workflow_with_mock_agent() -> Result<(), nvim_oxi::Error> 
                 terminal_placeholder.clone(),
             ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");
@@ -424,7 +424,7 @@ fn test_terminal_release_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> 
     let session_placeholder = SessionId::from("placeholder");
     let terminal_id = TerminalId::from("test-term-release");
 
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         *config = MockConfig::new().set_release_terminal_request(ReleaseTerminalRequest::new(
@@ -432,7 +432,7 @@ fn test_terminal_release_fires_with_mock_agent() -> Result<(), nvim_oxi::Error> 
             terminal_id.clone(),
         ));
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     let dict: Dictionary = hermes()?;
     let connect: Function<ConnectionArgs, ()> = create_func(dict.clone(), "connect");

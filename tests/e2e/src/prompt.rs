@@ -47,8 +47,8 @@ fn test_prompt_single_content() -> Result<(), nvim_oxi::Error> {
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -97,8 +97,8 @@ fn test_prompt_multiple_content() -> Result<(), nvim_oxi::Error> {
     let wait_for_prompt = autocommand::listen_for_autocommand::<PromptResponse>(Commands::Prompted);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -178,8 +178,8 @@ fn test_prompt_returns_prompt_id() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Start mock agent
-    let (agent, conn_rx) = MockAgent::new();
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let agent = MockAgent::new();
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
 
@@ -227,7 +227,7 @@ fn test_prompt_writes_history() -> Result<(), nvim_oxi::Error> {
         autocommand::listen_for_autocommand::<NewSessionResponse>(Commands::SessionCreated);
 
     // Start MockAgent configured for local history
-    let (agent, conn_rx) = MockAgent::new();
+    let agent = MockAgent::new();
     {
         let mut config = agent.config().lock().unwrap();
         let caps = AgentCapabilities::new()
@@ -238,7 +238,7 @@ fn test_prompt_writes_history() -> Result<(), nvim_oxi::Error> {
         config.initialize_response =
             InitializeResponse::new(ProtocolVersion::LATEST).agent_capabilities(caps);
     }
-    let mock_handle = MockAgent::start(agent, conn_rx).expect("Failed to start mock agent");
+    let mock_handle = MockAgent::start(agent).expect("Failed to start mock agent");
 
     connect_to_mock_agent(&connect, &mock_handle)?;
     wait_for_initialization(Duration::from_secs(TIMEOUT_IN_SECONDS))?;
