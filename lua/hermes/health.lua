@@ -207,9 +207,15 @@ M.check = function()
 	local state = hermes.get_loading_state()
 	local error_msg = hermes.get_loading_error()
 	local binary = require("hermes.binary")
-	local bin_path = binary.get_binary_path()
+	local bin_path = binary.get_active_binary_path()
+	local data_bin_path = binary.get_binary_path()
 
-	vim.health.info("Path: " .. bin_path)
+	if bin_path ~= data_bin_path then
+		vim.health.info("Path: " .. bin_path .. " (rock tree)")
+		vim.health.info("Data dir: " .. data_bin_path)
+	else
+		vim.health.info("Path: " .. bin_path)
+	end
 
 	if state == "READY" then
 		vim.health.ok("Binary loaded and ready")
@@ -254,6 +260,10 @@ M.check = function()
 	local config = require("hermes.config")
 	local download_cfg = config.get_download()
 	local ver_file = binary.get_version_file()
+
+	if binary.is_luarocks_install() then
+		vim.health.info("Installed via LuaRocks")
+	end
 
 	if download_cfg and download_cfg.auto == false then
 		vim.health.info("Built from source (auto-download disabled)")
