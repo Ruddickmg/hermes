@@ -174,7 +174,7 @@ describe("hermes.binary", function()
 
 		it("returns absolute path", function()
 			local root = binary._get_rock_root()
-			assert.is_true(root:match("^/") or root:match("^%a:[/\\]"), "Expected absolute path")
+			assert.is_not_nil(root:match("^/") or root:match("^%a:[/\\]"), "Expected absolute path")
 		end)
 	end)
 
