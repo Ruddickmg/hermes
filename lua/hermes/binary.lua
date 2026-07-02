@@ -98,7 +98,7 @@ function M.is_luarocks_install()
   if source == "" then
     return false
   end
-  return source:find("/luarocks/") ~= nil
+  return source:find("[/\\]luarocks[/\\]") ~= nil or source:find("[/\\]%.luarocks[/\\]") ~= nil
 end
 
 -- luacov: disable
@@ -113,7 +113,7 @@ function M.get_rock_binary_path()
   if not rock_root then
     return nil
   end
-	local path = rock_root .. "/lib/" .. M.get_binary_name()
+	local path = vim.fs.joinpath(rock_root, "lib", M.get_binary_name())
 	if vim.fn.filereadable(path) == 1 then
 		return path
 	end
@@ -131,8 +131,7 @@ function M._get_rock_version()
   if not rock_root then
     return nil
   end
-  local rockspec_pattern = rock_root
-    .. "/../../lib/luarocks/rocks/hermes.nvim/*/hermes.nvim-*.rockspec"
+  local rockspec_pattern = rock_root .. "/hermes.nvim-*.rockspec"
   local files = vim.fn.glob(rockspec_pattern, false, true)
   if #files == 0 then
     return nil
