@@ -92,6 +92,16 @@ describe("hermes.health", function()
 			assert.is_true(has_call(calls.start, "Hermes Binary"))
 		end)
 
+		it("shows rock tree annotation when binary is from rock tree", function()
+			local binary = require("hermes.binary")
+			local active_stub = stub(binary, "get_active_binary_path").returns("/fake/rock/libhermes.so")
+			local data_stub = stub(binary, "get_binary_path").returns("/fake/data/libhermes.so")
+			health.check()
+			active_stub:revert()
+			data_stub:revert()
+			assert.is_true(has_call(calls.info, "%(rock tree%)"))
+		end)
+
 		it("reports ok when binary is ready", function()
 			local hermes = require("hermes")
 			local get_state = hermes.get_loading_state

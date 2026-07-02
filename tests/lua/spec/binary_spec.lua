@@ -166,6 +166,78 @@ describe("hermes.binary", function()
 		end)
 	end)
 
+	describe("_get_rock_root()", function()
+		it("returns a string path", function()
+			local root = binary._get_rock_root()
+			assert.is_string(root)
+		end)
+
+		it("returns absolute path", function()
+			local root = binary._get_rock_root()
+			assert.matches("^/", root)
+		end)
+	end)
+
+	describe("_get_rock_version()", function()
+		it("returns nil when glob returns empty", function()
+			local glob_stub = stub(vim.fn, "glob").returns({})
+			local result = binary._get_rock_version()
+			glob_stub:revert()
+			assert.is_nil(result)
+		end)
+
+		it("returns version from rockspec filename with revision", function()
+			local glob_stub = stub(vim.fn, "glob").returns({
+				"/some/path/lib/luarocks/rocks/hermes.nvim/0.1.0-1/hermes.nvim-0.1.0-1.rockspec",
+			})
+			local result = binary._get_rock_version()
+			glob_stub:revert()
+			assert.equals("v0.1.0", result)
+		end)
+
+		it("returns version from rockspec filename without revision", function()
+			local glob_stub = stub(vim.fn, "glob").returns({
+				"/some/path/lib/luarocks/rocks/hermes.nvim/0.1.0/hermes.nvim-0.1.0.rockspec",
+			})
+			local result = binary._get_rock_version()
+			glob_stub:revert()
+			assert.equals("v0.1.0", result)
+		end)
+
+		it("handles version already with v prefix", function()
+			local glob_stub = stub(vim.fn, "glob").returns({
+				"/some/path/lib/luarocks/rocks/hermes.nvim/v0.1.0-1/hermes.nvim-v0.1.0-1.rockspec",
+			})
+			local result = binary._get_rock_version()
+			glob_stub:revert()
+			assert.equals("v0.1.0", result)
+		end)
+
+		it("strips revision suffix correctly", function()
+			local glob_stub = stub(vim.fn, "glob").returns({
+				"/some/path/lib/luarocks/rocks/hermes.nvim/0.10.0-3/hermes.nvim-0.10.0-3.rockspec",
+			})
+			local result = binary._get_rock_version()
+			glob_stub:revert()
+			assert.equals("v0.10.0", result)
+		end)
+	end)
+
+	describe("get_active_binary_path()", function()
+		it("returns rock path when rock binary exists", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local result = binary.get_active_binary_path()
+			assert.equals("/fake/rock/lib.so", result)
+		end)
+
+		it("returns data dir path when no rock binary", function()
+			local result = binary.get_active_binary_path()
+			local expected = binary.get_binary_path()
+			assert.equals(expected, result)
+		end)
+	end)
+
 	describe("download()", function()
 		it("downloads to correct path", function()
 			local captured_dest
@@ -501,6 +573,54 @@ describe("hermes.binary", function()
 			end)
 
 			assert.truthy(err:match("download") or err:match("Failed"))
+		end)
+	end)
+
+	describe("ensure_binary() with rock binary", function()
+		it("writes version.txt from rock version when found", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local version_stub = stub(binary, "_get_rock_version").returns("v0.2.0")
+			local writefile_stub = stub(vim.fn, "writefile")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+
+			binary.ensure_binary()
+
+			version_stub:revert()
+			mkdir_stub:revert()
+			writefile_stub:revert()
+
+			assert.stub(writefile_stub).was_called()
+		end)
+
+		it("writes correct version to version.txt", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local version_stub = stub(binary, "_get_rock_version").returns("v0.2.0")
+			local writefile_stub = stub(vim.fn, "writefile")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+
+			binary.ensure_binary()
+
+			version_stub:revert()
+			mkdir_stub:revert()
+			writefile_stub:revert()
+
+			assert.stub(writefile_stub).was_called_with({ "v0.2.0" }, temp_dir .. "/hermes/version.txt")
+		end)
+
+		it("does not write version.txt when _get_rock_version returns nil", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local version_stub = stub(binary, "_get_rock_version").returns(nil)
+			local writefile_stub = stub(vim.fn, "writefile")
+
+			binary.ensure_binary()
+
+			version_stub:revert()
+			writefile_stub:revert()
+
+			assert.stub(writefile_stub).was_not_called()
 		end)
 	end)
 
@@ -1354,6 +1474,54 @@ describe("hermes.binary", function()
 			vim.wait(100)
 
 			assert.is_not_nil(callback_err, "Callback should receive error details")
+		end)
+	end)
+
+	describe("ensure_binary_async() rock version writing", function()
+		it("writes version.txt from rock version when found", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local version_stub = stub(binary, "_get_rock_version").returns("v0.2.0")
+			local writefile_stub = stub(vim.fn, "writefile")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+
+			binary.ensure_binary_async(60, function() end)
+
+			version_stub:revert()
+			mkdir_stub:revert()
+			writefile_stub:revert()
+
+			assert.stub(writefile_stub).was_called()
+		end)
+
+		it("writes correct version to version.txt", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local version_stub = stub(binary, "_get_rock_version").returns("v0.2.0")
+			local writefile_stub = stub(vim.fn, "writefile")
+			local mkdir_stub = stub(vim.fn, "mkdir")
+
+			binary.ensure_binary_async(60, function() end)
+
+			version_stub:revert()
+			mkdir_stub:revert()
+			writefile_stub:revert()
+
+			assert.stub(writefile_stub).was_called_with({ "v0.2.0" }, temp_dir .. "/hermes/version.txt")
+		end)
+
+		it("does not write version.txt when _get_rock_version returns nil", function()
+			rock_binary_stub:revert()
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns("/fake/rock/lib.so")
+			local version_stub = stub(binary, "_get_rock_version").returns(nil)
+			local writefile_stub = stub(vim.fn, "writefile")
+
+			binary.ensure_binary_async(60, function() end)
+
+			version_stub:revert()
+			writefile_stub:revert()
+
+			assert.stub(writefile_stub).was_not_called()
 		end)
 	end)
 
