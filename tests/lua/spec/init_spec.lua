@@ -976,6 +976,40 @@ describe("hermes.init (main API)", function()
 			vim.fn.delete(ver_file)
 		end)
 
+		it("deletes binary when version mismatches with auto-download enabled", function()
+			-- Overwrite the real binary from before_each with mock content
+			local binary_mod = require("hermes.binary")
+			local bin_path = binary_mod.get_binary_path()
+			local ver_file = binary_mod.get_version_file()
+
+			-- Set state to READY so version check triggers
+			hermes._set_loading_state("READY")
+
+			-- Create mock binary
+			vim.fn.mkdir(binary_mod.get_data_dir(), "p")
+			local f = io.open(bin_path, "w")
+			f:write("mock binary content")
+			f:close()
+
+			-- Write mismatched version file
+			vim.fn.writefile({ "v0.0.1" }, ver_file)
+
+			-- Stub ensure_binary_async to prevent actual download
+			local ensure_stub = stub(binary_mod, "ensure_binary_async")
+
+			-- Call setup with different version and auto-download enabled
+			hermes.setup({ download = { auto = true, version = "v0.2.0" } })
+
+			ensure_stub:revert()
+
+			-- Single assertion: binary was deleted due to version mismatch
+			assert.equals(0, vim.fn.filereadable(bin_path), "Binary should be deleted when configured version differs from installed")
+
+			-- Cleanup
+			pcall(vim.fn.delete, bin_path)
+			pcall(vim.fn.delete, ver_file)
+		end)
+
 		it("download failure sets FAILED state and records error", function()
 			-- Setup with invalid platform to force download failure
 			-- Stub platform BEFORE setup so download fails immediately

@@ -67,13 +67,12 @@ function M.get_data_dir()
 end
 
 -- luacov: disable
----Get path to binary installed alongside Lua files in the rock tree
----Checks if the plugin was installed via luarocks and a pre-built binary
----is available in the rock's lib/ directory
----@return string|nil Path to rock tree binary, or nil if not found
+---Get the rock tree root from the current Lua file location
+---Extracts the LuaRocks tree root by navigating up from the module file path
+---@return string|nil Path to the rock tree root, or nil if undetectable
 ---@private
 -- luacov: enable
-function M.get_rock_binary_path()
+function M._get_rock_root()
   local info = debug.getinfo(1)
   if not info or type(info.source) ~= "string" then
     return nil
@@ -82,12 +81,87 @@ function M.get_rock_binary_path()
   if source == "" then
     return nil
   end
-  local rock_root = vim.fn.fnamemodify(source, ":h:h:h")
-	local path = rock_root .. "/lib/" .. M.get_binary_name()
+  return vim.fn.fnamemodify(source, ":p:h:h:h")
+end
+
+-- luacov: disable
+---Check if the plugin is installed via LuaRocks
+---Detects LuaRocks install by checking if the module source path contains "/luarocks/"
+---@return boolean true if installed via LuaRocks
+-- luacov: enable
+function M.is_luarocks_install()
+  local info = debug.getinfo(1)
+  if not info or type(info.source) ~= "string" then
+    return false
+  end
+  local source = info.source:sub(2)
+  if source == "" then
+    return false
+  end
+  return source:find("[/\\]luarocks[/\\]") ~= nil or source:find("[/\\]%.luarocks[/\\]") ~= nil
+end
+
+-- luacov: disable
+---Get path to binary installed alongside Lua files in the rock tree
+---Checks if the plugin was installed via luarocks and a pre-built binary
+---is available in the rock's lib/ directory
+---@return string|nil Path to rock tree binary, or nil if not found
+---@private
+-- luacov: enable
+function M.get_rock_binary_path()
+  local rock_root = M._get_rock_root()
+  if not rock_root then
+    return nil
+  end
+	local path = vim.fs.joinpath(rock_root, "lib", M.get_binary_name())
 	if vim.fn.filereadable(path) == 1 then
 		return path
 	end
 	return nil
+end
+
+-- luacov: disable
+---Get the version of a LuaRocks-installed plugin from the rockspec filename
+---Navigates the LuaRocks tree to find the installed rockspec and extracts the version
+---@return string|nil Version string (e.g. "v0.1.0") or nil if not found
+---@private
+-- luacov: enable
+function M._get_rock_version()
+  local rock_root = M._get_rock_root()
+  if not rock_root then
+    return nil
+  end
+  local rockspec_pattern = rock_root .. "/hermes.nvim-*.rockspec"
+  local files = vim.fn.glob(rockspec_pattern, false, true)
+  if #files == 0 then
+    return nil
+  end
+  local filename = vim.fn.fnamemodify(files[#files], ":t")
+  local version = filename:match("hermes%.nvim%-(.+)%.rockspec$")
+  if not version then
+    return nil
+  end
+  -- Strip LuaRocks revision suffix (e.g., "0.1.0-1" → "0.1.0")
+  version = version:gsub("%-%d+$", "")
+  if not version:match("^v") then
+    version = "v" .. version
+  end
+  return version
+end
+
+-- luacov: disable
+---Get the active path to the binary
+---Returns the rock tree path if a rock-installed binary exists,
+---otherwise falls back to the standard data directory path
+---@return string binary_path Full path to the binary that will be loaded
+---@private
+-- luacov: enable
+function M.get_active_binary_path()
+  local rock_path = M.get_rock_binary_path()
+  if rock_path then
+    return rock_path
+  end
+  return M.get_binary_path()
 end
 
 -- luacov: disable
@@ -129,7 +203,7 @@ end
 ---@private
 -- luacov: enable
 function M.get_installed_version()
-	local bin_path = M.get_binary_path()
+	local bin_path = M.get_active_binary_path()
 	local ver_file = M.get_version_file()
 
 	if vim.fn.filereadable(bin_path) == 1 and vim.fn.filereadable(ver_file) == 1 then
@@ -530,6 +604,11 @@ end
 function M.ensure_binary()
 	local rock_bin_path = M.get_rock_binary_path()
 	if rock_bin_path then
+		local ver = M._get_rock_version()
+		if ver then
+			vim.fn.mkdir(M.get_data_dir(), "p")
+			vim.fn.writefile({ ver }, M.get_version_file())
+		end
 		return rock_bin_path
 	end
 
@@ -650,7 +729,7 @@ end
 ---@private
 -- luacov: enable
 function M.load_existing_binary()
-	local bin_path = M.get_binary_path()
+	local bin_path = M.get_active_binary_path()
 
 	-- Check if binary already exists
 	if vim.fn.filereadable(bin_path) == 0 then
@@ -708,6 +787,11 @@ function M.ensure_binary_async(timeout, on_complete)
 
 	local rock_bin_path = M.get_rock_binary_path()
 	if rock_bin_path then
+		local ver = M._get_rock_version()
+		if ver then
+			vim.fn.mkdir(M.get_data_dir(), "p")
+			vim.fn.writefile({ ver }, M.get_version_file())
+		end
 		on_complete(true, rock_bin_path)
 		return
 	end

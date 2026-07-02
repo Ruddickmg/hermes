@@ -20,8 +20,6 @@ try {
 
   if (version) {
     process.stdout.write(version);
-  } else {
-    process.stderr.write(`semantic-release error: No version found in the result.\n`);
   }
 
 } catch (err) {

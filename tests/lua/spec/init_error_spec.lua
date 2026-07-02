@@ -150,16 +150,38 @@ describe("hermes.init error handling", function()
       assert.truthy(suggestion:match(":Hermes build"))
     end)
     
-    it("suggests building from source for empty file errors", function()
-      local err = {
-        message = "Downloaded file is too small or empty",
-      }
-      
-      local suggestion = init._get_error_suggestion(err)
-      
-      assert.truthy(suggestion:match("Download incomplete"))
-    end)
-  end)
+		it("suggests building from source for empty file errors", function()
+			local err = {
+				message = "Downloaded file is too small or empty",
+			}
+			
+			local suggestion = init._get_error_suggestion(err)
+			
+			assert.truthy(suggestion:match("Download incomplete"))
+		end)
+
+		it("suggests authentication for 401 errors", function()
+			local err = {
+				message = "Unauthorized",
+				http_code = 401,
+			}
+			
+			local suggestion = init._get_error_suggestion(err)
+			
+			assert.truthy(suggestion:match("Authentication required"))
+		end)
+
+		it("returns generic fallback for unknown structured errors", function()
+			local err = {
+				message = "Unknown error occurred",
+				http_code = 999,
+			}
+			
+			local suggestion = init._get_error_suggestion(err)
+			
+			assert.truthy(suggestion:match("build from source"))
+		end)
+	end)
   
   describe("loading state management", function()
     it("tracks NOT_LOADED initial state when no binary exists", function()
