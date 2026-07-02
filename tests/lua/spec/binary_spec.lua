@@ -184,7 +184,10 @@ describe("hermes.binary", function()
 	describe("is_luarocks_install()", function()
 		it("returns false when debug.getinfo returns nil", function()
 			local original_getinfo = debug.getinfo
-			debug.getinfo = function() return nil end
+			debug.getinfo = function(level, ...)
+				if level == 1 then return nil end
+				return original_getinfo(level, ...)
+			end
 			local result = binary.is_luarocks_install()
 			debug.getinfo = original_getinfo
 			assert.is_false(result)
