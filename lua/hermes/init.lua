@@ -230,7 +230,7 @@ function M.get_loading_state()
 	-- If we think we're READY but binary doesn't exist, we're actually NOT_LOADED
 	if _loading_state == "READY" then
 		local binary = require("hermes.binary")
-		local bin_path = binary.get_binary_path()
+		local bin_path = binary.get_active_binary_path()
 		if vim.fn.filereadable(bin_path) ~= 1 then
 			return "NOT_LOADED"
 		end
@@ -564,6 +564,7 @@ function M.setup(opts)
 		local binary = require("hermes.binary")
 		local ver_file = binary.get_version_file()
 		local bin_path = binary.get_binary_path()
+		local active_bin_path = binary.get_active_binary_path()
 
 		if is_ready() and vim.fn.filereadable(ver_file) == 1 then
 			local ok, installed_ver = pcall(function()
@@ -571,9 +572,16 @@ function M.setup(opts)
 			end)
 
 			if ok and installed_ver ~= configured_ver then
-				-- Version changed! Delete old binary and reset state
+				-- Only delete the data directory binary if that's where it lives
+				-- (don't touch rock tree binaries managed by luarocks)
+				if active_bin_path == bin_path then
+					pcall(function()
+						vim.fn.delete(bin_path)
+					end)
+				end
+
+				-- Always reset state and delete version file
 				pcall(function()
-					vim.fn.delete(bin_path)
 					vim.fn.delete(ver_file)
 				end)
 
@@ -845,7 +853,7 @@ local function eager_load_binary()
 	end
 
 	local binary = require("hermes.binary")
-	local bin_path = binary.get_binary_path()
+	local bin_path = binary.get_active_binary_path()
 	local ver_file = binary.get_version_file()
 
 	if vim.fn.filereadable(bin_path) == 1 then
