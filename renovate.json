@@ -6,6 +6,7 @@
   "automergeStrategy": "squash",
   "configMigration": true,
   "branchConcurrentLimit": 2,
+  "baseBranchPatterns": ["develop"],
   "extends": [
     "config:recommended",
     ":semanticCommits"
