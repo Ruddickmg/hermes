@@ -261,6 +261,10 @@ M.check = function()
 	local download_cfg = config.get_download()
 	local ver_file = binary.get_version_file()
 
+	if binary.is_luarocks_install() then
+		vim.health.info("Installed via LuaRocks")
+	end
+
 	if download_cfg and download_cfg.auto == false then
 		vim.health.info("Built from source (auto-download disabled)")
 	elseif vim.fn.filereadable(ver_file) == 1 then

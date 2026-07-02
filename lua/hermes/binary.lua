@@ -85,6 +85,23 @@ function M._get_rock_root()
 end
 
 -- luacov: disable
+---Check if the plugin is installed via LuaRocks
+---Detects LuaRocks install by checking if the module source path contains "/luarocks/"
+---@return boolean true if installed via LuaRocks
+-- luacov: enable
+function M.is_luarocks_install()
+  local info = debug.getinfo(1)
+  if not info or type(info.source) ~= "string" then
+    return false
+  end
+  local source = info.source:sub(2)
+  if source == "" then
+    return false
+  end
+  return source:find("/luarocks/") ~= nil
+end
+
+-- luacov: disable
 ---Get path to binary installed alongside Lua files in the rock tree
 ---Checks if the plugin was installed via luarocks and a pre-built binary
 ---is available in the rock's lib/ directory
