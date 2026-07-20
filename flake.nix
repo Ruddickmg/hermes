@@ -27,6 +27,7 @@
         let
           pkgs = import nixpkgs {
             inherit system;
+            config.allowUnfree = true;
             overlays = [
               (import rust-overlay)
               (final: prev: {
@@ -64,6 +65,8 @@
               sqlx-cli
               just
               lspmux
+              opencode
+              github-copilot-cli
               cargo-nextest
               cargo-llvm-cov
               cargo-deny
