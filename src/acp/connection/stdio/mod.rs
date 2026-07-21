@@ -18,6 +18,7 @@ use crate::{
 use agent_client_protocol::ByteStreams;
 use async_channel::Receiver;
 use child::Child;
+use futures::{AsyncBufReadExt, StreamExt};
 use std::sync::Arc;
 use tracing::{info, instrument, trace, warn};
 
@@ -40,6 +41,31 @@ pub async fn connect(
         .take_stdout()
         .await
         .ok_or_else(|| Error::Connection("Failed to take stdout".to_string()))?;
+
+    let stderr = stdio.take_stderr().await;
+    let agent_name = agent.to_string();
+    if let Some(stderr) = stderr {
+        std::thread::spawn(move || {
+            smol::block_on(async {
+                let mut lines = futures::io::BufReader::new(stderr).lines();
+                while let Some(line) = lines.next().await {
+                    match line {
+                        Ok(line) if !line.is_empty() => {
+                            eprintln!("[hermes] [stderr] {}: {}", agent_name, line);
+                        }
+                        Err(e) => {
+                            eprintln!("[hermes] stderr read error for '{}': {}", agent_name, e);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+                eprintln!("[hermes] stderr reader finished for '{}' (EOF)", agent_name);
+            });
+        });
+    } else {
+        eprintln!("[hermes] no stderr handle available for '{}'", agent_name);
+    }
 
     let result = handle_connection(
         client,
