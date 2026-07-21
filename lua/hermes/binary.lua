@@ -102,6 +102,23 @@ function M.is_luarocks_install()
 end
 
 -- luacov: disable
+---Check if the plugin is installed via Nix
+---Detects Nix install by checking if the module source path contains "/nix/store/"
+---@return boolean true if installed via Nix
+-- luacov: enable
+function M.is_nix_install()
+  local info = debug.getinfo(1)
+  if not info or type(info.source) ~= "string" then
+    return false
+  end
+  local source = info.source:sub(2)
+  if source == "" then
+    return false
+  end
+  return source:find("[/\\]nix[/\\]store[/\\]") ~= nil
+end
+
+-- luacov: disable
 ---Get path to binary installed alongside Lua files in the rock tree
 ---Checks if the plugin was installed via luarocks and a pre-built binary
 ---is available in the rock's lib/ directory
