@@ -45,6 +45,7 @@
                 "cargo"
                 "rustc"
                 "rust-analyzer"
+                "llvm-tools"
               ];
             }
           );
