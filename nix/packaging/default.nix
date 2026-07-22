@@ -8,7 +8,7 @@
 }:
 
 let
-  version = "0.0.0-development";
+  version = "0.10.1";
 
   # Map nix kernel name to hermes os name
   os = {
@@ -27,7 +27,12 @@ let
 
   hermes-binary = fetchurl {
     url = "https://github.com/Ruddickmg/hermes.nvim/releases/download/v${version}/${binaryName}";
-    sha256 = lib.fakeHash;
+    sha256 = {
+      "x86_64-linux"  = "sha256-egBQrfX9/cn3NfuyWJ77BOEE7xlJEBE843cPa5xSwRg=";
+      "aarch64-linux" = "sha256-GvsduPnd5kHJqP6Q8m4KI6223ImoCdGzFjvbf1uCMzo=";
+      "x86_64-darwin" = "sha256-mnb2ramM2Ih0/ZDM6U7uGhOwkhK/LTIJ3ZpLZ+TOR/o=";
+      "aarch64-darwin"= "sha256-tm1d5Ir9LGVExA6qEa+CUtWbMACX4tr5XS4C8JtEA3g=";
+    }.${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
   };
 in
 vimUtils.buildVimPlugin {
@@ -38,7 +43,7 @@ vimUtils.buildVimPlugin {
     owner = "Ruddickmg";
     repo = "hermes.nvim";
     tag = "v${version}";
-    hash = lib.fakeHash;
+    hash = "sha256-cWJUr6ou6uZ+IErCoVLhhyZTefvlq4+XmyJVo/IJpjA=";
   };
 
   # Place the pre-built binary where binary.lua's get_rock_binary_path() looks:

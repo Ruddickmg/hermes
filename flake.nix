@@ -52,6 +52,8 @@
           );
         in
         {
+          packages.default = pkgs.callPackage ./nix/packaging/default.nix {};
+
           devShells.default = shellServices {
             nativeBuildInputs = with pkgs; [
               gcc
