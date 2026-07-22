@@ -46,6 +46,10 @@ vimUtils.buildVimPlugin {
     hash = "sha256-cWJUr6ou6uZ+IErCoVLhhyZTefvlq4+XmyJVo/IJpjA=";
   };
 
+  # Skip require() check for the native module — the Rust shared library
+  # is not available in the build sandbox, so require("hermes") would fail.
+  nvimSkipModules = [ "hermes" ];
+
   # Place the pre-built binary where binary.lua's get_rock_binary_path() looks:
   #   <plugin_root>/lib/libhermes-<os>-<arch>.<ext>
   postInstall = ''
