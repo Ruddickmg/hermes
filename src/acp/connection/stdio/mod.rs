@@ -113,6 +113,7 @@ pub async fn connect(
 mod tests {
     use super::*;
     use futures::io::Cursor;
+    use pretty_assertions::assert_eq;
     use std::io::ErrorKind;
 
     fn run_test<F, Fut>(f: F)
@@ -170,15 +171,19 @@ mod tests {
     }
 
     #[test]
-    fn stderr_lines_reads_multiple_lines() {
+    fn stderr_lines_reads_all_lines() {
         run_test(|| async {
             let reader = Cursor::new(b"line1\nline2\nline3\n");
             let mut writer = Vec::new();
             read_stderr_lines(reader, &mut writer, "test-agent").await;
             let output = String::from_utf8(writer).unwrap();
-            assert!(output.contains("[hermes] [stderr] test-agent: line1"));
-            assert!(output.contains("[hermes] [stderr] test-agent: line2"));
-            assert!(output.contains("[hermes] [stderr] test-agent: line3"));
+            assert_eq!(
+                output,
+                "[hermes] [stderr] test-agent: line1\n\
+                 [hermes] [stderr] test-agent: line2\n\
+                 [hermes] [stderr] test-agent: line3\n\
+                 [hermes] stderr reader finished for 'test-agent' (EOF)\n"
+            );
         });
     }
 
@@ -189,8 +194,11 @@ mod tests {
             let mut writer = Vec::new();
             read_stderr_lines(reader, &mut writer, "test-agent").await;
             let output = String::from_utf8(writer).unwrap();
-            assert!(output.contains("[hermes] [stderr] test-agent: hello"));
-            assert_eq!(output.matches("[hermes] [stderr]").count(), 1);
+            assert_eq!(
+                output,
+                "[hermes] [stderr] test-agent: hello\n\
+                 [hermes] stderr reader finished for 'test-agent' (EOF)\n"
+            );
         });
     }
 
@@ -201,8 +209,12 @@ mod tests {
             let mut writer = Vec::new();
             read_stderr_lines(reader, &mut writer, "test-agent").await;
             let output = String::from_utf8(writer).unwrap();
-            assert!(output.contains("[hermes] stderr read error for 'test-agent'"));
-            assert!(output.contains("[hermes] [stderr] test-agent: ok"));
+            assert_eq!(
+                output,
+                "[hermes] [stderr] test-agent: ok\n\
+                 [hermes] stderr read error for 'test-agent': mock read error\n\
+                 [hermes] stderr reader finished for 'test-agent' (EOF)\n"
+            );
         });
     }
 
@@ -213,7 +225,11 @@ mod tests {
             let mut writer = Vec::new();
             read_stderr_lines(reader, &mut writer, "test-agent").await;
             let output = String::from_utf8(writer).unwrap();
-            assert!(output.contains("[hermes] stderr reader finished for 'test-agent' (EOF)"));
+            assert_eq!(
+                output,
+                "[hermes] [stderr] test-agent: hello\n\
+                 [hermes] stderr reader finished for 'test-agent' (EOF)\n"
+            );
         });
     }
 
@@ -224,8 +240,11 @@ mod tests {
             let mut writer = Vec::new();
             read_stderr_lines(reader, &mut writer, "test-agent").await;
             let output = String::from_utf8(writer).unwrap();
-            assert!(output.contains("[hermes] [stderr] test-agent: partial line"));
-            assert!(output.contains("[hermes] stderr reader finished for 'test-agent' (EOF)"));
+            assert_eq!(
+                output,
+                "[hermes] [stderr] test-agent: partial line\n\
+                 [hermes] stderr reader finished for 'test-agent' (EOF)\n"
+            );
         });
     }
 }
