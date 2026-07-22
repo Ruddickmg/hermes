@@ -46,6 +46,7 @@
                 "rustc"
                 "rust-analyzer"
                 "llvm-tools"
+                "clippy"
               ];
             }
           );
@@ -62,7 +63,6 @@
               toolChain
               glib
               clang
-              clippy
               sqlx-cli
               just
               lspmux
