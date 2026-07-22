@@ -76,14 +76,18 @@
             ];
 
             shellHook = ''
-              XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+              XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-''${TMPDIR:-/tmp}/hermes-runtime-$(id -u)}"
               mkdir -p "$XDG_RUNTIME_DIR/lspmux"
-              mkdir -p ~/.config/lspmux
-              cat > ~/.config/lspmux/config.toml <<EOF
+              XDG_CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
+              mkdir -p "$XDG_CONFIG_HOME/lspmux"
+              cfg="$XDG_CONFIG_HOME/lspmux/config.toml"
+              if [ ! -f "$cfg" ]; then
+                cat > "$cfg" <<EOF
             listen = "$XDG_RUNTIME_DIR/lspmux/lspmux.sock"
             connect = "$XDG_RUNTIME_DIR/lspmux/lspmux.sock"
             log_filters = "debug"
             EOF
+              fi
             '';
 
             services = {
