@@ -278,6 +278,8 @@ jobs:
   publish-nix:
     docker:
       - image: nixos/nix
+    environment:
+      NIX_CONFIG: "experimental-features = nix-command flakes"
     steps:
       - checkout
       - attach_workspace:
