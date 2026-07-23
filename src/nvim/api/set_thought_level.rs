@@ -33,7 +33,7 @@ impl Api {
                 agent_client_protocol::schema::v1::SetSessionConfigOptionRequest::new(
                     session_id,
                     "thought_level".to_string(),
-                    level,
+                    agent_client_protocol::schema::v1::SessionConfigOptionValue::value_id(level),
                 ),
             )
             .await?;

@@ -21,7 +21,7 @@ impl Api {
             .set_config_option(SetSessionConfigOptionRequest::new(
                 session_id,
                 "model".to_string(),
-                model_id,
+                agent_client_protocol::schema::v1::SessionConfigOptionValue::value_id(model_id),
             ))
             .await?;
 
