@@ -143,7 +143,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- Call connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -171,7 +171,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -198,7 +198,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -242,7 +242,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -286,7 +286,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -330,7 +330,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -374,7 +374,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -418,7 +418,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -464,7 +464,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -491,7 +491,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -518,7 +518,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -545,7 +545,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -572,7 +572,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))
@@ -616,7 +616,7 @@ describe("Hermes API Endpoints (E2E)", function()
 
 			-- First connect
 			local ok, err = pcall(function()
-				hermes.connect("opencode")
+				hermes.connect("opencode", { command = "opencode", args = { "acp" } })
 			end)
 			if not ok then
 				error("connect() should not crash: " .. tostring(err))

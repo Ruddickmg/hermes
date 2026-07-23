@@ -263,6 +263,8 @@ M.check = function()
 
 	if binary.is_luarocks_install() then
 		vim.health.info("Installed via LuaRocks")
+	elseif binary.is_nix_install() then
+		vim.health.info("Installed via Nix")
 	end
 
 	if download_cfg and download_cfg.auto == false then

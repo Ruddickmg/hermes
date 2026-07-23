@@ -44,6 +44,33 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 :Rocks install hermes.nvim
 ```
 
+**NixOS (nixpkgs)**
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    hermes-nvim.url = "github:Ruddickmg/hermes.nvim";
+  };
+
+  outputs = { self, nixpkgs, hermes-nvim, ... }: {
+    # as a module input
+    nixosConfigurations.myHost = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ({ pkgs, ... }: {
+          environment.systemPackages = [ hermes-nvim.packages.${pkgs.system}.default ];
+        })
+      ];
+    };
+  };
+}
+```
+
+> [!NOTE]
+> On NixOS the pre-built binary is used directly via `fetchurl` — no compilation required.
+> The binary path is under `/nix/store/...` and Hermes detects this automatically.
+
 ### ⚙️ Requirements
 
 - Neovim 0.11 or later

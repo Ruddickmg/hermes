@@ -148,6 +148,14 @@ workflows:
           requires:
             - release
 
+      - publish-nix:
+          filters:
+            branches:
+              only:
+                - main
+          requires:
+            - release
+
 #-----------------------------------------------------------------------------------------------------------------------------
 
 commands:
@@ -274,6 +282,17 @@ jobs:
       - run:
           name: Publish to LuaRocks
           command: bash .circleci/publish-luarocks.sh
+
+  publish-nix:
+    docker:
+      - image: nixos/nix
+    steps:
+      - checkout
+      - attach_workspace:
+          at: target/release
+      - run:
+          name: Publish to Nix
+          command: bash .circleci/publish-nix.sh
 
   check_license:
     executor: rust-linux-x86_64
