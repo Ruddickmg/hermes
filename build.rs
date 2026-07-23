@@ -86,7 +86,7 @@ fn extract_font_from_zip(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Err
 }
 
 fn make_svg_options(font_data: &[u8]) -> usvg::Options<'static> {
-    let mut fontdb = fontdb::Database::new();
+    let mut fontdb = usvg::fontdb::Database::new();
     fontdb.load_system_fonts();
     if !font_data.is_empty() {
         fontdb.load_font_data(font_data.to_vec());
@@ -106,44 +106,44 @@ fn make_svg_options(font_data: &[u8]) -> usvg::Options<'static> {
 
 fn custom_font_selector() -> usvg::FontSelectionFn<'static> {
     Box::new(
-        move |font: &usvg::Font, fontdb: &mut std::sync::Arc<fontdb::Database>| {
-            let families: Vec<fontdb::Family> = font
+        move |font: &usvg::Font, fontdb: &mut std::sync::Arc<usvg::fontdb::Database>| {
+            let families: Vec<usvg::fontdb::Family> = font
                 .families()
                 .iter()
                 .map(|f| match f {
-                    usvg::FontFamily::Serif => fontdb::Family::Serif,
-                    usvg::FontFamily::SansSerif => fontdb::Family::SansSerif,
-                    usvg::FontFamily::Cursive => fontdb::Family::Cursive,
-                    usvg::FontFamily::Fantasy => fontdb::Family::Fantasy,
-                    usvg::FontFamily::Monospace => fontdb::Family::Monospace,
-                    usvg::FontFamily::Named(s) => fontdb::Family::Name(s),
+                    usvg::FontFamily::Serif => usvg::fontdb::Family::Serif,
+                    usvg::FontFamily::SansSerif => usvg::fontdb::Family::SansSerif,
+                    usvg::FontFamily::Cursive => usvg::fontdb::Family::Cursive,
+                    usvg::FontFamily::Fantasy => usvg::fontdb::Family::Fantasy,
+                    usvg::FontFamily::Monospace => usvg::fontdb::Family::Monospace,
+                    usvg::FontFamily::Named(s) => usvg::fontdb::Family::Name(s),
                 })
                 .collect();
 
             let mut all_families = families;
-            all_families.push(fontdb::Family::Serif);
+            all_families.push(usvg::fontdb::Family::Serif);
 
             let stretch = match font.stretch() {
-                usvg::FontStretch::UltraCondensed => fontdb::Stretch::UltraCondensed,
-                usvg::FontStretch::ExtraCondensed => fontdb::Stretch::ExtraCondensed,
-                usvg::FontStretch::Condensed => fontdb::Stretch::Condensed,
-                usvg::FontStretch::SemiCondensed => fontdb::Stretch::SemiCondensed,
-                usvg::FontStretch::Normal => fontdb::Stretch::Normal,
-                usvg::FontStretch::SemiExpanded => fontdb::Stretch::SemiExpanded,
-                usvg::FontStretch::Expanded => fontdb::Stretch::Expanded,
-                usvg::FontStretch::ExtraExpanded => fontdb::Stretch::ExtraExpanded,
-                usvg::FontStretch::UltraExpanded => fontdb::Stretch::UltraExpanded,
+                usvg::FontStretch::UltraCondensed => usvg::fontdb::Stretch::UltraCondensed,
+                usvg::FontStretch::ExtraCondensed => usvg::fontdb::Stretch::ExtraCondensed,
+                usvg::FontStretch::Condensed => usvg::fontdb::Stretch::Condensed,
+                usvg::FontStretch::SemiCondensed => usvg::fontdb::Stretch::SemiCondensed,
+                usvg::FontStretch::Normal => usvg::fontdb::Stretch::Normal,
+                usvg::FontStretch::SemiExpanded => usvg::fontdb::Stretch::SemiExpanded,
+                usvg::FontStretch::Expanded => usvg::fontdb::Stretch::Expanded,
+                usvg::FontStretch::ExtraExpanded => usvg::fontdb::Stretch::ExtraExpanded,
+                usvg::FontStretch::UltraExpanded => usvg::fontdb::Stretch::UltraExpanded,
             };
 
             let style = match font.style() {
-                usvg::FontStyle::Normal => fontdb::Style::Normal,
-                usvg::FontStyle::Italic => fontdb::Style::Italic,
-                usvg::FontStyle::Oblique => fontdb::Style::Oblique,
+                usvg::FontStyle::Normal => usvg::fontdb::Style::Normal,
+                usvg::FontStyle::Italic => usvg::fontdb::Style::Italic,
+                usvg::FontStyle::Oblique => usvg::fontdb::Style::Oblique,
             };
 
-            let query = fontdb::Query {
+            let query = usvg::fontdb::Query {
                 families: &all_families,
-                weight: fontdb::Weight(font.weight()),
+                weight: usvg::fontdb::Weight(font.weight()),
                 stretch,
                 style,
             };
@@ -152,10 +152,10 @@ fn custom_font_selector() -> usvg::FontSelectionFn<'static> {
                 return Some(id);
             }
 
-            let fallback = [fontdb::Family::Name("DejaVu Sans Mono")];
-            fontdb.query(&fontdb::Query {
+            let fallback = [usvg::fontdb::Family::Name("DejaVu Sans Mono")];
+            fontdb.query(&usvg::fontdb::Query {
                 families: &fallback,
-                weight: fontdb::Weight(font.weight()),
+                weight: usvg::fontdb::Weight(font.weight()),
                 stretch,
                 style,
             })

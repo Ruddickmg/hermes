@@ -50,3 +50,6 @@ tests/lua/**/*.log
 # LLVM coverage raw data
 *.profraw
 *.profdata
+
+#direnv
+.direnv

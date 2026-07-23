@@ -205,6 +205,30 @@ describe("hermes.binary", function()
 		end)
 	end)
 
+	describe("is_nix_install()", function()
+		it("returns false when debug.getinfo returns nil", function()
+			local original_getinfo = debug.getinfo
+			debug.getinfo = function(level, ...)
+				if level == 1 then return nil end
+				return original_getinfo(level, ...)
+			end
+			local result = binary.is_nix_install()
+			debug.getinfo = original_getinfo
+			assert.is_false(result)
+		end)
+
+		it("returns false when source is empty after stripping @", function()
+			local original_getinfo = debug.getinfo
+			debug.getinfo = function(level, ...)
+				if level == 1 then return { source = "@" } end
+				return original_getinfo(level, ...)
+			end
+			local result = binary.is_nix_install()
+			debug.getinfo = original_getinfo
+			assert.is_false(result)
+		end)
+	end)
+
 	describe("_get_rock_version()", function()
 		it("returns nil when glob returns empty", function()
 			local glob_stub = stub(vim.fn, "glob").returns({})
