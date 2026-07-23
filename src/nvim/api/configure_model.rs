@@ -107,7 +107,9 @@ impl Api {
                 agent_client_protocol::schema::v1::SetSessionConfigOptionRequest::new(
                     session_id,
                     config.id,
-                    config.value,
+                    agent_client_protocol::schema::v1::SessionConfigOptionValue::value_id(
+                        config.value,
+                    ),
                 ),
             )
             .await?;

@@ -29,9 +29,8 @@ impl Handler {
     ) -> Result<(), Error> {
         self.set_agent_info(agent.clone(), info.clone()).await;
 
-        // TODO: figure out a better way to deal with the deserialization issue with the protocol version
         let value = serde_json::json!({
-            "protocolVersion": info.protocol_version.to_string(),
+            "protocolVersion": info.protocol_version.as_u16(),
             "agentCapabilities": {
                 "loadSession": info.agent_capabilities.load_session,
                 "promptCapabilities": {
