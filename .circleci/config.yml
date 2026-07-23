@@ -186,21 +186,13 @@ commands:
       file:
         type: string
         description: Path to the coverage report file
-      allow-failure:
-        type: boolean
-        default: false
-        description: Whether to allow the upload to fail without failing the job
     steps:
       - run:
           name: Upload coverage to Codecov
           command: |
-            curl -Os https://cli.codecov.io/latest/linux/codecov
+            curl -Os https://cli.codecov.io/v10.2.1/linux/codecov
             chmod +x codecov
-            if [ "<< parameters.allow-failure >>" = "true" ]; then
-              ./codecov upload-coverage --file << parameters.file >> --disable-search || true
-            else
-              ./codecov upload-coverage --file << parameters.file >> --disable-search
-            fi
+            ./codecov upload-coverage --file << parameters.file >> --disable-search --fail-on-error
 
   restore-cargo-cache:
     steps:
