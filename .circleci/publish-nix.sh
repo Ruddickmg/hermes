@@ -9,9 +9,6 @@ fi
 
 echo "Publishing nix package for v${VERSION}"
 
-# git not included in nixos/nix image
-nix-env -iA nixpkgs.git
-
 # Update hashes
 nix run nixpkgs#nix-update -- hermes-nvim --flake --version v"${VERSION}"
 
