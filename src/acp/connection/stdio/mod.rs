@@ -112,8 +112,7 @@ pub async fn connect(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::AsyncBufRead;
-    use futures::io::Cursor;
+    use futures::io::{BufReader, Cursor};
     use pretty_assertions::assert_eq;
     use std::io::ErrorKind;
 
@@ -126,36 +125,22 @@ mod tests {
         smol::block_on(executor.run(f()));
     }
 
-    struct FailOnce {
+    struct FailOnceRead {
         first: bool,
     }
 
-    impl futures::AsyncRead for FailOnce {
+    impl futures::AsyncRead for FailOnceRead {
         fn poll_read(
-            self: std::pin::Pin<&mut Self>,
-            cx: &mut std::task::Context<'_>,
-            buf: &mut [u8],
-        ) -> std::task::Poll<std::io::Result<usize>> {
-            match self.poll_fill_buf(cx) {
-                std::task::Poll::Ready(Ok(data)) => {
-                    let len = std::cmp::min(buf.len(), data.len());
-                    buf[..len].copy_from_slice(&data[..len]);
-                    std::task::Poll::Ready(Ok(len))
-                }
-                std::task::Poll::Ready(Err(e)) => std::task::Poll::Ready(Err(e)),
-                std::task::Poll::Pending => std::task::Poll::Pending,
-            }
-        }
-    }
-
-    impl futures::AsyncBufRead for FailOnce {
-        fn poll_fill_buf(
             mut self: std::pin::Pin<&mut Self>,
             _cx: &mut std::task::Context<'_>,
-        ) -> std::task::Poll<std::io::Result<&[u8]>> {
+            buf: &mut [u8],
+        ) -> std::task::Poll<std::io::Result<usize>> {
             if self.first {
                 self.first = false;
-                std::task::Poll::Ready(Ok(b"ok\n"))
+                let data = b"ok\n";
+                let len = std::cmp::min(buf.len(), data.len());
+                buf[..len].copy_from_slice(data);
+                std::task::Poll::Ready(Ok(len))
             } else {
                 std::task::Poll::Ready(Err(std::io::Error::new(
                     ErrorKind::Other,
@@ -163,8 +148,6 @@ mod tests {
                 )))
             }
         }
-
-        fn consume(self: std::pin::Pin<&mut Self>, _amt: usize) {}
     }
 
     #[test]
@@ -202,7 +185,7 @@ mod tests {
     #[test]
     fn stderr_lines_breaks_on_read_error() {
         run_test(|| async {
-            let reader = FailOnce { first: true };
+            let reader = BufReader::new(FailOnceRead { first: true });
             let mut writer = Vec::new();
             read_stderr_lines(reader, &mut writer, "test-agent").await;
             let output = String::from_utf8(writer).unwrap();
