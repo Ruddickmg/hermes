@@ -43,7 +43,9 @@ impl Api {
                         agent_client_protocol::schema::v1::SetSessionConfigOptionRequest::new(
                             session_id,
                             config_type.clone(),
-                            mode_id,
+                            agent_client_protocol::schema::v1::SessionConfigOptionValue::value_id(
+                                mode_id,
+                            ),
                         ),
                     )
                     .await?;
