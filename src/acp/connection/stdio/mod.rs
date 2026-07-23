@@ -112,6 +112,7 @@ pub async fn connect(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::AsyncBufRead;
     use futures::io::Cursor;
     use pretty_assertions::assert_eq;
     use std::io::ErrorKind;
@@ -132,21 +133,17 @@ mod tests {
     impl futures::AsyncRead for FailOnce {
         fn poll_read(
             self: std::pin::Pin<&mut Self>,
-            _cx: &mut std::task::Context<'_>,
+            cx: &mut std::task::Context<'_>,
             buf: &mut [u8],
         ) -> std::task::Poll<std::io::Result<usize>> {
-            let this = self.get_mut();
-            if this.first {
-                this.first = false;
-                let data = b"ok\n";
-                let len = std::cmp::min(buf.len(), data.len());
-                buf[..len].copy_from_slice(&data[..len]);
-                std::task::Poll::Ready(Ok(len))
-            } else {
-                std::task::Poll::Ready(Err(std::io::Error::new(
-                    ErrorKind::Other,
-                    "mock read error",
-                )))
+            match self.poll_fill_buf(cx) {
+                std::task::Poll::Ready(Ok(data)) => {
+                    let len = std::cmp::min(buf.len(), data.len());
+                    buf[..len].copy_from_slice(&data[..len]);
+                    std::task::Poll::Ready(Ok(len))
+                }
+                std::task::Poll::Ready(Err(e)) => std::task::Poll::Ready(Err(e)),
+                std::task::Poll::Pending => std::task::Poll::Pending,
             }
         }
     }
