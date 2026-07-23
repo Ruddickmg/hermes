@@ -662,7 +662,6 @@ jobs:
             mv luacov.report.out lua.coverage.info
       - upload-coverage:
           file: lua.coverage.info
-          allow-failure: true
 
   lua_tests_0_11:
     environment:
