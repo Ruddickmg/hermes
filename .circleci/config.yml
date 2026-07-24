@@ -269,16 +269,27 @@ jobs:
           name: Generate sources.json
           command: bash .circleci/generate-sources.sh
       - run:
-          name: Upload sources.json to release
           command: |
             VERSION=$(cat target/release/version.txt)
             if [ -z "$VERSION" ]; then
               exit 0
             fi
-            curl -X POST \
+
+            RELEASE_ID=$(curl -sS \
               -H "Authorization: token ${GITHUB_TOKEN}" \
-              -H "Content-Type: application/json" \
-              "https://uploads.github.com/repos/Ruddickmg/hermes.nvim/releases/tags/v${VERSION}/assets?name=sources.json" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/Ruddickmg/hermes.nvim/releases/tags/v${VERSION}" \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).id||"")))')
+
+            if [ -z "$RELEASE_ID" ]; then
+              echo "Could not resolve release id for v${VERSION}" >&2
+              exit 1
+            fi
+
+            curl -sS -X POST \
+              -H "Authorization: token ${GITHUB_TOKEN}" \
+              -H "Content-Type: application/octet-stream" \
+              "https://uploads.github.com/repos/Ruddickmg/hermes.nvim/releases/${RELEASE_ID}/assets?name=sources.json" \
               --data-binary @target/release/sources.json
       - persist_to_workspace:
           root: target/release

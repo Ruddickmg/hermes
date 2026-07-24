@@ -50,4 +50,4 @@ git config user.email "ci@hermes.nvim"
 git config user.name "Hermes CI"
 git add nix/packaging/default.nix
 git commit -m "nix: update hermes-nvim to v${VERSION} [skip ci]"
-git push origin HEAD
+git push origin "HEAD:${CIRCLE_BRANCH}"
