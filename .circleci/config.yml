@@ -153,6 +153,7 @@ workflows:
             branches:
               only:
                 - main
+                - development
           requires:
             - release
 
