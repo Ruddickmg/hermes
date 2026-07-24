@@ -4,11 +4,16 @@
   fetchFromGitHub,
   fetchurl,
   vimUtils,
-  nix-update-script,
 }:
 
 let
   version = "0.10.1";
+
+  sourcesJson = fetchurl {
+    url = "https://github.com/Ruddickmg/hermes.nvim/releases/download/v${version}/sources.json";
+    hash = "sha256-YUWOdtn4RjKLjFkKanA/yw2BYVKVV9saOOduwjE+8WI=";
+  };
+  sources = builtins.fromJSON (builtins.readFile sourcesJson);
 
   # Map nix kernel name to hermes os name
   os = {
@@ -27,12 +32,7 @@ let
 
   hermes-binary = fetchurl {
     url = "https://github.com/Ruddickmg/hermes.nvim/releases/download/v${version}/${binaryName}";
-    sha256 = {
-      "x86_64-linux"  = "sha256-egBQrfX9/cn3NfuyWJ77BOEE7xlJEBE843cPa5xSwRg=";
-      "aarch64-linux" = "sha256-GvsduPnd5kHJqP6Q8m4KI6223ImoCdGzFjvbf1uCMzo=";
-      "x86_64-darwin" = "sha256-mnb2ramM2Ih0/ZDM6U7uGhOwkhK/LTIJ3ZpLZ+TOR/o=";
-      "aarch64-darwin"= "sha256-tm1d5Ir9LGVExA6qEa+CUtWbMACX4tr5XS4C8JtEA3g=";
-    }.${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
+    hash = sources.${stdenv.hostPlatform.system}.hash;
   };
 in
 vimUtils.buildVimPlugin {
@@ -43,7 +43,7 @@ vimUtils.buildVimPlugin {
     owner = "Ruddickmg";
     repo = "hermes.nvim";
     tag = "v${version}";
-    hash = "sha256-cWJUr6ou6uZ+IErCoVLhhyZTefvlq4+XmyJVo/IJpjA=";
+    hash = sources.source.hash;
   };
 
   # Skip require() check for the native module — the Rust shared library
@@ -58,9 +58,6 @@ vimUtils.buildVimPlugin {
   '';
 
   passthru = {
-    updateScript = nix-update-script {
-      attrPath = "vimPlugins.hermes-nvim";
-    };
     inherit hermes-binary;
   };
 

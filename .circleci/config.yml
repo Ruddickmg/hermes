@@ -148,7 +148,7 @@ workflows:
           requires:
             - release
 
-      - publish-nix:
+      - update-nix-hashes:
           filters:
             branches:
               only:
@@ -264,6 +264,25 @@ jobs:
       - run:
           name: Semantic release
           command: pnpm release
+      - run:
+          name: Generate sources.json
+          command: bash .circleci/generate-sources.sh
+      - run:
+          name: Upload sources.json to release
+          command: |
+            VERSION=$(cat target/release/version.txt)
+            if [ -z "$VERSION" ]; then
+              exit 0
+            fi
+            curl -X POST \
+              -H "Authorization: token ${GITHUB_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://uploads.github.com/repos/Ruddickmg/hermes.nvim/releases/tags/v${VERSION}/assets?name=sources.json" \
+              --data-binary @target/release/sources.json
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - sources.json
 
   publish-luarocks:
     executor: node
@@ -275,7 +294,7 @@ jobs:
           name: Publish to LuaRocks
           command: bash .circleci/publish-luarocks.sh
 
-  publish-nix:
+  update-nix-hashes:
     docker:
       - image: nixos/nix
     environment:
@@ -285,8 +304,8 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
-          name: Publish to Nix
-          command: bash .circleci/publish-nix.sh
+          name: Update nix hashes
+          command: bash .circleci/update-nix-hashes.sh
 
   check_license:
     executor: rust-linux-x86_64
