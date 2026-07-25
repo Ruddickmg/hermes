@@ -148,14 +148,15 @@ workflows:
           requires:
             - release
 
-      - update-nix-hashes:
+      - update-hashes:
           filters:
             branches:
               only:
                 - main
-                - development
           requires:
             - release
+
+
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
@@ -265,36 +266,6 @@ jobs:
       - run:
           name: Semantic release
           command: pnpm release
-      - run:
-          name: Generate sources.json
-          command: bash .circleci/generate-sources.sh
-      - run:
-          command: |
-            VERSION=$(cat target/release/version.txt)
-            if [ -z "$VERSION" ]; then
-              exit 0
-            fi
-
-            RELEASE_ID=$(curl -sS \
-              -H "Authorization: token ${GITHUB_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/Ruddickmg/hermes.nvim/releases/tags/v${VERSION}" \
-              | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).id||"")))')
-
-            if [ -z "$RELEASE_ID" ]; then
-              echo "Could not resolve release id for v${VERSION}" >&2
-              exit 1
-            fi
-
-            curl -sS -X POST \
-              -H "Authorization: token ${GITHUB_TOKEN}" \
-              -H "Content-Type: application/octet-stream" \
-              "https://uploads.github.com/repos/Ruddickmg/hermes.nvim/releases/${RELEASE_ID}/assets?name=sources.json" \
-              --data-binary @target/release/sources.json
-      - persist_to_workspace:
-          root: target/release
-          paths:
-            - sources.json
 
   publish-luarocks:
     executor: node
@@ -306,18 +277,21 @@ jobs:
           name: Publish to LuaRocks
           command: bash .circleci/publish-luarocks.sh
 
-  update-nix-hashes:
+  update-hashes:
     docker:
-      - image: nixos/nix
-    environment:
-      NIX_CONFIG: "experimental-features = nix-command flakes"
+      - image: cimg/base:current
     steps:
       - checkout
       - attach_workspace:
           at: target/release
       - run:
-          name: Update nix hashes
-          command: bash .circleci/update-nix-hashes.sh
+          name: Install nix
+          command: |
+            curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+            echo 'export PATH="/home/circleci/.nix-profile/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: Update hashes
+          command: bash .circleci/update-hashes.sh
 
   check_license:
     executor: rust-linux-x86_64
