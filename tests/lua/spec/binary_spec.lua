@@ -72,41 +72,6 @@ describe("hermes.binary", function()
 				vim.fn.filereadable:revert()
 			end
 		end)
-		pcall(function()
-			if vim.fn.has.revert then
-				vim.fn.has:revert()
-			end
-		end)
-		pcall(function()
-			if vim.fn.system.revert then
-				vim.fn.system:revert()
-			end
-		end)
-		pcall(function()
-			if vim.fn.jobstart.revert then
-				vim.fn.jobstart:revert()
-			end
-		end)
-		pcall(function()
-			if vim.fn.jobstop.revert then
-				vim.fn.jobstop:revert()
-			end
-		end)
-		pcall(function()
-			if vim.fn.mkdir.revert then
-				vim.fn.mkdir:revert()
-			end
-		end)
-		pcall(function()
-			if vim.fn.delete.revert then
-				vim.fn.delete:revert()
-			end
-		end)
-		pcall(function()
-			if vim.fn.glob.revert then
-				vim.fn.glob:revert()
-			end
-		end)
 	end)
 
 	describe("get_data_dir()", function()
