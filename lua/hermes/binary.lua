@@ -72,6 +72,8 @@ local function _compute_file_hash(file_path)
 	end
 end
 
+M._compute_file_hash = _compute_file_hash
+
 ---Parse checksums.txt content and find hash for a filename
 ---@param content string Contents of checksums.txt
 ---@param filename string Binary filename to find

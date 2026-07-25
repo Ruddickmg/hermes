@@ -72,6 +72,41 @@ describe("hermes.binary", function()
 				vim.fn.filereadable:revert()
 			end
 		end)
+		pcall(function()
+			if vim.fn.has.revert then
+				vim.fn.has:revert()
+			end
+		end)
+		pcall(function()
+			if vim.fn.system.revert then
+				vim.fn.system:revert()
+			end
+		end)
+		pcall(function()
+			if vim.fn.jobstart.revert then
+				vim.fn.jobstart:revert()
+			end
+		end)
+		pcall(function()
+			if vim.fn.jobstop.revert then
+				vim.fn.jobstop:revert()
+			end
+		end)
+		pcall(function()
+			if vim.fn.mkdir.revert then
+				vim.fn.mkdir:revert()
+			end
+		end)
+		pcall(function()
+			if vim.fn.delete.revert then
+				vim.fn.delete:revert()
+			end
+		end)
+		pcall(function()
+			if vim.fn.glob.revert then
+				vim.fn.glob:revert()
+			end
+		end)
 	end)
 
 	describe("get_data_dir()", function()
@@ -1880,6 +1915,48 @@ describe("hermes.binary", function()
 			binary.download(temp_dir .. "/test.so", "v1.0.0")
 
 			assert.stub(verify_stub).was_not_called()
+		end)
+	end)
+
+	describe("_compute_file_hash()", function()
+		it("returns correct sha256 for known content", function()
+			local test_file = temp_dir .. "/hash_test.bin"
+			local f = io.open(test_file, "w")
+			f:write("hello world")
+			f:close()
+
+			-- sha256("hello world") = b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+			local hash = binary._compute_file_hash(test_file)
+
+			assert.equals("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", hash)
+		end)
+
+		it("returns nil for non-existent file", function()
+			local hash = binary._compute_file_hash(temp_dir .. "/nonexistent.bin")
+			assert.is_nil(hash)
+		end)
+	end)
+
+	describe("_download_binary_async() hash verification", function()
+		it("calls back with failure when hash verification fails", function()
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(true, nil)
+			end)
+			stub(binary, "_verify_binary_hash").returns(false, "Hash mismatch for libhermes.so")
+			stub(vim.fn, "has").returns(0)
+			stub(vim.fn, "system")
+
+			local callback_success = nil
+			local callback_err = nil
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function(success, err)
+				callback_success = success
+				callback_err = err
+			end)
+
+			vim.wait(100)
+
+			assert.is_false(callback_success, "Should report failure on hash mismatch")
+			assert.equals("Hash mismatch for libhermes.so", callback_err)
 		end)
 	end)
 end)
