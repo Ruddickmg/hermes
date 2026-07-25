@@ -45,31 +45,36 @@ local function get_download()
 	return download
 end
 
----Compute SHA256 hex hash of a file using system command
+---Compute SHA256 hex hash of a file using Neovim built-ins
 ---@param file_path string Path to file
 ---@return string|nil hash Hex-encoded SHA256 hash, or nil on error
 ---@private
 local function _compute_file_hash(file_path)
-	if vim.fn.has("win32") == 1 then
-		local result = vim.fn.system({ "certutil", "-hashfile", file_path, "SHA256" })
-		if vim.v.shell_error ~= 0 then
-			return nil
-		end
-		-- certutil output: "SHA256 hash of file:\r\n<hash>\r\nCertUtil: -hashfile command completed successfully.\r\n"
-		local hash = result:match("%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x")
-		return hash and hash:lower() or nil
-	else
-		-- Try sha256sum first (Linux), then shasum (macOS)
-		local result = vim.fn.system({ "sha256sum", file_path })
-		if vim.v.shell_error ~= 0 then
-			result = vim.fn.system({ "shasum", "-a", "256", file_path })
-		end
-		if vim.v.shell_error ~= 0 then
-			return nil
-		end
-		local hash = result:match("^([%x]+)")
-		return hash and hash:lower() or nil
+	local uv = vim.uv or vim.loop
+
+	local fd = uv.fs_open(file_path, "r", 438) -- 0666
+	if not fd then
+		return nil
 	end
+
+	local stat = uv.fs_fstat(fd)
+	if not stat or type(stat.size) ~= "number" then
+		uv.fs_close(fd)
+		return nil
+	end
+
+	local data = uv.fs_read(fd, stat.size, 0)
+	uv.fs_close(fd)
+	if type(data) ~= "string" then
+		return nil
+	end
+
+	local ok, hash = pcall(vim.fn.sha256, data)
+	if not ok or type(hash) ~= "string" then
+		return nil
+	end
+
+	return hash:lower()
 end
 
 M._compute_file_hash = _compute_file_hash

@@ -1909,9 +1909,8 @@ describe("hermes.binary", function()
 		end)
 
 		it("does not verify hash when download fails", function()
-			download_stub = stub(download, "download").returns(false, "Network error")
+			download_stub = stub(download, "download").returns(false, { message = "Network error" })
 			local verify_stub = stub(binary, "_verify_binary_hash")
-
 			binary.download(temp_dir .. "/test.so", "v1.0.0")
 
 			assert.stub(verify_stub).was_not_called()

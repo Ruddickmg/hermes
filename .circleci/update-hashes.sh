@@ -33,10 +33,9 @@ for entry in $BINARIES; do
   binary="${entry##*:}"
 
   echo "  Downloading $binary..."
-  curl -sL -o "/tmp/$binary" "${BASE_URL}/${binary}"
+  curl -fsSL -o "/tmp/$binary" "${BASE_URL}/${binary}"
 
   HEX=$(sha256sum "/tmp/$binary" | awk '{print $1}')
-  SRI=$(nix hash to-sri --type sha256 "$HEX")
 
   echo "${HEX}  ${binary}" >> "$CHECKSUMS_TMP"
   echo "  $system: $SRI"
