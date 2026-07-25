@@ -119,6 +119,19 @@ workflows:
             - update-cargo-version
             - fetch-registry
 
+      - update-hashes:
+          filters:
+            branches:
+              only:
+                - main
+                - development
+          requires:
+            - build-linux-x86_64
+            - build-linux-aarch64
+            - build-mac-aarch64
+            - build-mac-x86_64
+            - build-windows-x86_64
+
       - release:
           filters:
             branches:
@@ -134,26 +147,13 @@ workflows:
             - unit_tests
             - e2e_tests_0_12
             - e2e_tests_0_11
-            - build-linux-x86_64
-            - build-linux-aarch64
-            - build-mac-aarch64
-            - build-mac-x86_64
-            - build-windows-x86_64
+            - update-hashes
 
       - publish-luarocks:
           filters:
             branches:
               only:
                 - main
-          requires:
-            - release
-
-      - update-hashes:
-          filters:
-            branches:
-              only:
-                - main
-                - development
           requires:
             - release
 
@@ -286,8 +286,9 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
-          name: Install nix
+          name: Install dependencies
           command: |
+            sudo apt-get update && sudo apt-get install -y jq
             curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
             echo 'export PATH="/home/circleci/.nix-profile/bin:$PATH"' >> "$BASH_ENV"
       - run:
