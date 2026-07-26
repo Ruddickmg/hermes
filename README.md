@@ -21,6 +21,8 @@ Hermes focuses on:
 - [x] Autocommands for messages/notifications
 - [x] Communication over Stdio, TCP, Socket, and HTTP protocols
 - [x] Neovim 0.12 progress integration via `nvim_echo` with `kind="progress"`
+- [x] Luarocks integration
+- [x] Nixos intgration
 
 ## 📦 Installation
 
