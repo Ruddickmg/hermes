@@ -119,6 +119,19 @@ workflows:
             - update-cargo-version
             - fetch-registry
 
+      - update-hashes:
+          filters:
+            branches:
+              only:
+                - main
+                - development
+          requires:
+            - build-linux-x86_64
+            - build-linux-aarch64
+            - build-mac-aarch64
+            - build-mac-x86_64
+            - build-windows-x86_64
+
       - release:
           filters:
             branches:
@@ -134,11 +147,7 @@ workflows:
             - unit_tests
             - e2e_tests_0_12
             - e2e_tests_0_11
-            - build-linux-x86_64
-            - build-linux-aarch64
-            - build-mac-aarch64
-            - build-mac-x86_64
-            - build-windows-x86_64
+            - update-hashes
 
       - publish-luarocks:
           filters:
@@ -148,13 +157,7 @@ workflows:
           requires:
             - release
 
-      - publish-nix:
-          filters:
-            branches:
-              only:
-                - main
-          requires:
-            - release
+
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
@@ -275,18 +278,20 @@ jobs:
           name: Publish to LuaRocks
           command: bash .circleci/publish-luarocks.sh
 
-  publish-nix:
+  update-hashes:
     docker:
       - image: nixos/nix
-    environment:
-      NIX_CONFIG: "experimental-features = nix-command flakes"
     steps:
       - checkout
       - attach_workspace:
           at: target/release
       - run:
-          name: Publish to Nix
-          command: bash .circleci/publish-nix.sh
+          name: Install dependencies
+          command: |
+            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq -f https://nixos.org/channels/nixpkgs-unstable
+      - run:
+          name: Update hashes
+          command: bash .circleci/update-hashes.sh
 
   check_license:
     executor: rust-linux-x86_64

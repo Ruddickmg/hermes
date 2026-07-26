@@ -1,0 +1,18 @@
+{
+  "version": "0.10.1",
+  "x86_64-linux": {
+    "hash": "sha256-egBQrfX9/cn3NfuyWJ77BOEE7xlJEBE843cPa5xSwRg="
+  },
+  "aarch64-linux": {
+    "hash": "sha256-GvsduPnd5kHJqP6Q8m4KI6223ImoCdGzFjvbf1uCMzo="
+  },
+  "x86_64-darwin": {
+    "hash": "sha256-mnb2ramM2Ih0/ZDM6U7uGhOwkhK/LTIJ3ZpLZ+TOR/o="
+  },
+  "aarch64-darwin": {
+    "hash": "sha256-tm1d5Ir9LGVExA6qEa+CUtWbMACX4tr5XS4C8JtEA3g="
+  },
+  "x86_64-windows": {
+    "hash": "sha256-T8WiP5lDh5Ab/2ivnqeS17JGNMeuqvJI1VNemYIr14E="
+  }
+}
