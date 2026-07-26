@@ -288,7 +288,8 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq -f https://nixos.org/channels/nixpkgs-unstable
+            nix-channel --update
+            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq
       - run:
           name: Update hashes
           command: bash .circleci/update-hashes.sh
