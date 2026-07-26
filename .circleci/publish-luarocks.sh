@@ -31,7 +31,9 @@ SOURCE_ROCKSPEC="/tmp/hermes.nvim-${VERSION}-1.rockspec"
 sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > "$SOURCE_ROCKSPEC"
 # The GitHub-generated archive extracts into "hermes.nvim-${VERSION}" (no "v"),
 # so we must tell LuaRocks the expected source directory.
-sed -i "/url = \"https:.*archive.*tar\.gz\"/a\\  md5 = \"${SOURCE_MD5}\",\n  dir = \"hermes.nvim-${VERSION}\"," "$SOURCE_ROCKSPEC"
+sed -i "/url = \"https:.*archive.*tar\\.gz\"/a\\
+  md5 = \"${SOURCE_MD5}\",\\
+  dir = \"hermes.nvim-${VERSION}\"," "$SOURCE_ROCKSPEC"
 luarocks upload "$SOURCE_ROCKSPEC" --api-key="${LUAROCKS_API_KEY}"
 echo "Source rock published: hermes.nvim-${VERSION}-1"
 
