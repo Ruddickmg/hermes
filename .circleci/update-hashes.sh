@@ -58,6 +58,7 @@ cp "$SOURCES_TMP" nix/sources.json
 # Commit with [skip ci]
 git config user.email "ci@hermes.nvim"
 git config user.name "Hermes CI"
+git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
 git add nix/sources.json
 
 if git diff --cached --quiet; then
