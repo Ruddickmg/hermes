@@ -1919,8 +1919,7 @@ describe("hermes.binary", function()
 
 			vim.wait(100)
 
-			assert.is_false(callback_success, "Should report failure on hash mismatch")
-			assert.equals("Hash mismatch for libhermes.so", callback_err)
+			assert.same({ false, "Hash mismatch for libhermes.so" }, { callback_success, callback_err })
 		end)
 	end)
 end)
