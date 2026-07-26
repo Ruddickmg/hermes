@@ -280,7 +280,7 @@ jobs:
 
   update-hashes:
     docker:
-      - image: cimg/base:current
+      - image: nixos/nix
     steps:
       - checkout
       - attach_workspace:
@@ -288,9 +288,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            sudo apt-get update && sudo apt-get install -y jq
-            curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
-            echo 'export PATH="/home/circleci/.nix-profile/bin:$PATH"' >> "$BASH_ENV"
+            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq -f https://nixos.org/channels/nixpkgs-unstable
       - run:
           name: Update hashes
           command: bash .circleci/update-hashes.sh

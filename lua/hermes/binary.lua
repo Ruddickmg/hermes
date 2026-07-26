@@ -102,9 +102,7 @@ M._parse_checksums = _parse_checksums
 ---@return boolean success Whether verification passed
 ---@return string|nil error Error message if verification failed
 ---@private
--- luacov: disable
 function M._verify_binary_hash(bin_path, ver)
-	-- luacov: enable
 	local download_mod = get_download()
 	local binary_name = require("hermes.platform").get_binary_name()
 	local checksums_url = string.format(
