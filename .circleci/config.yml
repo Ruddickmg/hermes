@@ -289,7 +289,7 @@ jobs:
           name: Install dependencies
           command: |
             nix-channel --update
-            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq
+            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq nixpkgs.gawk
       - run:
           name: Update hashes
           command: bash .circleci/update-hashes.sh
