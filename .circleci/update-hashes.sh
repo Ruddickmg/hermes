@@ -59,5 +59,11 @@ cp "$SOURCES_TMP" nix/sources.json
 git config user.email "ci@hermes.nvim"
 git config user.name "Hermes CI"
 git add nix/sources.json
+
+if git diff --cached --quiet; then
+  echo "No hash changes to commit"
+  exit 0
+fi
+
 git commit -m "nix: update hashes for v${VERSION} [skip ci]"
 git push origin "HEAD:${CIRCLE_BRANCH}"

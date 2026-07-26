@@ -117,15 +117,24 @@ function M._verify_binary_hash(bin_path, ver)
 	local ok, err = download_mod.download(checksums_url, tmp_checksums)
 	if not ok then
 		pcall(os.remove, tmp_checksums)
+
+		local err_msg
+		if type(err) == "table" then
+			err_msg = err.message or err.stderr
+		else
+			err_msg = err
+		end
+		err_msg = tostring(err_msg)
+
 		-- If checksums.txt doesn't exist (old release), warn but don't fail
-		if err and (err.http_code == 404 or tostring(err):find("404")) then
+		if (type(err) == "table" and err.http_code == 404) or err_msg:find("404") then
 			vim.notify(
 				"[hermes] checksums.txt not found for " .. ver .. ", skipping verification",
 				vim.log.levels.WARN
 			)
 			return true
 		end
-		return false, "Failed to download checksums: " .. tostring(err)
+		return false, "Failed to download checksums: " .. err_msg
 	end
 
 	-- Read checksums.txt
@@ -151,6 +160,7 @@ function M._verify_binary_hash(bin_path, ver)
 	-- Compute actual hash
 	local actual = _compute_file_hash(bin_path)
 	if not actual then
+		pcall(os.remove, bin_path)
 		return false, "Failed to compute hash of downloaded binary"
 	end
 
