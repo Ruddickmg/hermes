@@ -33,7 +33,7 @@ for entry in $BINARIES; do
   binary="${entry##*:}"
 
   HEX=$(sha256sum "target/release/$binary" | awk '{print $1}')
-  SRI=$(nix hash to-sri --type sha256 "$HEX")
+  SRI=$(nix --extra-experimental-features 'nix-command' hash to-sri --type sha256 "$HEX")
 
   echo "${HEX}  ${binary}" >> "$CHECKSUMS_FILE"
   echo "  $system: $SRI"
