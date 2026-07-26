@@ -312,6 +312,7 @@ describe("hermes.binary", function()
 				captured_dest = dest
 				return true, nil
 			end)
+			stub(binary, "_verify_binary_hash").returns(true)
 
 			local target_path = temp_dir .. "/libhermes-linux-x86_64.so"
 			binary.download(target_path, "v1.0.0")
@@ -321,6 +322,7 @@ describe("hermes.binary", function()
 
 		it("returns true on success", function()
 			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(true)
 
 			local result = binary.download(temp_dir .. "/test.so", "v1.0.0")
 
@@ -358,6 +360,7 @@ describe("hermes.binary", function()
 				return "v2.0.0"
 			end)
 			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(true)
 
 			binary.download(temp_dir .. "/test.so", "latest")
 
@@ -368,6 +371,7 @@ describe("hermes.binary", function()
 		it("downloads when binary missing", function()
 			filereadable_stub = stub(vim.fn, "filereadable").returns(0)
 			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(true)
 			stub(download, "get_available_tool").returns("curl")
 			version_stub = stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
 			stub(vim.fn, "writefile")
@@ -423,6 +427,7 @@ describe("hermes.binary", function()
 			stub(vim.fn, "readfile").returns({ "v0.9.0" })
 			version_stub = stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
 			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(true)
 			stub(vim.fn, "writefile")
 
 			binary.ensure_binary()
@@ -446,6 +451,7 @@ describe("hermes.binary", function()
 
 			version_stub = stub(require("hermes.version"), "get_wanted").returns("v1.0.0")
 			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(true)
 			stub(vim.fn, "writefile")
 
 			binary.ensure_binary()
@@ -989,6 +995,7 @@ describe("hermes.binary", function()
       stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
         on_complete(true, nil)
       end)
+      stub(binary, "_verify_binary_hash").returns(true)
       stub(vim.fn, "writefile")
       stub(download, "get_available_tool").returns("curl")
 
@@ -1015,6 +1022,7 @@ describe("hermes.binary", function()
       stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
         on_complete(true, nil)
       end)
+      stub(binary, "_verify_binary_hash").returns(true)
       stub(download, "get_available_tool").returns("curl")
 
       local callback_called = false
@@ -1823,6 +1831,415 @@ describe("hermes.binary", function()
 			internal_stub:revert()
 
 			assert.stub(mkdir_stub).was_called()
+		end)
+	end)
+
+	describe("_parse_checksums()", function()
+		it("finds hash for matching filename", function()
+			local content = "abc123  libhermes-linux-x86_64.so\ndef456  libhermes-macos-x86_64.dylib\n"
+			local result = binary._parse_checksums(content, "libhermes-linux-x86_64.so")
+			assert.equals("abc123", result)
+		end)
+
+		it("returns nil for non-existent filename", function()
+			local content = "abc123  libhermes-linux-x86_64.so\n"
+			local result = binary._parse_checksums(content, "libhermes-windows-x86_64.dll")
+			assert.is_nil(result)
+		end)
+
+		it("handles CRLF line endings", function()
+			local content = "abc123  libhermes-linux-x86_64.so\r\ndef456  libhermes-macos-x86_64.dylib\r\n"
+			local result = binary._parse_checksums(content, "libhermes-macos-x86_64.dylib")
+			assert.equals("def456", result)
+		end)
+	end)
+
+	describe("download() hash verification", function()
+		it("returns false when hash verification fails", function()
+			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(false, "Hash mismatch")
+
+			local result = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.is_false(result)
+		end)
+
+		it("returns error message when hash verification fails", function()
+			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(false, "Hash mismatch for test.so")
+
+			local _, err = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.truthy(err and err.message and err.message:find("Hash mismatch"))
+		end)
+
+		it("does not verify hash when download fails", function()
+			download_stub = stub(download, "download").returns(false, { message = "Network error" })
+			local verify_stub = stub(binary, "_verify_binary_hash")
+			binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.stub(verify_stub).was_not_called()
+		end)
+
+		it("skips chmod on win32", function()
+			download_stub = stub(download, "download").returns(true, nil)
+			stub(binary, "_verify_binary_hash").returns(true)
+			local has_stub = stub(vim.fn, "has").returns(1)
+			local system_stub = stub(vim.fn, "system")
+
+			binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			has_stub:revert()
+			system_stub:revert()
+
+			assert.stub(system_stub).was_not_called()
+		end)
+
+		it("passes through structured error from download", function()
+			local structured_err = { message = "timeout", http_code = 504, tool = "curl" }
+			download_stub = stub(download, "download").returns(false, structured_err)
+
+			local _, err = binary.download(temp_dir .. "/test.so", "v1.0.0")
+
+			assert.equals(structured_err, err)
+		end)
+	end)
+
+	describe("_compute_file_hash()", function()
+		it("returns correct sha256 for known content", function()
+			local test_file = temp_dir .. "/hash_test.bin"
+			local f = io.open(test_file, "w")
+			f:write("hello world")
+			f:close()
+
+			-- sha256("hello world") = b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+			local hash = binary._compute_file_hash(test_file)
+
+			assert.equals("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", hash)
+		end)
+
+		it("returns nil for non-existent file", function()
+			local hash = binary._compute_file_hash(temp_dir .. "/nonexistent.bin")
+			assert.is_nil(hash)
+		end)
+	end)
+
+	describe("_verify_binary_hash()", function()
+		local platform_mod
+
+		before_each(function()
+			platform_mod = require("hermes.platform")
+		end)
+
+		it("returns true when hash matches", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			local expected_hash = vim.fn.sha256("hello world"):lower()
+			local checksums_content = expected_hash .. "  test.bin\n"
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").invokes(function(_url, dest)
+				local df = io.open(dest, "w")
+				df:write(checksums_content)
+				df:close()
+				return true, nil
+			end)
+
+			local result = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_true(result)
+		end)
+
+		it("returns false when hash mismatches", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").invokes(function(_url, dest)
+				local df = io.open(dest, "w")
+				df:write("000000000000000000000000000000000000000000000000000000000000dead  test.bin\n")
+				df:close()
+				return true, nil
+			end)
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("Hash mismatch"))
+		end)
+
+		it("deletes binary on hash mismatch", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").invokes(function(_url, dest)
+				local df = io.open(dest, "w")
+				df:write("000000000000000000000000000000000000000000000000000000000000dead  test.bin\n")
+				df:close()
+				return true, nil
+			end)
+
+			binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_nil(io.open(bin_file, "r"))
+		end)
+
+		it("returns true on 404 checksums download", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, { http_code = 404 })
+
+			local result = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_true(result)
+		end)
+
+		it("returns false when checksums download fails", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, { message = "Network error" })
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("Failed to download checksums"))
+		end)
+
+		it("returns false when error is a table with stderr", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, { stderr = "connection reset" })
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("connection reset"))
+		end)
+
+		it("returns false when error is a plain string", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, "DNS resolution failed")
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("DNS resolution failed"))
+		end)
+
+		it("returns true when error string contains 404", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, "HTTP 404 Not Found")
+
+			local result = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_true(result)
+		end)
+
+		it("returns false when checksums file cannot be read after download", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").invokes(function(_url, dest)
+				local df = io.open(dest, "w")
+				df:write("abc123  test.bin\n")
+				df:close()
+				os.remove(dest)
+				return true, nil
+			end)
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("Failed to read checksums"))
+		end)
+
+		it("returns false when error is nil", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, nil)
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("Failed to download checksums"))
+		end)
+
+		it("returns false when error table has neither message nor stderr", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").returns(false, { code = "ETIMEOUT" })
+
+			local ok, err = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("Failed to download checksums"))
+		end)
+
+		it("returns true when no hash found for binary in checksums", function()
+			local bin_file = temp_dir .. "/test.bin"
+			local f = io.open(bin_file, "w")
+			f:write("hello world")
+			f:close()
+
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").invokes(function(_url, dest)
+				local df = io.open(dest, "w")
+				df:write("abc123  other-binary.so\n")
+				df:close()
+				return true, nil
+			end)
+
+			local result = binary._verify_binary_hash(bin_file, "v1.0.0")
+
+			assert.is_true(result)
+		end)
+
+		it("returns false when binary file does not exist", function()
+			stub(platform_mod, "get_binary_name").returns("test.bin")
+			download_stub = stub(download, "download").invokes(function(_url, dest)
+				local df = io.open(dest, "w")
+				df:write("abc123  test.bin\n")
+				df:close()
+				return true, nil
+			end)
+
+			local ok, err = binary._verify_binary_hash(temp_dir .. "/missing.bin", "v1.0.0")
+
+			assert.is_false(ok)
+			assert.truthy(err:find("Failed to compute hash"))
+		end)
+	end)
+
+	describe("_download_binary_async() paths", function()
+		it("calls back with failure when hash verification fails", function()
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(true, nil)
+			end)
+			stub(binary, "_verify_binary_hash").returns(false, "Hash mismatch for libhermes.so")
+			stub(vim.fn, "has").returns(0)
+			stub(vim.fn, "system")
+
+			local callback_success = nil
+			local callback_err = nil
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function(success, err)
+				callback_success = success
+				callback_err = err
+			end)
+
+			vim.wait(100)
+
+			assert.same({ false, "Hash mismatch for libhermes.so" }, { callback_success, callback_err })
+		end)
+
+		it("calls back with failure when download fails", function()
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(false, "Connection refused")
+			end)
+
+			local callback_success = nil
+			local callback_err = nil
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function(success, err)
+				callback_success = success
+				callback_err = err
+			end)
+
+			vim.wait(100)
+
+			assert.same({ false, "Connection refused" }, { callback_success, callback_err })
+		end)
+
+		it("uses fallback error when download fails with nil error", function()
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(false, nil)
+			end)
+
+			local callback_success = nil
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function(success, _err)
+				callback_success = success
+			end)
+
+			vim.wait(100)
+
+			assert.is_false(callback_success)
+		end)
+
+		it("calls back with success and writes version file on successful download", function()
+			stub(download, "download_async").invokes(function(_url, _dest, _id, on_complete)
+				on_complete(true, nil)
+			end)
+			stub(binary, "_verify_binary_hash").returns(true)
+			stub(vim.fn, "has").returns(0)
+			stub(vim.fn, "system")
+			local writefile_stub = stub(vim.fn, "writefile")
+
+			local callback_success = nil
+			local callback_result = nil
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function(success, result)
+				callback_success = success
+				callback_result = result
+			end)
+
+			vim.wait(100)
+
+			assert.is_true(callback_success)
+			assert.equals(temp_dir .. "/bin", callback_result)
+			assert.stub(writefile_stub).was_called_with({ "v1.0.0" }, temp_dir .. "/ver")
+		end)
+
+		it("resets state when job_id is nil", function()
+			stub(download, "download_async").returns(nil)
+
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function() end)
+
+			assert.is_false(binary.cancel_download())
+		end)
+
+		it("resets state when job_id is zero", function()
+			stub(download, "download_async").returns(0)
+
+			binary._download_binary_async("v1.0.0", temp_dir .. "/bin", temp_dir .. "/ver", function() end)
+
+			assert.is_false(binary.cancel_download())
 		end)
 	end)
 end)
