@@ -280,6 +280,8 @@ jobs:
   update-hashes:
     docker:
       - image: nixos/nix
+    environment:
+      GITHUB_TOKEN: ${GITHUB_WRITE_TOKEN}
     steps:
       - checkout
       - attach_workspace:
