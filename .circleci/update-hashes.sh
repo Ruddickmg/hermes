@@ -33,7 +33,7 @@ for entry in $BINARIES; do
   binary="${entry##*:}"
 
   HEX=$(sha256sum "target/release/$binary" | awk '{print $1}')
-  SRI=$(nix --extra-experimental-features 'nix-command' hash to-sri --type sha256 "$HEX")
+  SRI=$(nix --extra-experimental-features 'nix-command' hash convert --to-sri --type sha256 "$HEX")
 
   echo "${HEX}  ${binary}" >> "$CHECKSUMS_FILE"
   echo "  $system: $SRI"
@@ -58,6 +58,7 @@ cp "$SOURCES_TMP" nix/sources.json
 # Commit with [skip ci]
 git config user.email "ci@hermes.nvim"
 git config user.name "Hermes CI"
+git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
 git add nix/sources.json
 
 if git diff --cached --quiet; then
