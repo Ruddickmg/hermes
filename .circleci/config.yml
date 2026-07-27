@@ -265,7 +265,7 @@ jobs:
           at: target/release
       - run:
           name: Pull latest commits
-          command: git pull --rebase origin main
+          command: git pull --rebase origin "$CIRCLE_BRANCH"
       - run:
           name: Semantic release
           command: pnpm release
