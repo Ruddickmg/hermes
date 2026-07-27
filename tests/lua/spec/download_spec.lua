@@ -8,6 +8,7 @@ describe("hermes.download", function()
 	local stubs = {}
 
 	before_each(function()
+		rawset(vim.v, "shell_error", 0)
 		package.loaded["hermes.download"] = nil
 		download = require("hermes.download")
 		stubs = {}
