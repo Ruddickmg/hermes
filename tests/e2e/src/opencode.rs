@@ -16,11 +16,13 @@ fn binary_cache_setup_config() -> Option<Dictionary> {
 }
 
 #[nvim_oxi::test]
+#[ignore = "No provider available"]
 fn test_opencode_prompt() {
     agent::test_agent_prompt(Assistant::Opencode, binary_cache_setup_config()).unwrap();
 }
 
 #[nvim_oxi::test]
+#[ignore = "No provider available"]
 fn test_opencode_session_creation() {
     agent::test_session_creation(Assistant::Opencode, binary_cache_setup_config()).unwrap();
 }
