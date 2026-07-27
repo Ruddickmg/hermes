@@ -45,6 +45,135 @@ local function get_download()
 	return download
 end
 
+---Compute SHA256 hex hash of a file using Neovim built-ins
+---@param file_path string Path to file
+---@return string|nil hash Hex-encoded SHA256 hash, or nil on error
+---@private
+local function _compute_file_hash(file_path)
+	local uv = vim.uv or vim.loop
+
+	local fd = uv.fs_open(file_path, "r", 438) -- 0666
+	if not fd then
+		return nil
+	end
+
+	local stat = uv.fs_fstat(fd)
+	if not stat or type(stat.size) ~= "number" then
+		uv.fs_close(fd)
+		return nil
+	end
+
+	local data = uv.fs_read(fd, stat.size, 0)
+	uv.fs_close(fd)
+	if type(data) ~= "string" then
+		return nil
+	end
+
+	local ok, hash = pcall(vim.fn.sha256, data)
+	if not ok or type(hash) ~= "string" then
+		return nil
+	end
+
+	return hash:lower()
+end
+
+M._compute_file_hash = _compute_file_hash
+
+---Parse checksums.txt content and find hash for a filename
+---@param content string Contents of checksums.txt
+---@param filename string Binary filename to find
+---@return string|nil hash Hex hash for the filename, or nil if not found
+---@private
+local function _parse_checksums(content, filename)
+	for line in content:gmatch("[^\r\n]+") do
+		local hash, name = line:match("^([%x]+)%s+(.+)$")
+		if hash and name == filename then
+			return hash
+		end
+	end
+	return nil
+end
+
+M._parse_checksums = _parse_checksums
+
+---Verify binary hash against checksums.txt from the same release
+---@param bin_path string Path to downloaded binary
+---@param ver string Version string (e.g. "v0.10.1")
+---@return boolean success Whether verification passed
+---@return string|nil error Error message if verification failed
+---@private
+function M._verify_binary_hash(bin_path, ver)
+	local download_mod = get_download()
+	local binary_name = require("hermes.platform").get_binary_name()
+	local checksums_url = string.format(
+		"https://github.com/Ruddickmg/hermes.nvim/releases/download/%s/checksums.txt",
+		ver
+	)
+
+	-- Download checksums.txt to a temp file
+	local tmp_checksums = bin_path .. ".checksums"
+	local ok, err = download_mod.download(checksums_url, tmp_checksums)
+	if not ok then
+		pcall(os.remove, tmp_checksums)
+
+		local err_msg
+		if type(err) == "table" then
+			err_msg = err.message or err.stderr
+		else
+			err_msg = err
+		end
+		err_msg = tostring(err_msg)
+
+		-- If checksums.txt doesn't exist (old release), warn but don't fail
+		if (type(err) == "table" and err.http_code == 404) or err_msg:find("404") then
+			vim.notify(
+				"[hermes] checksums.txt not found for " .. ver .. ", skipping verification",
+				vim.log.levels.WARN
+			)
+			return true
+		end
+		return false, "Failed to download checksums: " .. err_msg
+	end
+
+	-- Read checksums.txt
+	local f = io.open(tmp_checksums, "r")
+	if not f then
+		os.remove(tmp_checksums)
+		return false, "Failed to read checksums file"
+	end
+	local content = f:read("*a")
+	f:close()
+	os.remove(tmp_checksums)
+
+	-- Find expected hash
+	local expected = _parse_checksums(content, binary_name)
+	if not expected then
+		vim.notify(
+			"[hermes] No hash found for " .. binary_name .. " in checksums.txt, skipping verification",
+			vim.log.levels.WARN
+		)
+		return true
+	end
+
+	-- Compute actual hash
+	local actual = _compute_file_hash(bin_path)
+	if not actual then
+		pcall(os.remove, bin_path)
+		return false, "Failed to compute hash of downloaded binary"
+	end
+
+	-- Compare
+	if actual ~= expected then
+		os.remove(bin_path)
+		return false, string.format(
+			"Hash mismatch for %s: expected %s, got %s",
+			binary_name, expected, actual
+		)
+	end
+
+	return true
+end
+
 ---Supported platforms for pre-built binaries
 -- luacov: disable
 ---@type table<string, boolean>
@@ -283,6 +412,19 @@ function M.download(dest_path, ver)
 	-- Make executable (Unix-like systems)
 	if vim.fn.has("win32") ~= 1 then
 		vim.fn.system({ "chmod", "+x", dest_path })
+	end
+
+	-- Verify hash
+	local verify_ok, verify_err = M._verify_binary_hash(dest_path, ver)
+	if not verify_ok then
+		return false, {
+			message = verify_err,
+			url = nil,
+			http_code = nil,
+			tool = nil,
+			exit_code = nil,
+			stderr = nil,
+		}
 	end
 
 	return true
@@ -943,6 +1085,12 @@ function M._download_binary_async(wanted_ver, bin_path, ver_file, on_complete)
 			-- Make executable (Unix-like systems)
 			if vim.fn.has("win32") ~= 1 then
 				vim.fn.system({ "chmod", "+x", bin_path })
+			end
+			-- Verify hash
+			local verify_ok, verify_err = M._verify_binary_hash(bin_path, wanted_ver)
+			if not verify_ok then
+				on_complete(false, verify_err or "Hash verification failed")
+				return
 			end
 			-- Save version for reference
 			vim.fn.writefile({ wanted_ver }, ver_file)
