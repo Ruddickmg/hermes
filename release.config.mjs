@@ -18,6 +18,7 @@ export default {
           { "path": "target/release/libhermes-macos-aarch64.dylib", "label": "MacOS ARM64" },
           { "path": "target/release/libhermes-macos-x86_64.dylib", "label": "MacOS x86_64" },
           { "path": "target/release/libhermes-windows-x86_64.dll", "label": "Windows x86_64" },
+          { "path": "target/release/checksums.txt", "label": "Checksums" },
         ]
       }
     ]
