@@ -21,19 +21,12 @@ luarocks install dkjson
 # The CLI `luarocks upload` packs and uploads a `.src.rock` automatically
 # alongside the rockspec. luarocks.org accepts these via its standard
 # upload endpoint.
-SOURCE_URL="https://github.com/Ruddickmg/hermes.nvim/archive/refs/tags/v${VERSION}.tar.gz"
-SOURCE_TARBALL=$(mktemp)
-curl -fsSL "$SOURCE_URL" -o "$SOURCE_TARBALL"
-SOURCE_MD5=$(md5sum "$SOURCE_TARBALL" | awk '{print $1}')
-rm -f "$SOURCE_TARBALL"
-SED_EXPR="s/scm-1/${VERSION}-1/g; /branch = \"main\"/d; s|git+https://github.com/Ruddickmg/hermes.nvim.git|${SOURCE_URL}|"
+SED_EXPR="s/scm-1/${VERSION}-1/g; /branch = \"main\"/d; s|git+https://github.com/Ruddickmg/hermes.nvim.git|https://github.com/Ruddickmg/hermes.nvim/archive/refs/tags/v${VERSION}.tar.gz|"
 SOURCE_ROCKSPEC="/tmp/hermes.nvim-${VERSION}-1.rockspec"
 sed "$SED_EXPR" hermes.nvim-scm-1.rockspec > "$SOURCE_ROCKSPEC"
 # The GitHub-generated archive extracts into "hermes.nvim-${VERSION}" (no "v"),
 # so we must tell LuaRocks the expected source directory.
-sed -i "/url = \"https:.*archive.*tar\\.gz\"/a\\
-  md5 = \"${SOURCE_MD5}\",\\
-  dir = \"hermes.nvim-${VERSION}\"," "$SOURCE_ROCKSPEC"
+sed -i "/url = \"https:.*archive.*tar\.gz\"/a\\  dir = \"hermes.nvim-${VERSION}\"," "$SOURCE_ROCKSPEC"
 luarocks upload "$SOURCE_ROCKSPEC" --api-key="${LUAROCKS_API_KEY}"
 echo "Source rock published: hermes.nvim-${VERSION}-1"
 
@@ -89,8 +82,7 @@ rockspec_format = "3.0"
 package = "hermes.nvim"
 version = "${VERSION}-1"
 source = {
-  url = "${SOURCE_URL}",
-  md5 = "${SOURCE_MD5}",
+  url = "https://github.com/Ruddickmg/hermes.nvim/archive/refs/tags/v${VERSION}.tar.gz",
   dir = "hermes.nvim-${VERSION}"
 }
 description = {

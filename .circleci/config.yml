@@ -264,6 +264,9 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
+          name: Pull latest commits
+          command: git pull --rebase origin main
+      - run:
           name: Semantic release
           command: pnpm release
 
