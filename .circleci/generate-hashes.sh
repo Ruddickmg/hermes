@@ -7,7 +7,7 @@ if [ -z "$VERSION" ]; then
   exit 0
 fi
 
-echo "Updating hashes for v${VERSION}"
+echo "Generating hashes for v${VERSION}"
 
 # Binary names keyed by nix system name
 BINARIES="x86_64-linux:libhermes-linux-x86_64.so
@@ -52,19 +52,4 @@ echo ""
 echo "sources.json:"
 cat "$SOURCES_TMP"
 
-# Update nix/sources.json in repo
-cp "$SOURCES_TMP" nix/sources.json
-
-# Commit with [skip ci]
-git config user.email "ci@hermes.nvim"
-git config user.name "Hermes CI"
-git remote set-url origin "https://x-access-token:${GITHUB_WRITE_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
-git add nix/sources.json
-
-if git diff --cached --quiet; then
-  echo "No hash changes to commit"
-  exit 0
-fi
-
-git commit -m "nix: update hashes for v${VERSION} [skip ci]"
-git push origin "HEAD:${CIRCLE_BRANCH}"
+cp "$SOURCES_TMP" target/release/sources.json
