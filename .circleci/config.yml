@@ -266,8 +266,10 @@ jobs:
       - run:
           name: Prepare hash update
           command: |
-            cp target/release/sources.json nix/sources.json
             git remote set-url origin "https://x-access-token:${GITHUB_WRITE_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
+            if [ -f target/release/sources.json ]; then
+              cp target/release/sources.json nix/sources.json
+            fi
       - run:
           name: Semantic release
           command: pnpm release
@@ -297,6 +299,11 @@ jobs:
       - run:
           name: Generate hashes
           command: bash .circleci/generate-hashes.sh
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - checksums.txt
+            - sources.json
 
   check_license:
     executor: rust-linux-x86_64
