@@ -1337,3 +1337,15 @@ When making changes to the codebase, follow this workflow to ensure proper patch
 - Wastes time if the user rejects your unapproved solution
 
 **Rule of thumb:** When the user says "debug", "investigate", "find out", or "look into" - they want INFORMATION, not CHANGES. Only implement when explicitly asked or given permission.
+
+### Verify Everything, Assume Nothing
+
+**Never fabricate or guess at syntax, APIs, or behavior.** If you don't know the exact command, flag, API parameter, or configuration syntax, look it up from official documentation. Do not guess. Do not try random variations. Every guess that makes it into a pipeline or codebase wastes real time.
+
+**Verify against official docs, not memory or examples.** CLI flags, API parameters, platform behavior, and CI features change between versions. Always check the current documentation for the exact tool versions in use.
+
+**Test commands locally before claiming they work.** If a command can be run locally, run it and verify the output. Don't tell the user "this should work" — prove it.
+
+**Every CI failure costs real time.** A 20-minute pipeline run is not a test iteration. Get it right the first time by verifying everything before committing.
+
+**When unsure, say so.** "I don't know the exact flag for this version — let me look it up" is infinitely better than guessing wrong and wasting 40 minutes of CI runs.

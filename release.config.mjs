@@ -9,6 +9,11 @@ export default {
   plugins: [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
+    ["@semantic-release/npm", { npmPublish: false }],
+    ["@semantic-release/git", {
+      assets: ["nix/sources.json", "package.json"],
+      message: "chore(release): ${nextRelease.version} [skip ci]"
+    }],
     [
       "@semantic-release/github",
       {
@@ -18,6 +23,7 @@ export default {
           { "path": "target/release/libhermes-macos-aarch64.dylib", "label": "MacOS ARM64" },
           { "path": "target/release/libhermes-macos-x86_64.dylib", "label": "MacOS x86_64" },
           { "path": "target/release/libhermes-windows-x86_64.dll", "label": "Windows x86_64" },
+          { "path": "target/release/checksums.txt", "label": "Checksums" },
         ]
       }
     ]

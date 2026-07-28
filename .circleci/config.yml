@@ -119,6 +119,18 @@ workflows:
             - update-cargo-version
             - fetch-registry
 
+      - generate-hashes:
+          filters:
+            branches:
+              only:
+                - main
+          requires:
+            - build-linux-x86_64
+            - build-linux-aarch64
+            - build-mac-aarch64
+            - build-mac-x86_64
+            - build-windows-x86_64
+
       - release:
           filters:
             branches:
@@ -134,11 +146,7 @@ workflows:
             - unit_tests
             - e2e_tests_0_12
             - e2e_tests_0_11
-            - build-linux-x86_64
-            - build-linux-aarch64
-            - build-mac-aarch64
-            - build-mac-x86_64
-            - build-windows-x86_64
+            - generate-hashes
 
       - publish-luarocks:
           filters:
@@ -148,13 +156,7 @@ workflows:
           requires:
             - release
 
-      - publish-nix:
-          filters:
-            branches:
-              only:
-                - main
-          requires:
-            - release
+
 
 #-----------------------------------------------------------------------------------------------------------------------------
 
@@ -262,6 +264,13 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
+          name: Prepare hash update
+          command: |
+            git remote set-url origin "https://x-access-token:${GITHUB_WRITE_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
+            if [ -f target/release/sources.json ]; then
+              cp target/release/sources.json nix/sources.json
+            fi
+      - run:
           name: Semantic release
           command: pnpm release
 
@@ -275,7 +284,7 @@ jobs:
           name: Publish to LuaRocks
           command: bash .circleci/publish-luarocks.sh
 
-  publish-nix:
+  generate-hashes:
     docker:
       - image: nixos/nix
     steps:
@@ -283,8 +292,18 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
-          name: Publish to Nix
-          command: bash .circleci/publish-nix.sh
+          name: Install dependencies
+          command: |
+            nix-channel --update
+            nix-env -iA nixpkgs.gitMinimal nixpkgs.jq nixpkgs.gawk
+      - run:
+          name: Generate hashes
+          command: bash .circleci/generate-hashes.sh
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - checksums.txt
+            - sources.json
 
   check_license:
     executor: rust-linux-x86_64
