@@ -102,6 +102,8 @@
               cargo-deny
               cargo-sort
               lua51Packages.vusted
+              nodejs
+              pnpm
             ];
 
             shellHook = ''
