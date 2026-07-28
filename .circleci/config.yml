@@ -119,7 +119,7 @@ workflows:
             - update-cargo-version
             - fetch-registry
 
-      - update-hashes:
+      - generate-hashes:
           filters:
             branches:
               only:
@@ -146,7 +146,7 @@ workflows:
             - unit_tests
             - e2e_tests_0_12
             - e2e_tests_0_11
-            - update-hashes
+            - generate-hashes
 
       - publish-luarocks:
           filters:
@@ -264,8 +264,10 @@ jobs:
       - attach_workspace:
           at: target/release
       - run:
-          name: Pull latest commits
-          command: git pull --rebase origin "$CIRCLE_BRANCH"
+          name: Prepare hash update
+          command: |
+            cp target/release/sources.json nix/sources.json
+            git remote set-url origin "https://x-access-token:${GITHUB_WRITE_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
       - run:
           name: Semantic release
           command: pnpm release
@@ -280,7 +282,7 @@ jobs:
           name: Publish to LuaRocks
           command: bash .circleci/publish-luarocks.sh
 
-  update-hashes:
+  generate-hashes:
     docker:
       - image: nixos/nix
     steps:
@@ -293,8 +295,8 @@ jobs:
             nix-channel --update
             nix-env -iA nixpkgs.gitMinimal nixpkgs.jq nixpkgs.gawk
       - run:
-          name: Update hashes
-          command: bash .circleci/update-hashes.sh
+          name: Generate hashes
+          command: bash .circleci/generate-hashes.sh
 
   check_license:
     executor: rust-linux-x86_64
