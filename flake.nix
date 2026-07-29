@@ -50,9 +50,36 @@
               ];
             }
           );
+
+          sources = builtins.fromJSON (builtins.readFile ./nix/sources.json);
+
+          binaryNameForSystem = {
+            "x86_64-linux" = "libhermes-linux-x86_64.so";
+            "aarch64-linux" = "libhermes-linux-aarch64.so";
+            "x86_64-darwin" = "libhermes-macos-x86_64.dylib";
+            "aarch64-darwin" = "libhermes-macos-aarch64.dylib";
+            "x86_64-windows" = "libhermes-windows-x86_64.dll";
+          };
+
+          hermes-binary = pkgs.fetchurl {
+            url = "https://github.com/Ruddickmg/hermes.nvim/releases/download/v${sources.version}/${binaryNameForSystem.${system}}";
+            hash = (sources.${system}).hash;
+          };
         in
         {
-          packages.default = pkgs.callPackage ./nix/packaging/default.nix {};
+          packages.default = pkgs.vimUtils.buildVimPlugin {
+            pname = "hermes-nvim";
+            version = sources.version;
+            src = inputs.self;
+            nvimSkipModules = [ "hermes" ];
+            postInstall = ''
+              mkdir -p $out/lib
+              cp ${hermes-binary} $out/lib/${binaryNameForSystem.${system}}
+            '';
+            passthru = {
+              inherit hermes-binary;
+            };
+          };
 
           devShells.default = shellServices {
             nativeBuildInputs = with pkgs; [
@@ -75,6 +102,8 @@
               cargo-deny
               cargo-sort
               lua51Packages.vusted
+              nodejs
+              pnpm
             ];
 
             shellHook = ''
