@@ -266,9 +266,9 @@ jobs:
       - run:
           name: Prepare hash update
           command: |
-            git remote set-url origin "https://x-access-token:${GITHUB_WRITE_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
             if [ -f target/release/sources.json ]; then
               cp target/release/sources.json nix/sources.json
+              git remote set-url origin "https://x-access-token:${GITHUB_WRITE_TOKEN}@github.com/Ruddickmg/hermes.nvim.git"
             fi
       - run:
           name: Semantic release
