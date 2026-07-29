@@ -14,7 +14,6 @@ export default {
   plugins: [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    ["@semantic-release/npm", { npmPublish: false }],
     ["@semantic-release/github", {
       assets: [
         { path: "target/release/libhermes-linux-x86_64.so", label: "Linux x86_64" },
