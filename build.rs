@@ -1,6 +1,8 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/acp/registry/registry.json");
+    println!("cargo:rerun-if-env-changed=HERMES_FONT_PATH");
+    println!("cargo:rerun-if-env-changed=HERMES_ICONS_DIR");
 
     if let Err(e) = nvim_oxi::tests::build() {
         panic!("nvim-oxi build failed: {e}");
@@ -31,6 +33,24 @@ fn download_font(out_dir: &std::path::Path) -> Vec<u8> {
     if let Ok(bytes) = std::fs::read(&font_path) {
         if !bytes.is_empty() {
             return bytes;
+        }
+    }
+
+    if let Ok(env_path) = std::env::var("HERMES_FONT_PATH") {
+        let path = std::path::Path::new(&env_path);
+        match std::fs::read(path) {
+            Ok(bytes) if !bytes.is_empty() => {
+                println!(
+                    "cargo:warning=Loaded DejaVuSansMono.ttf from HERMES_FONT_PATH ({env_path})"
+                );
+                let _ = std::fs::write(&font_path, &bytes);
+                return bytes;
+            }
+            _ => {
+                println!(
+                    "cargo:warning=HERMES_FONT_PATH set but file not found or empty at {env_path}. Falling back to download."
+                );
+            }
         }
     }
 
@@ -216,11 +236,23 @@ fn prerender_icons(out_dir: &std::path::Path) -> Result<(), Box<dyn std::error::
 }
 
 fn render_agent_icon(url: &str, opt: &usvg::Options) -> Option<Vec<u8>> {
+    if let Ok(icons_dir) = std::env::var("HERMES_ICONS_DIR") {
+        let filename = url.rsplit('/').next().unwrap_or(url);
+        let local_path = std::path::Path::new(&icons_dir).join(filename);
+        if let Ok(svg_data) = std::fs::read_to_string(&local_path) {
+            return render_svg_to_alpha(&svg_data, opt);
+        }
+    }
+
     let mut response = ureq::get(url).call().ok()?;
     let body = response.body_mut().read_to_vec().ok()?;
     let svg_data = String::from_utf8(body).ok()?;
 
-    let tree = usvg::Tree::from_str(&svg_data, opt).ok()?;
+    render_svg_to_alpha(&svg_data, opt)
+}
+
+fn render_svg_to_alpha(svg_data: &str, opt: &usvg::Options) -> Option<Vec<u8>> {
+    let tree = usvg::Tree::from_str(svg_data, opt).ok()?;
 
     let viewport = tree.size();
     let vp_w = viewport.width();
