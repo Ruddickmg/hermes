@@ -1,6 +1,8 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/acp/registry/registry.json");
+    println!("cargo:rerun-if-env-changed=HERMES_FONT_PATH");
+    println!("cargo:rerun-if-env-changed=HERMES_ICONS_DIR");
 
     if let Err(e) = nvim_oxi::tests::build() {
         panic!("nvim-oxi build failed: {e}");
