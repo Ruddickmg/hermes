@@ -69,9 +69,32 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 }
 ```
 
-> [!NOTE]
-> On NixOS the pre-built binary is used directly via `fetchurl` — no compilation required.
-> The binary path is under `/nix/store/...` and Hermes detects this automatically.
+**NixOS (nixpkgs vimPlugins)**
+
+Hermes is also packaged in nixpkgs as `vimPlugins.hermes-nvim` (available on `nixos-unstable` and 25.11+).
+
+**home-manager**
+```nix
+programs.neovim = {
+  enable = true;
+  plugins = [ pkgs.vimPlugins.hermes-nvim ];
+};
+```
+
+**nixvim**
+```nix
+programs.nixvim = {
+  enable = true;
+  extraPlugins = [ pkgs.vimPlugins.hermes-nvim ];
+};
+```
+
+**systemPackages**
+```nix
+{ pkgs, ... }: {
+  environment.systemPackages = with pkgs; [ vimPlugins.hermes-nvim ];
+}
+```
 
 ### ⚙️ Requirements
 
