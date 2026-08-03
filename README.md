@@ -24,6 +24,31 @@ Hermes focuses on:
 - [x] Luarocks integration
 - [x] NixOS intgration
 
+### 💻 Supported Platforms
+
+Binaries are available for:
+
+- **Linux:** x86_64, aarch64 (arm64)
+- **macOS:** x86_64, arm64
+- **Windows:** x86_64
+
+> [!NOTE]
+> Hermes will automatically detect and download a pre-built binary for supported platforms.
+>
+> You can disable this if you would prefer to [build from source](#building-from-source)
+> ```lua
+> -- Will have to set up manually with `:Hermes build` or build manually from source
+> require("hermes").setup({ 
+>   download = {
+>     auto = false,
+>   },
+> })
+> ```
+
+### ⚙️ Requirements
+
+- Neovim 0.11 or later
+
 ## 📦 Installation
 
 **vim.pack** (v0.12+)
@@ -55,35 +80,6 @@ programs.nixvim = {
   extraPlugins = [ pkgs.vimPlugins.hermes-nvim ];
 };
 ```
-
-### ⬇️ Pre-built Binary
-
-Hermes is built in Rust and so must be integrated with lua during installation, pre built binaries are provided for convenience
-
-#### 💻 Supported Platforms
-
-Binaries are available for:
-
-- **Linux:** x86_64, aarch64 (arm64)
-- **macOS:** x86_64, arm64
-- **Windows:** x86_64
-
-> [!NOTE]
-> Hermes will automatically detect and download a pre-built binary for supported platforms.
->
-> You can disable this if you would prefer to [build from source](#building-from-source)
-> ```lua
-> -- Will have to set up manually with `:Hermes build` or build manually from source
-> require("hermes").setup({ 
->   download = {
->     auto = false,
->   },
-> })
-> ```
-
-### ⚙️ Requirements
-
-- Neovim 0.11 or later
 
 ## ⌨️ Commands
 
