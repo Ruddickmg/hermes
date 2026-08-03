@@ -73,10 +73,6 @@ programs.nixvim = {
 }
 ```
 
-### ⚙️ Requirements
-
-- Neovim 0.11 or later
-
 ### ⬇️ Pre-built Binary
 
 Hermes is built in Rust and so must be integrated with lua during installation, pre built binaries are provided for convenience
@@ -92,13 +88,6 @@ Binaries are available for:
 > [!NOTE]
 > Hermes will automatically detect and download a pre-built binary for supported platforms.
 >
-> It will:
-> 1. Check if your platform is supported
-> 2. Download the appropriate pre-built binary from GitHub releases
-> 3. Load the binary
->
-> This happens automatically on first API call.
->
 > You can disable this if you would prefer to [build from source](#building-from-source)
 > ```lua
 > -- Will have to set up manually with `:Hermes build` or build manually from source
@@ -108,6 +97,10 @@ Binaries are available for:
 >   },
 > })
 > ```
+
+### ⚙️ Requirements
+
+- Neovim 0.11 or later
 
 ## ⌨️ Commands
 
