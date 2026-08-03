@@ -48,29 +48,12 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 
 **NixOS**
 
-Hermes can be installed to nix directly from the repo if you want the bleeding edge (so to speak) or it is also packaged in nixpkgs via `vimPlugins.hermes-nvim`.
+Hermes can be installed to nix directly as a flake or via `nixpkgs.vimPlugins.hermes-nvim`.
 
-**home-manager**
-```nix
-programs.neovim = {
-  enable = true;
-  plugins = [ pkgs.vimPlugins.hermes-nvim ];
-};
-```
-
-**nixvim**
 ```nix
 programs.nixvim = {
-  enable = true;
   extraPlugins = [ pkgs.vimPlugins.hermes-nvim ];
 };
-```
-
-**systemPackages**
-```nix
-{ pkgs, ... }: {
-  environment.systemPackages = with pkgs; [ vimPlugins.hermes-nvim ];
-}
 ```
 
 ### ⬇️ Pre-built Binary
