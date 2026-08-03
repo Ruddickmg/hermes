@@ -24,6 +24,10 @@ Hermes focuses on:
 - [x] Luarocks integration
 - [x] NixOS intgration
 
+### ⚙️ Requirements
+
+- Neovim 0.11 or later
+
 ### 💻 Supported Platforms
 
 Binaries are available for:
@@ -44,10 +48,6 @@ Binaries are available for:
 >   },
 > })
 > ```
-
-### ⚙️ Requirements
-
-- Neovim 0.11 or later
 
 ## 📦 Installation
 
