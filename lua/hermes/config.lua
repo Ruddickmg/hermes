@@ -189,7 +189,13 @@ local _config = default_config
 -- luacov: enable
 function M.setup(opts)
 	opts = opts or {}
-	_config = merge_config(default_config, opts)
+	local defaults = vim.deepcopy(default_config)
+	if opts.download == nil or opts.download.auto == nil then
+		if require("hermes.binary").is_nix_install() then
+			defaults.download.auto = false
+		end
+	end
+	_config = merge_config(defaults, opts)
 end
 
 -- luacov: disable
