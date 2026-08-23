@@ -248,9 +248,26 @@ function M.is_nix_install()
 end
 
 -- luacov: disable
+---Get candidate library paths within an installation root
+---Includes both the platform-specific release name and the plain cargo
+---output name used by from-source builds that do not rename the library
+---@param root string Installation root directory containing a lib/ directory
+---@return string[] paths Candidate absolute paths, most preferred first
+-- luacov: enable
+function M.get_lib_candidates(root)
+	local platform = require("hermes.platform")
+	local ext = platform.get_ext()
+	return {
+		vim.fs.joinpath(root, "lib", M.get_binary_name()),
+		vim.fs.joinpath(root, "lib", "libhermes." .. ext),
+	}
+end
+
+-- luacov: disable
 ---Get path to binary installed alongside Lua files in the rock tree
 ---Checks if the plugin was installed via luarocks and a pre-built binary
----is available in the rock's lib/ directory
+---is available in the rock's lib/ directory. Falls back to the plain cargo
+---output name so builds packaged without renaming (e.g. Nix) are detected
 ---@return string|nil Path to rock tree binary, or nil if not found
 ---@private
 -- luacov: enable
@@ -259,9 +276,10 @@ function M.get_rock_binary_path()
   if not rock_root then
     return nil
   end
-	local path = vim.fs.joinpath(rock_root, "lib", M.get_binary_name())
-	if vim.fn.filereadable(path) == 1 then
-		return path
+	for _, path in ipairs(M.get_lib_candidates(rock_root)) do
+		if vim.fn.filereadable(path) == 1 then
+			return path
+		end
 	end
 	return nil
 end
