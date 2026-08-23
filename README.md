@@ -144,7 +144,7 @@ hermes.setup({
 hermes.setup({
   download = {
     version = "latest", -- specify which hermes release to use
-    auto = true, -- automatically download pre-built binary (set to false to build manually)
+    auto = true, -- automatically download pre-built binary (set to false to build manually), defaults to false on Nixos environments
     timeout = 60, -- timeout in seconds for download
   },
   root_markers = { ".git" }, -- used to detect the project root by matching file names in the root directory
