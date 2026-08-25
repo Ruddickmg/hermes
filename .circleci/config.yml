@@ -11,7 +11,7 @@ orbs:
 executors:
   node:
     docker:
-      - image: node:22.23.1
+      - image: node:22.23.2
   mac-aarch64:
     resource_class: macos.m1.medium.gen1 
     macos:
