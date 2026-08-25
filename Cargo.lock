@@ -1193,6 +1193,7 @@ dependencies = [
  "strip-ansi-escapes",
  "tar",
  "tempfile",
+ "thiserror",
  "tiny-skia",
  "tracing",
  "tracing-subscriber",

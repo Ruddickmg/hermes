@@ -1,3 +1,6 @@
+pub mod nvim_oxi_impl;
+pub mod traits;
+
 pub mod agents;
 pub mod authenticate;
 pub mod cancel;
@@ -44,6 +47,7 @@ use nvim_oxi::{
     Dictionary, Function, Object,
     lua::{Poppable, Pushable},
 };
+pub use nvim_oxi_impl::{NvimOxiApi, NvimOxiAsyncHandle};
 pub use prompt::*;
 pub use respond::*;
 pub use resume_session::*;
@@ -53,6 +57,7 @@ pub use set_thought_level::*;
 pub use setup::*;
 pub use thought_levels::*;
 use tracing::{debug, error};
+pub use traits::{NvimApi, NvimAsyncHandle, NvimError};
 
 use crate::utilities::{Logger, NvimRuntime};
 use crate::{
