@@ -215,14 +215,6 @@ commands:
             - ~/.cargo/.crates.toml
             - ~/.cargo/.crates2.json
 
-  install-luajit-deps:
-    steps:
-      - run:
-          name: Install LuaJIT dev dependencies
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y pkg-config libluajit-5.1-dev
-
 jobs:
   update-cargo-version:
     executor: node
@@ -355,7 +347,6 @@ jobs:
           at: .
       - check-release-needed
       - restore-cargo-cache
-      - install-luajit-deps
       - run:
           name: Build for x86_64
           command: cargo build --release --features with-icons
@@ -375,7 +366,6 @@ jobs:
           at: .
       - check-release-needed
       - restore-cargo-cache
-      - install-luajit-deps
       - run:
           name: Build for aarch64
           command: cargo build --release --features with-icons
@@ -502,7 +492,6 @@ jobs:
           at: .
       - restore-cargo-cache
       - rust/install
-      - install-luajit-deps
       - run:
           name: Install coverage tool
           command: |
@@ -527,7 +516,6 @@ jobs:
           at: .
       - restore-cargo-cache
       - rust/install
-      - install-luajit-deps
       - run:
           name: Install Neovim from tarball
           command: |
@@ -565,7 +553,6 @@ jobs:
           at: .
       - restore-cargo-cache
       - rust/install
-      - install-luajit-deps
       - run:
           name: Install Neovim from tarball
           command: |
@@ -609,7 +596,6 @@ jobs:
           at: .
       - restore-cargo-cache
       - rust/install
-      - install-luajit-deps
       - run:
           name: Install Neovim from tarball
           command: |
@@ -667,7 +653,7 @@ jobs:
           command: |
             # Install luarocks
             sudo apt-get update
-            sudo apt-get install -y lua5.1 liblua5.1-dev pkg-config libluajit-5.1-dev
+            sudo apt-get install -y lua5.1 liblua5.1-dev
 
             wget https://luarocks.org/releases/luarocks-3.9.2.tar.gz
             tar zxpf luarocks-3.9.2.tar.gz
@@ -730,7 +716,7 @@ jobs:
           command: |
             # Install luarocks
             sudo apt-get update
-            sudo apt-get install -y lua5.1 liblua5.1-dev pkg-config libluajit-5.1-dev
+            sudo apt-get install -y lua5.1 liblua5.1-dev
 
             wget https://luarocks.org/releases/luarocks-3.9.2.tar.gz
             tar zxpf luarocks-3.9.2.tar.gz
