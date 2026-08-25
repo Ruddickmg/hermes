@@ -1175,7 +1175,6 @@ dependencies = [
  "futures",
  "futures-lite",
  "libc",
- "mlua",
  "nvim-oxi",
  "pre-commit-hooks",
  "pretty_assertions",
@@ -1209,7 +1208,6 @@ dependencies = [
  "futures",
  "futures-lite",
  "hermes",
- "mlua",
  "nvim-oxi",
  "pretty_assertions",
  "serde",
@@ -1480,7 +1478,6 @@ dependencies = [
  "bstr",
  "either",
  "mlua-sys",
- "mlua_derive",
  "num-traits",
  "parking_lot",
  "rustc-hash",
@@ -1496,17 +1493,6 @@ dependencies = [
  "cc",
  "cfg-if",
  "pkg-config",
-]
-
-[[package]]
-name = "mlua_derive"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "870d71c172fcf491c6b5fb4c04160619a2ee3e5a42a1402269c66bcbf1dd4deb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.116",
 ]
 
 [[package]]

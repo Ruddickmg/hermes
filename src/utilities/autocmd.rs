@@ -1,4 +1,5 @@
 use crate::acp::Result;
+use nvim_oxi::mlua;
 use nvim_oxi::{Array, Dictionary, Object};
 use std::cell::RefCell;
 use tracing::{error, instrument};

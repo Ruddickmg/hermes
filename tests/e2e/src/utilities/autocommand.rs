@@ -1,5 +1,6 @@
 use hermes::nvim::autocommands::Commands;
 use nvim_oxi::api;
+use nvim_oxi::mlua;
 use nvim_oxi::{Object, serde::Deserializer};
 use serde::de::DeserializeOwned;
 use std::{

@@ -23,7 +23,6 @@ async-tungstenite = { version = "0.34", default-features = false }
 futures = "0.3"
 futures-lite = "2"
 hermes = { path = "../.." }
-mlua = { version = "0.10", features = ["module"] }
 nvim-oxi = { version = "0.6.0", features = ["neovim-0-11", "test", "mlua"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
