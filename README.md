@@ -24,6 +24,31 @@ Hermes focuses on:
 - [x] Luarocks integration
 - [x] NixOS intgration
 
+### ⚙️ Requirements
+
+- Neovim 0.11 or later
+
+### 💻 Supported Platforms
+
+Binaries are available for:
+
+- **Linux:** x86_64, aarch64 (arm64)
+- **macOS:** x86_64, arm64
+- **Windows:** x86_64
+
+> [!NOTE]
+> Hermes will automatically detect and download a pre-built binary for supported platforms.
+>
+> You can disable this if you would prefer to [build from source](#building-from-source)
+> ```lua
+> -- Will have to set up manually with `:Hermes build` or build manually from source
+> require("hermes").setup({ 
+>   download = {
+>     auto = false,
+>   },
+> })
+> ```
+
 ## 📦 Installation
 
 **vim.pack** (v0.12+)
@@ -46,118 +71,15 @@ vim.pack.add({ "Ruddickmg/hermes.nvim" })
 :Rocks install hermes.nvim
 ```
 
-**NixOS (nixpkgs)**
+**NixOS**
+
+Hermes can be installed to nix directly as a flake or via `nixpkgs.vimPlugins.hermes-nvim`.
+
 ```nix
-# flake.nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    hermes-nvim.url = "github:Ruddickmg/hermes.nvim";
-  };
-
-  outputs = { self, nixpkgs, hermes-nvim, ... }: {
-    # as a module input
-    nixosConfigurations.myHost = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        ({ pkgs, ... }: {
-          environment.systemPackages = [ hermes-nvim.packages.${pkgs.system}.default ];
-        })
-      ];
-    };
-  };
-}
+programs.nixvim = {
+  extraPlugins = [ pkgs.vimPlugins.hermes-nvim ];
+};
 ```
-
-> [!NOTE]
-> On NixOS the pre-built binary is used directly via `fetchurl` — no compilation required.
-> The binary path is under `/nix/store/...` and Hermes detects this automatically.
-
-### ⚙️ Requirements
-
-- Neovim 0.11 or later
-
-### ⬇️ Pre-built Binary
-
-Hermes is built in Rust and so must be integrated with lua during installation, pre built binaries are provided for convenience
-
-#### 💻 Supported Platforms
-
-Binaries are available for:
-
-- **Linux:** x86_64, aarch64 (arm64)
-- **macOS:** x86_64, arm64
-- **Windows:** x86_64
-
-> [!NOTE]
-> Hermes will automatically detect and download a pre-built binary for supported platforms.
->
-> It will:
-> 1. Check if your platform is supported
-> 2. Download the appropriate pre-built binary from GitHub releases
-> 3. Load the binary
->
-> This happens automatically on first API call.
->
-> ```lua
-> -- sets up pre-built binary for your system
-> require("hermes").setup({ 
->   download = {
->     version = "latest",
->   }
-> })
-> ```
->
-> You can also disable this if you would prefer to build from source
-> ```lua
-> -- Will have to set up manually with `:Hermes build` or build manually from source
-> require("hermes").setup({ 
->   download = {
->     auto = false,
->   },
-> })
-> ```
-
-### 🔨 Building from Source (Unsupported Platforms)
-
-If your platform is not in the supported list above, you can build from source:
-
-**Requirements:**
-- [Rust toolchain](https://rustup.rs/) (1.70 or later)
-
-**Scripted**
-
-Run the build command in Neovim:
-  ```vim
-  :Hermes build
-  ```
-
-  This will:
-  - Compile the Rust code with `cargo build --release`
-  - Install the resulting binary in the correct location
-
-**Manual** 
-
-```bash
-git clone https://github.com/Ruddickmg/hermes.nvim.git
-cd hermes.nvim
-cargo build --release
-
-# Copy target/release/libhermes.* to your Neovim data directory
-```
-
-> [!NOTE]
-> Hermes can pre-render icons during the build step to avoid having to do so at runtime.
->
-> Using the build script:
-> ```vim
-> :Hermes build with-icons
-> ```
->
-> Or building manually:
-> ```bash
-> cargo build --release --features with-icons
-> ```
 
 ## ⌨️ Commands
 
@@ -222,7 +144,7 @@ hermes.setup({
 hermes.setup({
   download = {
     version = "latest", -- specify which hermes release to use
-    auto = true, -- automatically download pre-built binary (set to false to build manually)
+    auto = true, -- automatically download pre-built binary (set to false to build manually), defaults to false on Nixos environments
     timeout = 60, -- timeout in seconds for download
   },
   root_markers = { ".git" }, -- used to detect the project root by matching file names in the root directory
@@ -2460,6 +2382,47 @@ Run the health check to see full diagnostics including Neovim version, binary st
 ```
 :checkhealth hermes
 ```
+
+## 🔨 Building from Source
+
+If your platform is not in the supported or you'd rather build it yourself, you can build from source:
+
+**Requirements:**
+- [Rust toolchain](https://rustup.rs/) (1.70 or later)
+
+**Scripted**
+
+Run the build command in Neovim:
+  ```vim
+  :Hermes build
+  ```
+
+  This will:
+  - Compile the Rust code with `cargo build --release`
+  - Install the resulting binary in the correct location
+
+**Manual** 
+
+```bash
+git clone https://github.com/Ruddickmg/hermes.nvim.git
+cd hermes.nvim
+cargo build --release
+
+# Copy target/release/libhermes.* to your Neovim data directory
+```
+
+> [!NOTE]
+> Hermes can pre-render icons during the build step to avoid having to do so at runtime.
+>
+> Using the build script:
+> ```vim
+> :Hermes build with-icons
+> ```
+>
+> Or building manually:
+> ```bash
+> cargo build --release --features with-icons
+> ```
 
 ## 📋 TODO:
 
