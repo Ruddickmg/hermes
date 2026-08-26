@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   windows: circleci/windows@5.1.1
-  rust: circleci/rust@1.8.0
+  rust: circleci/rust@2.0.0
 
   node: circleci/node@7.2.1
 
