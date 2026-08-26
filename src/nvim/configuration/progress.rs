@@ -18,7 +18,7 @@ pub fn show_progress_in_cmdline(enabled: bool) {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ProgressConfig {
     pub cmdline: bool,
     pub update_frequency: u64,
@@ -34,7 +34,7 @@ impl Default for ProgressConfig {
 }
 
 /// Partial progress configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct ProgressConfigPartial {
     pub cmdline: Option<bool>,
     pub update_frequency: Option<u64>,

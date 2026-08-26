@@ -9,7 +9,7 @@ use super::dict_from_object;
 pub const LOG_FILE_NAME: &str = "hermes.log";
 
 /// Configuration for a single log target (notification, message, quickfix, etc.)
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct LogTargetConfig {
     pub level: LogLevel,
     pub format: LogFormat,
@@ -17,7 +17,7 @@ pub struct LogTargetConfig {
 }
 
 /// Partial configuration for a log target
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LogTargetConfigPartial {
     pub level: Option<LogLevel>,
     pub format: Option<LogFormat>,
@@ -63,7 +63,7 @@ impl FromObject for LogTargetConfigPartial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LogFileConfig {
     pub path: String,
     pub name: String,
@@ -95,7 +95,7 @@ impl Default for LogFileConfig {
 }
 
 /// Partial log file configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LogFileConfigPartial {
     pub path: Option<String>,
     pub level: Option<LogLevel>,
@@ -169,7 +169,7 @@ impl FromObject for LogFileConfigPartial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LogConfig {
     pub file: LogFileConfig,
     pub stdio: LogTargetConfig, // Stdout/stderr logging configuration
@@ -193,7 +193,7 @@ impl Default for LogConfig {
 }
 
 /// Partial log configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LogConfigPartial {
     pub file: Option<LogFileConfigPartial>,
     pub stdio: Option<LogTargetConfigPartial>,

@@ -9,6 +9,7 @@ use nvim_oxi::{Array, Dictionary, Object, api};
 use super::traits::{NvimApi, NvimAsyncHandle, NvimError};
 
 /// Zero-sized marker type — all state lives in `nvim_oxi` global FFI state.
+#[derive(Clone, Copy)]
 pub struct NvimOxiApi;
 
 impl NvimApi for NvimOxiApi {
@@ -82,7 +83,7 @@ impl NvimApi for NvimOxiApi {
 
     fn buf_exec<F>(&self, buf: &api::Buffer, f: F) -> Result<(), NvimError>
     where
-        F: FnOnce(()) + Send + 'static,
+        F: FnOnce(()) + 'static,
     {
         buf.call(f)?;
         Ok(())

@@ -5,7 +5,7 @@ use nvim_oxi::{
 
 use super::dict_from_object;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TerminalConfig {
     pub delete: bool,
     pub hidden: bool,
@@ -25,7 +25,7 @@ impl Default for TerminalConfig {
 }
 
 /// Partial terminal configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct TerminalConfigPartial {
     pub delete: Option<bool>,
     pub hidden: Option<bool>,

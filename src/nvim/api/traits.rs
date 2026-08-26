@@ -95,7 +95,7 @@ pub trait NvimApi {
     /// captured via `Rc<Cell>` or `Rc<RefCell>` as needed.
     fn buf_exec<F>(&self, buf: &api::Buffer, f: F) -> Result<(), NvimError>
     where
-        F: FnOnce(()) + Send + 'static;
+        F: FnOnce(()) + 'static;
 
     /// Get a buffer option value (`nvim_get_option_value` with `buf` set).
     fn get_buf_option<T: nvim_oxi::conversion::FromObject>(

@@ -52,7 +52,7 @@ pub(crate) fn dict_from_object(obj: Object) -> Result<Dictionary, Error> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClientConfig {
     pub permissions: Permissions,
     pub terminal: TerminalConfig,
@@ -74,7 +74,7 @@ impl ClientConfig {
 }
 
 /// Partial client configuration for setup function
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct ClientConfigPartial {
     pub permissions: Option<PermissionsPartial>,
     pub terminal: Option<TerminalConfigPartial>,

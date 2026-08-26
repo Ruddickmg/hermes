@@ -5,13 +5,13 @@ use nvim_oxi::{
 
 use super::dict_from_object;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct BufferConfig {
     pub auto_save: bool,
 }
 
 /// Partial buffer configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BufferConfigPartial {
     pub auto_save: Option<bool>,
 }

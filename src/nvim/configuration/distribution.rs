@@ -38,7 +38,7 @@ impl Default for DistributionsConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BinaryConfigPartial {
     pub path: Option<String>,
     pub enabled: Option<bool>,
@@ -70,7 +70,7 @@ impl FromObject for BinaryConfigPartial {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct DistributionsConfigPartial {
     pub binary: Option<BinaryConfigPartial>,
     pub uvx: Option<bool>,

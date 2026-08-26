@@ -5,17 +5,18 @@
 //! mask, causing incorrect mask bits at runtime). Instead we call the underlying
 //! Neovim API functions directly via `call_function`.
 
-use nvim_oxi::{Array, Dictionary, Object, api};
+use nvim_oxi::{api, conversion::FromObject};
+
+use super::api::{NvimApi, api};
 
 /// Get a buffer-scoped option value.
-pub fn get_buf_option<T: nvim_oxi::conversion::FromObject>(
+pub fn get_buf_option<T: FromObject>(
     name: &str,
     buf: &api::Buffer,
 ) -> Result<T, nvim_oxi::api::Error> {
-    let mut opts = Dictionary::new();
-    opts.insert("buf", Object::from(buf.handle()));
-    let args = Array::from((Object::from(name), Object::from(opts)));
-    api::call_function::<Array, T>("nvim_get_option_value", args)
+    api()
+        .get_buf_option(name, buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))
 }
 
 /// Set a buffer-scoped option value.
@@ -24,29 +25,24 @@ pub fn set_buf_option<T: nvim_oxi::conversion::ToObject>(
     value: T,
     buf: &api::Buffer,
 ) -> Result<(), nvim_oxi::api::Error> {
-    let mut opts = Dictionary::new();
-    opts.insert("buf", Object::from(buf.handle()));
-    let value_obj = value
-        .to_object()
-        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))?;
-    let args = Array::from((Object::from(name), value_obj, Object::from(opts)));
-    api::call_function::<Array, Object>("nvim_set_option_value", args)?;
-    Ok(())
+    api()
+        .set_buf_option(name, value, buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))
 }
 
 /// Get a buffer's name (file path).
 pub fn buf_get_name(buf: &api::Buffer) -> Result<String, nvim_oxi::api::Error> {
-    let args = Array::from((Object::from(buf.handle()),));
-    api::call_function::<Array, String>("nvim_buf_get_name", args)
+    api()
+        .buf_get_name(buf)
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))
 }
 
 /// Get a window-scoped option value.
-pub fn get_win_option<T: nvim_oxi::conversion::FromObject>(
+pub fn get_win_option<T: FromObject>(
     name: &str,
     win: &api::Window,
 ) -> Result<T, nvim_oxi::api::Error> {
-    let mut opts = Dictionary::new();
-    opts.insert("win", Object::from(win.handle()));
-    let args = Array::from((Object::from(name), Object::from(opts)));
-    api::call_function::<Array, T>("nvim_get_option_value", args)
+    api()
+        .get_win_option(name, win)
+        .map_err(|e| nvim_oxi::api::Error::Other(e.to_string()))
 }

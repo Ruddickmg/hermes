@@ -5,7 +5,7 @@ use nvim_oxi::{
 
 use super::dict_from_object;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Permissions {
     pub fs_write_access: bool,
     pub fs_read_access: bool,
@@ -147,7 +147,7 @@ mod tests {
 }
 
 /// Partial permissions configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct PermissionsPartial {
     pub fs_write_access: Option<bool>,
     pub fs_read_access: Option<bool>,

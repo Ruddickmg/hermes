@@ -5,7 +5,7 @@ use nvim_oxi::{
 
 use super::dict_from_object;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SessionConfig {
     pub store_history: bool,
 }
@@ -19,7 +19,7 @@ impl Default for SessionConfig {
 }
 
 /// Partial session configuration where each field is optional
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SessionConfigPartial {
     pub store_history: Option<bool>,
 }

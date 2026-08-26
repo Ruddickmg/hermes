@@ -4,14 +4,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nvim_oxi::api;
+use nvim_oxi::{Array, Object};
 
 use crate::acp::{Result, error::Error};
 use crate::utilities::buf_options::{buf_get_name, get_buf_option, set_buf_option};
 
+use super::api::{NvimApi, api};
+
 pub fn detect_project_storage_path() -> Result<String> {
-    let state_dir = api::call_function::<(String,), String>("stdpath", ("state".to_string(),))
+    let args = Array::from((Object::from("state".to_string()),));
+    let obj = api()
+        .call_function("stdpath", args)
         .map_err(|e| Error::Internal(format!("Error intiializing plugin state: {:?}", e)))?;
+    let state_dir: String = nvim_oxi::conversion::FromObject::from_object(obj)
+        .map_err(|e| Error::Internal(e.to_string()))?;
     let path = format!("{}/hermes", state_dir);
     Ok(path)
 }
@@ -33,7 +39,7 @@ fn escape_for_ex(filename: &str) -> String {
 /// Find an existing buffer that is listed (visible to user)
 pub fn find_existing_buffer(path: &Path) -> Option<nvim_oxi::api::Buffer> {
     let path_str = path.to_string_lossy();
-    nvim_oxi::api::list_bufs().into_iter().find(|b| {
+    api().list_bufs().unwrap_or_default().into_iter().find(|b| {
         buf_get_name(b)
             .map(|name| name == path_str.as_ref())
             .unwrap_or(false)
@@ -48,11 +54,14 @@ pub fn acquire_or_create_buffer(path: &Path) -> Result<(nvim_oxi::api::Buffer, b
     }
 
     let escaped_path = escape_for_ex(&path.to_string_lossy());
-    nvim_oxi::api::command(&format!("badd {}", escaped_path))
+    api()
+        .command(&format!("badd {}", escaped_path))
         .map_err(|e| Error::Internal(e.to_string()))?;
 
     let path_str = path.to_string_lossy();
-    let buf = nvim_oxi::api::list_bufs()
+    let buf = api()
+        .list_bufs()
+        .unwrap_or_default()
         .into_iter()
         .find(|b| {
             buf_get_name(b)
@@ -71,12 +80,15 @@ pub fn acquire_or_create_buffer(path: &Path) -> Result<(nvim_oxi::api::Buffer, b
 
 /// Update buffer content from text
 pub fn update_buffer_content(buf: &mut nvim_oxi::api::Buffer, content: &str) -> Result<()> {
-    buf.set_lines(
-        0..,
-        false,
-        content.lines().map(String::from).collect::<Vec<String>>(),
-    )
-    .map_err(|e| Error::Internal(e.to_string()))
+    api()
+        .buf_set_lines(
+            buf,
+            0,
+            usize::MAX,
+            false,
+            content.lines().map(String::from).collect(),
+        )
+        .map_err(|e| Error::Internal(e.to_string()))
 }
 
 /// Mark buffer as having unsaved changes
@@ -92,26 +104,28 @@ pub fn save_buffer_to_disk(buf: &nvim_oxi::api::Buffer) -> Result<()> {
     let result = std::rc::Rc::new(std::cell::Cell::new(None));
     let result_inside = result.clone();
 
-    buf.call(move |_| {
-        let write_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            nvim_oxi::api::command("write")
-        }));
-        result_inside.set(Some(match write_result {
-            Ok(Ok(())) => Ok(()),
-            Ok(Err(e)) => {
-                tracing::error!(
-                    "An error occurred while triggering write in Neovim: {:?}",
-                    e
-                );
-                Err(nvim_oxi::Error::Api(e))
-            }
-            Err(e) => Err(nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
-                "write command panicked: {:?}",
-                e.downcast_ref::<&str>().unwrap_or(&"unknown panic")
-            )))),
-        }));
-    })
-    .map_err(|e| Error::Internal(e.to_string()))?;
+    api()
+        .buf_exec(buf, move |_| {
+            let write_result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| api().command("write")));
+            result_inside.set(Some(match write_result {
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(e)) => {
+                    tracing::error!(
+                        "An error occurred while triggering write in Neovim: {:?}",
+                        e
+                    );
+                    Err(nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(
+                        e.to_string(),
+                    )))
+                }
+                Err(e) => Err(nvim_oxi::Error::Api(nvim_oxi::api::Error::Other(format!(
+                    "write command panicked: {:?}",
+                    e.downcast_ref::<&str>().unwrap_or(&"unknown panic")
+                )))),
+            }));
+        })
+        .map_err(|e| Error::Internal(e.to_string()))?;
 
     result
         .take()
@@ -121,7 +135,9 @@ pub fn save_buffer_to_disk(buf: &nvim_oxi::api::Buffer) -> Result<()> {
 
 /// Refresh the display to show updated buffer content
 pub fn refresh_view() -> Result<()> {
-    nvim_oxi::api::command("redraw").map_err(|e| Error::Internal(e.to_string()))
+    api()
+        .command("redraw")
+        .map_err(|e| Error::Internal(e.to_string()))
 }
 
 pub fn read_file_content(path: &PathBuf, start: Option<u32>, end: Option<u32>) -> Result<String> {

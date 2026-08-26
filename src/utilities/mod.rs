@@ -1,3 +1,4 @@
+pub mod api;
 pub mod autocmd;
 pub mod buf_options;
 pub mod buffer;
@@ -14,6 +15,7 @@ pub mod prompt;
 pub mod runtime;
 pub mod ui;
 
+pub use api::*;
 pub use autocmd::*;
 pub use buf_options::*;
 pub use buffer::*;
