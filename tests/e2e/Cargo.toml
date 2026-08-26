@@ -19,7 +19,7 @@ async-channel = "2"
 async-io = "2"
 async-net = "2"
 async-trait = "0.1"
-async-tungstenite = { version = "0.34", default-features = false }
+async-tungstenite = { version = "0.34", default-features = false, features = ["handshake"] }
 futures = "0.3"
 futures-lite = "2"
 hermes = { path = "../.." }
