@@ -68,7 +68,7 @@ fn test_handle_response_outcome_contains_option_id() -> nvim_oxi::Result<()> {
         )?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let (sender, receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
     let responder = Responder::PermissionResponse(sender);
 
     let request_id = block_on(requests.add_request(session_id, responder));
@@ -143,7 +143,7 @@ fn test_cancel_session_requests_only_affects_target_session() -> nvim_oxi::Resul
     );
     let session_id = String::from("target-session");
     let other_session_id = String::from("other-session");
-    let (target_sender, mut target_receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let (target_sender, target_receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
     let (other_sender, other_receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
 
     block_on(requests.add_request(
@@ -180,7 +180,7 @@ fn test_other_session_not_cancelled() -> nvim_oxi::Result<()> {
     let session_id = String::from("target-session");
     let other_session_id = String::from("other-session");
     let (target_sender, _target_receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
-    let (other_sender, mut other_receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let (other_sender, other_receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
 
     block_on(requests.add_request(
         session_id.clone(),
@@ -569,7 +569,7 @@ fn test_request_respond_with_permission_response_sends_outcome() -> nvim_oxi::Re
         )?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let (sender, receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
     let responder = Responder::PermissionResponse(sender);
 
     let request_id = block_on(requests.add_request(session_id, responder));
@@ -599,7 +599,7 @@ fn test_request_respond_with_permission_empty_string_sends_cancelled() -> nvim_o
         )?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let (sender, receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
     let responder = Responder::PermissionResponse(sender);
 
     let request_id = block_on(requests.add_request(session_id, responder));
@@ -628,7 +628,7 @@ fn test_request_cancel_sends_cancelled_outcome() -> nvim_oxi::Result<()> {
         )?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
+    let (sender, receiver) = oneshot_channel::<RequestPermissionOutcome>(1);
     let responder = Responder::PermissionResponse(sender);
 
     let request_id = block_on(requests.add_request(session_id, responder));
@@ -825,7 +825,7 @@ fn test_terminal_output_respond_sends_response() -> nvim_oxi::Result<()> {
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<Result<TerminalOutputResponse>>(1);
+    let (sender, receiver) = oneshot_channel::<Result<TerminalOutputResponse>>(1);
     let output_request = agent_client_protocol::schema::v1::TerminalOutputRequest::new(
         SessionId::from("test-session"),
         TerminalId::from("test-terminal"),
@@ -855,7 +855,7 @@ fn test_terminal_exit_respond_sends_response() -> nvim_oxi::Result<()> {
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<Result<(Option<u32>, Option<String>)>>(1);
+    let (sender, receiver) = oneshot_channel::<Result<(Option<u32>, Option<String>)>>(1);
     let exit_request = agent_client_protocol::schema::v1::WaitForTerminalExitRequest::new(
         SessionId::from("test-session"),
         TerminalId::from("test-terminal"),
@@ -884,7 +884,7 @@ fn test_terminal_release_respond_sends_response() -> nvim_oxi::Result<()> {
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<Result<ReleaseTerminalResponse>>(1);
+    let (sender, receiver) = oneshot_channel::<Result<ReleaseTerminalResponse>>(1);
     let release_request = agent_client_protocol::schema::v1::ReleaseTerminalRequest::new(
         SessionId::from("test-session"),
         TerminalId::from("test-terminal"),
@@ -915,7 +915,7 @@ fn test_terminal_kill_respond_sends_response() -> nvim_oxi::Result<()> {
         .map_err(|e| nvim_oxi::api::Error::Other(format!("Failed to create Requests: {}", e)))?,
     );
     let session_id = String::from("test-session");
-    let (sender, mut receiver) = oneshot_channel::<Result<KillTerminalResponse>>(1);
+    let (sender, receiver) = oneshot_channel::<Result<KillTerminalResponse>>(1);
     let kill_request = agent_client_protocol::schema::v1::KillTerminalRequest::new(
         SessionId::from("test-session"),
         TerminalId::from("test-terminal"),
