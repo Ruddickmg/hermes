@@ -2,7 +2,7 @@
 pub mod binary;
 pub mod resolution;
 
-use hermes::acp::registry::{Registry, RegistryData, entry::AgentEntry};
+use hermes::acp::registry::{Registry, entry::AgentEntry};
 use hermes::nvim::configuration::ProgressConfig;
 use hermes::utilities::{Downloader, NotificationMessenger};
 use std::collections::HashMap;

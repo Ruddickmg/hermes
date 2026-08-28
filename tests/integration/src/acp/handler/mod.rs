@@ -1314,7 +1314,7 @@ fn session_notification_does_not_write_history_when_permissions_denied() -> nvim
 // === Handler callback branch tests ===
 
 use hermes::nvim::autocommands::Commands;
-use hermes::nvim::requests::{RequestHandler, Responder};
+use hermes::nvim::requests::Responder;
 use hermes::utilities::TransmitToNvim;
 use hermes::utilities::autocmd::create_augroup;
 use nvim_oxi::api::opts::CreateAutocmdOpts;
