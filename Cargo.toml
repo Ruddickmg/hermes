@@ -22,7 +22,7 @@ fmt = "cargo fmt && { git diff --cached --name-only --diff-filter=ACM | while IF
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-agent-client-protocol = { version = "1.0.0", features = [
+agent-client-protocol = { version = "2.0.0", features = [
     "unstable_session_fork",
     "unstable_mcp_over_acp",
     "unstable_auth_methods",
@@ -35,7 +35,7 @@ async-io = "2"
 async-lock = "3"
 async-net = "2"
 async-process = "2"
-async-tungstenite = { version = "0.34", default-features = false, features = ["smol-runtime", "futures-rustls-webpki-roots"] }
+async-tungstenite = { version = "0.35", default-features = false, features = ["smol-runtime", "futures-rustls-webpki-roots"] }
 async-trait = "0.1"
 blocking = "1"
 crossbeam-channel = "0.5.15"
@@ -55,9 +55,9 @@ flate2 = "1"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 tracing-subscriber = { version = "0.3.0", features = ["json", "env-filter"] }
 uuid = { version = "1.22.0", features = ["v4"] }
-resvg = "0.44"
-tiny-skia = "0.11"
-usvg = "0.44"
+resvg = "0.48"
+tiny-skia = "0.12"
+usvg = "0.48"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -66,9 +66,10 @@ libc = "0.2"
 nvim-oxi = { version = "0.6.0", features = ["test", "neovim-0-11"] }
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 serde_json = "1.0"
-resvg = "0.44"
-usvg = "0.44"
-tiny-skia = "0.11"
+resvg = "0.48"
+tiny-skia = "0.12"
+usvg = "0.48"
+
 
 zip = { version = "8", default-features = false, features = ["deflate"] }
 # panic = "abort" removed - errors are logged and Ok returned instead

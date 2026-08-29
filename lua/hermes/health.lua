@@ -247,6 +247,17 @@ M.check = function()
 		else
 			vim.health.error("Binary not found — will download on first use")
 		end
+		if binary.is_nix_install() then
+			local rock_root = binary._get_rock_root()
+			if rock_root then
+				vim.health.info("Plugin root searched: " .. rock_root)
+				for _, candidate in ipairs(binary.get_lib_candidates(rock_root)) do
+					vim.health.info("Checked: " .. candidate)
+				end
+			else
+				vim.health.info("Could not determine plugin root for library lookup")
+			end
+		end
 	end
 
 	-- =========================================================================

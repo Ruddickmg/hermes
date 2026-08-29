@@ -123,6 +123,43 @@ describe("hermes.binary", function()
 			assert.equals(expected_path, result)
 		end)
 
+		it("finds plain cargo-named library when platform-named file absent", function()
+			rock_binary_stub:revert()
+			local ext = require("hermes.platform").get_ext()
+			local func_source = debug.getinfo(binary.get_rock_binary_path, "S").source:sub(2)
+			local rock_root = vim.fn.fnamemodify(func_source, ":h:h:h")
+			local lib_dir = rock_root .. "/lib"
+			local expected_path = lib_dir .. "/libhermes." .. ext
+			vim.fn.mkdir(lib_dir, "p")
+			io.open(expected_path, "w"):close()
+
+			local result = binary.get_rock_binary_path()
+
+			vim.fn.delete(lib_dir, "rf")
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+			assert.equals(expected_path, result)
+		end)
+
+		it("prefers platform-named library over plain cargo-named one", function()
+			rock_binary_stub:revert()
+			local bin_name = binary.get_binary_name()
+			local ext = require("hermes.platform").get_ext()
+			local func_source = debug.getinfo(binary.get_rock_binary_path, "S").source:sub(2)
+			local rock_root = vim.fn.fnamemodify(func_source, ":h:h:h")
+			local lib_dir = rock_root .. "/lib"
+			local expected_path = lib_dir .. "/" .. bin_name
+			local fallback_path = lib_dir .. "/libhermes." .. ext
+			vim.fn.mkdir(lib_dir, "p")
+			io.open(expected_path, "w"):close()
+			io.open(fallback_path, "w"):close()
+
+			local result = binary.get_rock_binary_path()
+
+			vim.fn.delete(lib_dir, "rf")
+			rock_binary_stub = stub(binary, "get_rock_binary_path").returns(nil)
+			assert.equals(expected_path, result)
+		end)
+
 		it("returns nil when binary not found in rock tree", function()
 			rock_binary_stub:revert()
 			assert.is_nil(binary.get_rock_binary_path())

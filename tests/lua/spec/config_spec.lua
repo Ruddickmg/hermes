@@ -25,8 +25,42 @@ describe("hermes.config", function()
 
     it("stores download.timeout setting", function()
       config.setup({ download = { timeout = 120 } })
-      
+
       assert.equals(120, config.get_download_timeout())
+    end)
+  end)
+
+  describe("setup() with nix install detected", function()
+    local stub = require("luassert.stub")
+
+    it("defaults download.auto to false when installed via nix", function()
+      local binary = require("hermes.binary")
+      local nix_stub = stub(binary, "is_nix_install").returns(true)
+
+      config.setup({})
+
+      nix_stub:revert()
+      assert.is_false(config.get_auto_download())
+    end)
+
+    it("keeps explicit auto=true override on nix installs", function()
+      local binary = require("hermes.binary")
+      local nix_stub = stub(binary, "is_nix_install").returns(true)
+
+      config.setup({ download = { auto = true } })
+
+      nix_stub:revert()
+      assert.is_true(config.get_auto_download())
+    end)
+
+    it("keeps download.auto true when not installed via nix", function()
+      local binary = require("hermes.binary")
+      local nix_stub = stub(binary, "is_nix_install").returns(false)
+
+      config.setup({})
+
+      nix_stub:revert()
+      assert.is_true(config.get_auto_download())
     end)
   end)
 

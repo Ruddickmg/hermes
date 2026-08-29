@@ -88,7 +88,7 @@ fn read_file_default_response_succeeds() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn read_file_returns_all_content() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(5);
-    let (requests, request_id, mut receiver) = setup_read_request(&path, None, None);
+    let (requests, request_id, receiver) = setup_read_request(&path, None, None);
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null))
         .expect("default_response should succeed");
@@ -140,7 +140,7 @@ fn read_file_prefers_buffer_over_disk() -> nvim_oxi::Result<()> {
     nvim_oxi::api::command(&format!("edit {}", temp_file.path().display()))?;
     nvim_oxi::api::command("normal! gg0cwMODIFIED LINE")?;
 
-    let (requests, request_id, mut receiver) = setup_read_request(temp_file.path(), None, None);
+    let (requests, request_id, receiver) = setup_read_request(temp_file.path(), None, None);
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -180,7 +180,7 @@ fn read_file_line_range_returns_correct_lines() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(5);
     // ACP uses 1-based indexing, so line=2, limit=4 means lines 2-4 (1-based)
     // After conversion to 0-based: start=1, end=3, so we get lines 1, 2 (indices 1..3)
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(2), Some(4));
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(2), Some(4));
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -221,8 +221,7 @@ fn read_file_range_with_buffer_modifications() -> nvim_oxi::Result<()> {
     nvim_oxi::api::command("normal! ggj0cwMODIFIED1")?;
     nvim_oxi::api::command("normal! j0cwMODIFIED2")?;
 
-    let (requests, request_id, mut receiver) =
-        setup_read_request(temp_file.path(), Some(1), Some(4));
+    let (requests, request_id, receiver) = setup_read_request(temp_file.path(), Some(1), Some(4));
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -246,7 +245,7 @@ fn read_file_buffer_and_file_return_same_content() -> nvim_oxi::Result<()> {
     let path = temp_file.path().to_path_buf();
 
     // Read from disk (file not open in buffer)
-    let (requests1, request_id1, mut receiver1) = setup_read_request(&path, Some(3), Some(7));
+    let (requests1, request_id1, receiver1) = setup_read_request(&path, Some(3), Some(7));
     block_on(requests1.default_response(&request_id1, serde_json::Value::Null)).ok();
     let file_response = receiver1
         .try_recv()
@@ -255,7 +254,7 @@ fn read_file_buffer_and_file_return_same_content() -> nvim_oxi::Result<()> {
 
     // Read from buffer (file open in buffer)
     nvim_oxi::api::command(&format!("edit {}", path.display()))?;
-    let (requests2, request_id2, mut receiver2) = setup_read_request(&path, Some(3), Some(7));
+    let (requests2, request_id2, receiver2) = setup_read_request(&path, Some(3), Some(7));
     block_on(requests2.default_response(&request_id2, serde_json::Value::Null)).ok();
     let buffer_response = receiver2
         .try_recv()
@@ -277,7 +276,7 @@ fn read_file_buffer_and_file_edge_case_line_one() -> nvim_oxi::Result<()> {
     let path = temp_file.path().to_path_buf();
 
     // Read from disk with line=1 (should read from beginning)
-    let (requests1, request_id1, mut receiver1) = setup_read_request(&path, Some(1), None);
+    let (requests1, request_id1, receiver1) = setup_read_request(&path, Some(1), None);
     block_on(requests1.default_response(&request_id1, serde_json::Value::Null)).ok();
     let file_response = receiver1
         .try_recv()
@@ -286,7 +285,7 @@ fn read_file_buffer_and_file_edge_case_line_one() -> nvim_oxi::Result<()> {
 
     // Read from buffer with line=1
     nvim_oxi::api::command(&format!("edit {}", path.display()))?;
-    let (requests2, request_id2, mut receiver2) = setup_read_request(&path, Some(1), None);
+    let (requests2, request_id2, receiver2) = setup_read_request(&path, Some(1), None);
     block_on(requests2.default_response(&request_id2, serde_json::Value::Null)).ok();
     let buffer_response = receiver2
         .try_recv()
@@ -313,7 +312,7 @@ fn read_file_buffer_shows_modifications() -> nvim_oxi::Result<()> {
     nvim_oxi::api::command("normal! gg0cwMODIFIED")?;
 
     // Read from buffer (should see modifications)
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(1), Some(2));
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(1), Some(2));
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
     let buffer_response = receiver
         .try_recv()
@@ -343,7 +342,7 @@ fn read_file_file_ignores_modifications() -> nvim_oxi::Result<()> {
     nvim_oxi::api::command("bd!")?;
 
     // Read from disk (should see original content)
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(1), Some(2));
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(1), Some(2));
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
     let file_response = receiver
         .try_recv()
@@ -369,7 +368,7 @@ fn read_file_buffer_and_file_apply_same_conversion() -> nvim_oxi::Result<()> {
     nvim_oxi::api::command(&format!("edit {}", path.display()))?;
 
     // Read from buffer with 1-based indexing
-    let (requests1, request_id1, mut receiver1) = setup_read_request(&path, Some(2), Some(3));
+    let (requests1, request_id1, receiver1) = setup_read_request(&path, Some(2), Some(3));
     block_on(requests1.default_response(&request_id1, serde_json::Value::Null)).ok();
     let buffer_response = receiver1
         .try_recv()
@@ -380,7 +379,7 @@ fn read_file_buffer_and_file_apply_same_conversion() -> nvim_oxi::Result<()> {
     nvim_oxi::api::command("bd!")?;
 
     // Read from disk with same 1-based parameters
-    let (requests2, request_id2, mut receiver2) = setup_read_request(&path, Some(2), Some(3));
+    let (requests2, request_id2, receiver2) = setup_read_request(&path, Some(2), Some(3));
     block_on(requests2.default_response(&request_id2, serde_json::Value::Null)).ok();
     let file_response = receiver2
         .try_recv()
@@ -402,7 +401,7 @@ fn read_file_buffer_and_file_apply_same_conversion() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn read_file_line_zero_returns_invalid_params_error() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(5);
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(0), None);
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(0), None);
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -418,7 +417,7 @@ fn read_file_line_zero_returns_invalid_params_error() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn read_file_limit_zero_returns_invalid_params_error() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(5);
-    let (requests, request_id, mut receiver) = setup_read_request(&path, None, Some(0));
+    let (requests, request_id, receiver) = setup_read_request(&path, None, Some(0));
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -453,7 +452,7 @@ fn read_file_line_zero_cleanup_works() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn read_file_invalid_line_error_sent_to_agent() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(5);
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(0), Some(3));
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(0), Some(3));
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -472,7 +471,7 @@ fn read_file_missing_file_returns_error() -> nvim_oxi::Result<()> {
     let requests = Arc::new(
         Requests::new(mock_runtime(), Arc::new(Mutex::new(PluginState::default()))).unwrap(),
     );
-    let (sender, mut receiver) = oneshot_channel::<Result<ReadTextFileResponse, _>>(1);
+    let (sender, receiver) = oneshot_channel::<Result<ReadTextFileResponse, _>>(1);
     let responder = Responder::ReadFileResponse(
         sender,
         create_read_request(PathBuf::from("/nonexistent/file.txt").as_path(), None, None),
@@ -515,7 +514,7 @@ fn read_file_empty_file_returns_empty_content() -> nvim_oxi::Result<()> {
     let temp_file = NamedTempFile::new("empty_test.txt").unwrap();
     temp_file.write_str("").unwrap();
 
-    let (requests, request_id, mut receiver) = setup_read_request(temp_file.path(), None, None);
+    let (requests, request_id, receiver) = setup_read_request(temp_file.path(), None, None);
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -549,7 +548,7 @@ fn read_file_empty_file_cleanup_works() -> nvim_oxi::Result<()> {
 #[nvim_oxi::test]
 fn read_file_start_beyond_length_returns_empty() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(3);
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(10), None);
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(10), None);
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
@@ -587,7 +586,7 @@ fn read_file_respond_path_sends_custom_content() -> nvim_oxi::Result<()> {
     let requests = Arc::new(
         Requests::new(mock_runtime(), Arc::new(Mutex::new(PluginState::default()))).unwrap(),
     );
-    let (sender, mut receiver) = oneshot_channel::<Result<ReadTextFileResponse, _>>(1);
+    let (sender, receiver) = oneshot_channel::<Result<ReadTextFileResponse, _>>(1);
     let responder = Responder::ReadFileResponse(sender, create_read_request(&path, None, None));
     let request_id = block_on(requests.add_request("test-session".to_string(), responder));
 
@@ -635,7 +634,7 @@ fn read_file_large_returns_correct_range() -> nvim_oxi::Result<()> {
     let (_temp_file, path) = create_file_with_lines(300);
     // ACP uses 1-based indexing: line=101, limit=201 means lines 101-201 (1-based)
     // After conversion to 0-based: start=100, end=200, so we get lines 100-199
-    let (requests, request_id, mut receiver) = setup_read_request(&path, Some(101), Some(201));
+    let (requests, request_id, receiver) = setup_read_request(&path, Some(101), Some(201));
 
     block_on(requests.default_response(&request_id, serde_json::Value::Null)).ok();
 
